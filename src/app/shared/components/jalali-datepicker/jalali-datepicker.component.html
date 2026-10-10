@@ -1,0 +1,9 @@
+<ng-persian-datepicker [dateFormat]="'YYYY/MM/DD'" (dateOnSelect)="onSelect($event)">
+  <input
+    [id]="inputId"
+    type="text"
+    autocomplete="off"
+    [placeholder]="placeholder"
+    [formControl]="inner"
+  />
+</ng-persian-datepicker>

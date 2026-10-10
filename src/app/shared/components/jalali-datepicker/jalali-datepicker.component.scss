@@ -1,0 +1,20 @@
+:host {
+  display: block;
+}
+
+input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--p-inputtext-border-color, #d1d5db);
+  border-radius: var(--p-inputtext-border-radius, 6px);
+  background: var(--p-inputtext-background, #ffffff);
+  color: var(--p-inputtext-color, #1e293b);
+  font: inherit;
+  direction: rtl;
+  text-align: right;
+}
+
+input:focus-visible {
+  outline: 2px solid var(--p-primary-color, #ff8229);
+  outline-offset: 1px;
+}
