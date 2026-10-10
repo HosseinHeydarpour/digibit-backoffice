@@ -47,6 +47,8 @@ export default {
         'ci',
         'deps',
         'docs',
+        'agents',
+        'tooling',
       ],
     ],
     'subject-empty': [2, 'never'],

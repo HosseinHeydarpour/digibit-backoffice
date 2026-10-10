@@ -7,7 +7,7 @@ Read this before making changes — the commit rules are **enforced by git hooks
 
 |                    |                                                                            |
 | ------------------ | -------------------------------------------------------------------------- |
-| Framework          | Angular 22 — standalone components, signals, no NgModules                  |
+| Framework          | Angular 21 — standalone components, signals, no NgModules                  |
 | Language           | TypeScript (strict), no `any`                                              |
 | Styling            | SCSS + PrimeNG tokens. Tailwind is **not** used                            |
 | Tests              | Vitest via `@angular/build:unit-test` (`npm test`)                         |
@@ -15,6 +15,14 @@ Read this before making changes — the commit rules are **enforced by git hooks
 | Language of the UI | Persian (Farsi), full RTL (`dir="rtl"`)                                    |
 | Architecture       | `ARCHITECTURE.md` (kept in `tasks and arc/backoffice/`, outside this repo) |
 | Task list          | `TASKS-PHASE-1.md` (same folder)                                           |
+
+> **Do not upgrade PrimeNG to 22 or later.** PrimeNG 22 added the PrimeUI license
+> manager and renders an "Invalid PrimeUI License" banner in the corner of every page
+> without a licensed key. PrimeNG 21 is the newest license-free release, and it is the
+> one that pairs with Angular 21 (`primeng@21` requires `@angular/core ^21`, while
+> `primeng@22` requires `^22`). Moving the framework therefore means moving PrimeNG with
+> it. Theming also changed between the two: v21 uses `@primeng/themes/<preset>`, v22 uses
+> `@primeuix/themes/<preset>`.
 
 Feature code lives in `src/app/features/<module>/`. The modules are:
 `auth`, `dashboard`, `products`, `categories`, `brands`, `orders`, `customers`,
@@ -56,6 +64,9 @@ derived from Google's commit message guidelines. A `commit-msg` git hook
 10. **Blank line** before the footer. Wrap footers at 100 characters too.
 11. **Breaking changes**: add a `BREAKING CHANGE: <description>` footer.
 12. Never bypass the hooks with `--no-verify` or `-n`.
+13. **Never start a body or footer line with `something:`** unless it really is a footer
+    token (`Closes:`, `BREAKING CHANGE:`). A body line beginning with `word:` is parsed as
+    a footer and fails `footer-leading-blank`.
 
 ### Allowed types
 
@@ -70,14 +81,14 @@ derived from Google's commit message guidelines. A `commit-msg` git hook
 | `docs`     | documentation only                                               |
 | `build`    | build system or dependencies (npm, angular.json, tsconfig)       |
 | `ci`       | CI configuration and scripts                                     |
-| `chore`    | anything else that does not touch src (e.g. tooling)             |
+| `chore`    | anything else: tooling, configuration, scaffolding               |
 | `revert`   | reverting a previous commit                                      |
 
 ### Allowed scopes
 
 `auth`, `dashboard`, `products`, `categories`, `brands`, `orders`, `customers`,
 `coupons`, `shipping`, `banners`, `settings`, `comments`, `tickets`,
-`core`, `shared`, `layout`, `build`, `ci`, `deps`, `docs`
+`core`, `shared`, `layout`, `build`, `ci`, `deps`, `docs`, `agents`, `tooling`
 
 ### What "Google standard" means here, precisely
 
@@ -98,7 +109,7 @@ fix(orders): keep status history when order is cancelled
 refactor(core): extract token storage from auth service
 docs(agents): document the commit convention
 build(deps): add husky and commitlint
-chore(deps): bump primeng to 22.1.2
+chore(deps): bump prettier to 3.9.0
 ```
 
 Good, with body and footer:
@@ -132,6 +143,28 @@ Rejected:
 - Run `npm run build` (and `npm test` once tests exist) before finishing a task.
 - Keep the definition of done from `TASKS-PHASE-1.md` in mind; every task lists
   its acceptance criteria and test cases.
+
+### Finishing a task
+
+A task is finished when its acceptance criteria are met and `npm run build` is green.
+Then **merge it into `main` and delete the feature branch** — a finished task must not
+leave its branch behind, locally or on the origin:
+
+```powershell
+git checkout main
+git merge --ff-only feat/BO-<id>-<slug>
+git push origin main
+git branch -d feat/BO-<id>-<slug>
+git push origin --delete feat/BO-<id>-<slug>
+```
+
+- Use `--ff-only` so history stays linear. If it refuses, the branch needs a rebase, not
+  a merge commit.
+- Use `git branch -d`, never `-D`, as the default. It refuses to delete unmerged work,
+  which is exactly the check that the task really landed on `main`.
+- Only if a branch's commits are deliberately superseded (wrong approach, abandoned
+  spike) may you force it with `-D` — and then record the dropped SHAs in the commit or
+  the task log first.
 
 ## Local tooling
 
