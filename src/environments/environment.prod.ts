@@ -13,4 +13,6 @@ export const environment = {
   APP_NAME: 'دیجی‌بیت مارکت — پنل مدیریت',
   TOKEN_STORAGE_KEY: 'digibit.office.token',
   DEFAULT_PAGE_SIZE: 20,
+  useMockApi: false,
+  mockDelayMs: 0,
 } satisfies Environment;

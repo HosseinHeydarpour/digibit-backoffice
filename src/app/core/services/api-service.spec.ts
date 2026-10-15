@@ -1,6 +1,8 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpHeaders, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { mockHeaders } from '@core/mock/mock-headers';
+import { mockInterceptor } from '@core/mock/mock.interceptor';
 import { environment } from '@env/environment';
 import { ApiError } from '@shared/models';
 
@@ -147,6 +149,62 @@ describe('ApiService', () => {
     httpMock
       .expectOne(`${environment.API_BASE_URL}/products/1`)
       .flush({ data: { id: '1', name: 'x' } });
+  });
+});
+
+describe('ApiService ↔ mock backend contract', () => {
+  /**
+   * The mock interceptor only answers requests that carry `X-Mock: 1`, and
+   * `ApiService` is the single place every feature service builds a request.
+   * If these two ever drift apart, mock mode fails silently: requests quietly
+   * go to a backend that does not exist yet and the UI looks broken for reasons
+   * that have nothing to do with the UI. These tests pin that contract down.
+   */
+  let api: ApiService;
+  let httpMock: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([mockInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+    api = TestBed.inject(ApiService);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => httpMock.verify());
+
+  it('attaches the mock header while useMockApi is on', () => {
+    // Asserted on the builder rather than on a flushed request, because by the
+    // time a request is observable the interceptor has already consumed the
+    // header. This is the boundary ApiService relies on.
+    expect(environment.useMockApi).toBe(true);
+    expect(mockHeaders().get('X-Mock')).toBe('1');
+  });
+
+  it('sends no header once useMockApi is off', () => {
+    const original = environment.useMockApi;
+    Object.defineProperty(environment, 'useMockApi', { value: false, configurable: true });
+    try {
+      expect(mockHeaders().has('X-Mock')).toBe(false);
+    } finally {
+      Object.defineProperty(environment, 'useMockApi', { value: original, configurable: true });
+    }
+  });
+
+  it('still carries Accept: application/json alongside the mock header', () => {
+    // Adding X-Mock must not clobber the Accept header the real API needs.
+    const headers = mockHeaders(new HttpHeaders({ Accept: 'application/json' }));
+    expect(headers.get('Accept')).toBe('application/json');
+    expect(headers.get('X-Mock')).toBe('1');
+  });
+
+  it('never reaches the network in mock mode', () => {
+    // The whole point of C07: no request should be pending for the test to flush.
+    api.getPage<Product>('/products').subscribe();
+    expect(httpMock.match(() => true).length).toBe(0);
   });
 });
 

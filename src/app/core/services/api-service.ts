@@ -1,5 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { mockHeaders } from '@core/mock/mock-headers';
 import { environment } from '@env/environment';
 import { ApiError } from '@shared/models';
 import type { ApiResponse, Page } from '@shared/models';
@@ -11,8 +12,13 @@ export type QueryValue = string | number | boolean | null | undefined;
 /**
  * Sent on every request. Angular does not set `Accept` itself, so without this
  * a server doing content negotiation could answer with HTML instead of JSON.
+ *
+ * `mockHeaders()` layers `X-Mock: 1` on top while `environment.useMockApi` is
+ * true, which is what makes the mock interceptor answer instead of the network.
+ * Doing it here — at the single place every request is built — means no feature
+ * service has to know whether a backend exists yet.
  */
-const JSON_HEADERS = new HttpHeaders({ Accept: 'application/json' });
+const JSON_HEADERS = mockHeaders(new HttpHeaders({ Accept: 'application/json' }));
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
