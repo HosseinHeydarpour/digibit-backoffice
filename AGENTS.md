@@ -196,6 +196,28 @@ Menu routes are real children of `MainLayout` in `app.routes.ts`. `routerLinkAct
 highlights a **matched** route, so a new menu item needs a corresponding route entry or it
 will never highlight. Unmatched navigations throw `NG04002` unless a wildcard exists.
 
+### Permission filtering (BO-B03)
+
+Visibility is decided by `filterMenu(groups, permissions)` in `menu-filter.ts` — a pure
+function, so the access rules are testable without a component. It drops unauthorised items
+_and_ any group left empty, and never mutates `MENU` (which is module-level and shared; an
+in-place filter would leak one user's access into the next render).
+
+- Permissions come from the `PERMISSIONS` injection token (`core/auth/permissions.token.ts`),
+  a `Signal<readonly string[]>`. BO-D08 replaces the provider with the real `/auth/me` list.
+- The token's default is an **empty** set — a missing provider must fail closed, never widen
+  access. `app.config.ts` grants everything only while `useMockApi` is true, so production
+  degrades to a dashboard-only menu rather than a full one.
+- An item with no `permission` is public to any signed-in user. That is how «پیشخوان» stays
+  reachable for a zero-grant role. Do not "fix" it by adding a dashboard permission.
+- `Permission` is a union in `menu.model.ts`. Keep it that way: a typo in a permission string
+  would never match a grant, and because a missing permission means _public_, the item would
+  silently render for everyone. A test pins the public list to just «پیشخوان».
+
+**This hides navigation; it is not access control.** Until BO-D07 (route guard) lands, a
+hidden route is still reachable by typing its URL. The real boundary is server-side
+validation (`ARCHITECTURE.md §6`). Never treat a filtered menu as authorisation.
+
 ### RTL and logical properties
 
 Never use physical `left` / `right` / `margin-left` / `padding-right`. Use the logical
