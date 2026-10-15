@@ -106,4 +106,15 @@ describe('Sidebar', () => {
 
     expect(activeLinks(fixture).length).toBe(0);
   });
+
+  it('applies the active class to the link matching the current route', async () => {
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/products');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const active = fixture.nativeElement.querySelector('a.bg-primary\\/10');
+    expect(active?.textContent).toContain('محصولات');
+  });
 });
