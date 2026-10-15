@@ -23,4 +23,14 @@ export interface Environment {
 
   /** Default rows per page for every p-table in the app. */
   readonly DEFAULT_PAGE_SIZE: number;
+
+  /**
+   * When true the mock interceptor answers instead of the network.
+   * Dev only — must stay false in environment.prod.ts, which is what keeps the
+   * fixtures out of the production bundle.
+   */
+  readonly useMockApi: boolean;
+
+  /** Simulated response delay in ms, so loading and skeleton states are visible. */
+  readonly mockDelayMs: number;
 }

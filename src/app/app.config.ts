@@ -1,4 +1,4 @@
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { LOCALE_ID } from '@angular/core';
 import {
   ApplicationConfig,
@@ -6,6 +6,8 @@ import {
   provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
+import { mockInterceptor } from '@core/mock/mock.interceptor';
+import { environment } from '@env/environment';
 import { definePreset } from '@primeng/themes';
 import Aura from '@primeng/themes/aura';
 import { providePrimeNG } from 'primeng/config';
@@ -58,7 +60,10 @@ export const appConfig: ApplicationConfig = {
     // built-in Intl implementation, so no registerLocaleData call is needed.
     { provide: LOCALE_ID, useValue: 'fa-IR' },
 
-    provideHttpClient(withFetch()),
+    provideHttpClient(
+      withFetch(),
+      ...(environment.useMockApi ? [withInterceptors([mockInterceptor])] : []),
+    ),
 
     provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
 
