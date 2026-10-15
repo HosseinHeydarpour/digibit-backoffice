@@ -1,0 +1,31 @@
+<!-- src/app/layout/topbar/topbar.html -->
+<!--
+  Scenarios:
+  - Desktop (>=992px): the sidebar is permanently visible in the shell's
+    <aside>, so this hamburger is hidden and the topbar renders title only.
+  - Mobile (<992px): the sidebar is hidden and this is the sole way to open
+    navigation; tapping it emits `menuToggle` for the parent drawer to handle.
+  - Route change while the topbar is mounted: <h1> re-reads `title()`, which
+    is a signal, so the heading updates without re-creating the component.
+-->
+<header
+  class="flex h-20 shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-6 dark:border-gray-700 dark:bg-card-dark"
+>
+  <!--
+    Hamburger: mobile only. `lg:hidden` hides it at >=992px, matching the
+    `hidden lg:flex` gate on the sidebar's <aside> so exactly one of the two
+    affordances is available at any width (test case 3). The 992px value comes
+    from `--breakpoint-lg` in src/styles/tailwind.css, not Tailwind's default
+    1024px — using the default would leave 992-1023px with neither control.
+  -->
+  <button
+    type="button"
+    (click)="menuToggle.emit()"
+    aria-label="باز کردن منو"
+    class="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 lg:hidden dark:text-gray-300 dark:hover:bg-gray-700"
+  >
+    <i class="pi pi-bars text-lg" aria-hidden="true"></i>
+  </button>
+
+  <h1 class="text-lg font-semibold text-dark dark:text-light">{{ title() }}</h1>
+</header>

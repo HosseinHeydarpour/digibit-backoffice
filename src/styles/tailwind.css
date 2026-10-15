@@ -4,6 +4,12 @@
 @custom-variant dark (&:where(.app-dark, .app-dark *));
 
 @theme {
+  /* Sidebar/topbar swap overrides Tailwind's default lg=1024px. The BO-B05
+     spec pins the hamburger to <992px, and the two affordances must change
+     over at exactly the same width — otherwise a 992-1023px viewport would
+     have neither a sidebar nor a hamburger. */
+  --breakpoint-lg: 992px;
+
   --color-primary: #ff8229;
   --color-primary-dark: #b76122;
 

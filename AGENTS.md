@@ -218,6 +218,51 @@ in-place filter would leak one user's access into the next render).
 hidden route is still reachable by typing its URL. The real boundary is server-side
 validation (`ARCHITECTURE.md §6`). Never treat a filtered menu as authorisation.
 
+### Breakpoints — `lg` is 992px, not 1024px
+
+`src/styles/tailwind.css` pins `--breakpoint-lg: 992px` in its `@theme` block, because the
+task specs (e.g. BO-B05 tc 3) define the mobile/desktop split at **992px** while Tailwind
+defaults that name to 1024px. Do not remove it.
+
+The two layout affordances must change over at the _same_ width: the sidebar's `<aside>` is
+`hidden lg:flex` and the topbar hamburger is `lg:hidden`. If they disagree, the band between
+the two widths has **neither** — no sidebar and no way to open one. Verify breakpoint changes
+in the **built** CSS (`dist/backoffice/browser/styles-*.css`), not just in source; Tailwind
+emits a single `@media(width>=992px)` block and a stale 1024px query is easy to miss.
+
+### Page title (BO-B05)
+
+`PageTitleService` (`core/services/page-title.ts`) owns the topbar heading. It listens on
+`NavigationEnd` — not `NavigationStart`, where a lazy route's title is not resolvable yet —
+and `startWith(null)` so the first paint is already correct.
+
+- `readDeepestTitle()` walks `route.firstChild` because a feature route under `MainLayout`
+  nests its title one or more levels down. It returns **`null`**, never the default, so the
+  fallback `«پنل مدیریت»` is applied in exactly one place (`title`).
+- Routes declare both `data: { title }` (read by this service, untyped by Angular) and
+  `title:` (Angular's built-in `<title>` setter). Add both when creating a route.
+- `Topbar.menuToggle` is an `output<void>()`; BO-B04 listens to it to open the drawer. The
+  topbar must not own drawer state or import the sidebar.
+
+### Imports — let `lint:fix` decide
+
+`eslint.config.js` uses `import-x/order` with `newlines-between: 'always'`. The trap:
+path-aliased imports (`@core/*`, `@layout/*`, `@env/*`) are classified as **external**
+alongside `@angular/*` and `rxjs`, because the plugin matches on the `@` prefix before it
+consults tsconfig paths. So the correct shape is:
+
+```ts
+// one unbroken, alphabetised block — @angular, @core, @layout, rxjs together
+import { Component } from '@angular/core';
+import { PageTitleService } from '@core/services/page-title';
+
+// blank line, then relative imports
+import { Topbar } from './topbar';
+```
+
+That is the opposite of the usual "third-party / own code / relative" layout, and it is easy
+to get wrong by hand. **Run `npm run lint:fix` rather than sorting imports manually.**
+
 ### RTL and logical properties
 
 Never use physical `left` / `right` / `margin-left` / `padding-right`. Use the logical
