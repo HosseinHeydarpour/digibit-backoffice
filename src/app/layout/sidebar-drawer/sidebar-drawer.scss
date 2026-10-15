@@ -11,6 +11,23 @@
   display: contents;
 }
 
+// The sidebar is shared with the desktop <aside>, where `border-e` and
+// `shadow-sm` are the separators between it and the page content. Inside the
+// drawer they drew a stray seam down the panel's edge. The reference's offcanvas
+// uses a plain rounded card instead, so those desktop-only decorations are
+// neutralised here and the card is rounded.
+//
+// Component styles are *unlayered* CSS, and unlayered rules beat Tailwind's
+// `@layer utilities` regardless of specificity — so this overrides `border-e`
+// and `shadow-sm` without `::ng-deep` and without duplicating the component.
+// (Same cascade rule that made `.pi` override `.hidden`; here it is doing the
+// job we want.)
+:host app-sidebar {
+  border-inline-end-width: 0;
+  box-shadow: none;
+  border-radius: 0.25rem; // the reference's `rounded`
+}
+
 // Respect users who ask for reduced motion: the reference always animates, but
 // honouring the OS setting is the accessible default (BO-P10 will audit this).
 @media (prefers-reduced-motion: reduce) {

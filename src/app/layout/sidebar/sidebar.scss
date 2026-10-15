@@ -1,4 +1,13 @@
 :host {
   display: block;
   height: 100%;
+  // Width too, not just height. `w-full` on the root <div> is not enough on its
+  // own: wherever the sidebar is a *flex item* — the desktop <aside> is a flex
+  // row — the host element itself has `width: auto`, which for a flex item is
+  // content-width, so the div (and the visible white box) shrinks to the menu's
+  // content and leaves a gap of page background before the main panel. The
+  // container owns the width (`w-72` on the aside, the drawer panel on mobile);
+  // the host fills whatever it is given. In the block-layout drawer this was
+  // already true by accident; here it is true by rule.
+  width: 100%;
 }

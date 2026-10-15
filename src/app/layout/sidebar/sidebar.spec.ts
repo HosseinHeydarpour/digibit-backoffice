@@ -155,6 +155,20 @@ describe('Sidebar', () => {
     expect(renderedLabels(fixture)).toEqual(['پیشخوان']);
   });
 
+  it('fills the container width so a flex parent cannot shrink it (desktop gap regression)', () => {
+    const { fixture } = createSidebar();
+
+    // `w-full` on the root <div> is not enough by itself: in the desktop
+    // <aside> (a flex row) the host element is a flex item, and a flex item's
+    // `width: auto` is content-width — so the visible box shrank to the menu's
+    // content and left a gap of page background between the sidebar and the
+    // main panel. `height: 100%` already existed; the width rule is its mirror.
+    const host: HTMLElement = fixture.nativeElement;
+
+    expect(getComputedStyle(host).width).toBe('100%');
+    expect(getComputedStyle(host).height).toBe('100%');
+  });
+
   it('highlights the item matching the active route', async () => {
     const { fixture } = createSidebar();
     const router = TestBed.inject(Router);

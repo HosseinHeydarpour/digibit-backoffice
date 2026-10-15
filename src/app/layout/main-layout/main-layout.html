@@ -1,5 +1,12 @@
 <div class="flex h-screen overflow-hidden bg-light dark:bg-background-dark">
-  <aside class="hidden shrink-0 lg:flex">
+  <!--
+    The desktop sidebar's width lives here, on the aside, not on the sidebar
+    itself. The sidebar is reused inside the mobile drawer, where it must fill
+    the panel instead — a `w-72` on the component left a gap whenever the
+    `w-[80%] sm:w-100` panel was wider than 288px. `shrink-0` keeps the 288px
+    from collapsing under the main content's `flex-1`.
+  -->
+  <aside class="hidden w-72 shrink-0 lg:flex">
     <app-sidebar />
   </aside>
 

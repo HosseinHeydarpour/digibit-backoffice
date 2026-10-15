@@ -219,6 +219,20 @@ describe('SidebarDrawer', () => {
     // layout, where the persistent <aside> is the sidebar.
     expect(fixture.nativeElement.querySelector('.lg\\:hidden')).toBeTruthy();
   });
+
+  it('lets the sidebar fill the panel instead of leaving a gap', () => {
+    // The panel is `w-[80%] sm:w-100`; the sidebar is `w-full`. When the panel
+    // was wider than the sidebar's old fixed `w-72` (288px) the menu stopped
+    // short of the panel edge, showing the panel background as a gap. The body
+    // is padded exactly like the reference's offcanvas `<main class="p-3 ...">`,
+    // so that background shows as a deliberate inset rather than a gap.
+    const body = fixture.nativeElement.querySelector('main') as HTMLElement;
+    expect(body.classList.contains('p-3')).toBe(true);
+
+    const sidebarRoot = fixture.nativeElement.querySelector('app-sidebar > div') as HTMLElement;
+    expect(sidebarRoot.classList.contains('w-full')).toBe(true);
+    expect(sidebarRoot.classList.contains('w-72')).toBe(false);
+  });
 });
 
 describe('SidebarDrawer integration with Topbar', () => {

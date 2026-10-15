@@ -66,12 +66,12 @@
     </header>
 
     <!--
-      Body: the real Sidebar component, not a duplicated copy of its markup.
-      Reusing it keeps MENU and the permission filtering in one place, so a new
-      menu item cannot appear in the drawer but not the desktop sidebar.
+      Body: mirrors the template's offcanvas `<main class="p-3 overflow-y-scroll
+      h-full">`. The padding is what shows the panel background around the menu
+      card, and the sidebar inside is `w-full` so it fills this box exactly.
     -->
-    <div class="h-full flex-1 overflow-y-auto">
+    <main class="h-full flex-1 overflow-y-auto p-3">
       <app-sidebar (itemActivated)="onMenuActivate()" />
-    </div>
+    </main>
   </div>
 </div>
