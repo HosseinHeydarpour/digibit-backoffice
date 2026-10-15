@@ -181,6 +181,21 @@ Three layers, in this order of preference:
 Design reference is the Arino admin template; the extracted palette and layout are
 recorded in `.workbuddy-ai/memory/MEMORY.md`.
 
+### Sidebar menu is data, not markup
+
+`src/app/layout/sidebar/menu.ts` exports `MENU` (typed by `menu.model.ts`). The sidebar
+template iterates it — **never branch on permissions or hardcode items in the template**.
+BO-B03 filters this array; BO-B04 reuses it for the mobile drawer; the spec unit-tests it.
+Add or reorder items by editing the array only.
+
+Sidebar width (`w-72`) is owned by `Sidebar`'s own root element, not by `MainLayout`. The
+`hidden lg:flex` desktop-only gate lives on the `<aside>` in `main-layout.html` and is
+lifted for mobile in BO-B04.
+
+Menu routes are real children of `MainLayout` in `app.routes.ts`. `routerLinkActive` only
+highlights a **matched** route, so a new menu item needs a corresponding route entry or it
+will never highlight. Unmatched navigations throw `NG04002` unless a wildcard exists.
+
 ### RTL and logical properties
 
 Never use physical `left` / `right` / `margin-left` / `padding-right`. Use the logical
