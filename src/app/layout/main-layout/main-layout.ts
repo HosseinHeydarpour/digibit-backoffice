@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Sidebar } from '@layout/sidebar/sidebar';
+import { SidebarDrawer } from '@layout/sidebar-drawer/sidebar-drawer';
+import { SidebarDrawerState } from '@layout/sidebar-drawer/sidebar-drawer.state';
 import { Topbar } from '@layout/topbar/topbar';
 
 /**
@@ -16,13 +18,29 @@ import { Topbar } from '@layout/topbar/topbar';
  *   topbar reserves the horizontal space beside it (`flex-1` on the column) so
  *   the two never overlap.
  * - Below the breakpoint the `<aside>` is `hidden` and the topbar's hamburger
- *   is the only entry point; when B04 wires `menuToggle`, the drawer renders
- *   inside this shell so it overlays the content, not the sidebar column.
+ *   is the only entry point. It emits `menuToggle`, wired below; the topbar
+ *   never learns that a drawer exists.
+ * - The drawer is rendered *outside* the `overflow-hidden` shell so it can
+ *   position itself against the viewport rather than being clipped by it.
  */
 @Component({
   selector: 'app-main-layout',
-  imports: [RouterOutlet, Sidebar, Topbar],
+  imports: [RouterOutlet, Sidebar, SidebarDrawer, Topbar],
   templateUrl: './main-layout.html',
   styleUrl: './main-layout.scss',
 })
-export class MainLayout {}
+export class MainLayout {
+  private readonly drawer = inject(SidebarDrawerState);
+
+  /**
+   * Scenarios:
+   * - Mobile: the hamburger is tapped, `Topbar.menuToggle` emits, the drawer
+   *   opens and slides in.
+   * - Desktop: the hamburger is `lg:hidden`, so this never fires from the UI.
+   *   Calling it programmatically would still be harmless — the drawer carries
+   *   `lg:hidden` of its own.
+   */
+  protected openDrawer(): void {
+    this.drawer.open();
+  }
+}

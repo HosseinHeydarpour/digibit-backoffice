@@ -1,0 +1,77 @@
+<!-- src/app/layout/sidebar-drawer/sidebar-drawer.html -->
+
+<!--
+  Overlay: mirrors the reference's `.overlay` element.
+  - `bg-black/70` and `z-40` are from the reference.
+  - `hidden` is toggled by the open state; the reference removes it in
+    toggleOffcanvas() and re-adds it on a 300ms delay so the fade completes.
+    We instead keep the overlay mounted and fade it with `opacity-0`, which
+    looks the same and avoids a timer that could fire after destroy.
+  - Clicking it closes (BO-B04 tc 2). It is `aria-hidden` because it is purely
+    decorative; the drawer is the thing assistive tech should announce.
+-->
+<div
+  class="fixed inset-0 z-40 bg-black/70 transition-opacity duration-300 lg:hidden"
+  [class.opacity-0]="!isOpen()"
+  [class.pointer-events-none]="!isOpen()"
+  [class.opacity-100]="isOpen()"
+  (click)="close()"
+  aria-hidden="true"
+></div>
+
+<!--
+  The panel. Class list is copied from the reference's
+  `#offcanvas-responsive-menu-right`, with the same slide mechanism:
+
+    base (closed)  : transform -translate-x-full  +  opacity-0  +  invisible
+    open           : remove -translate-x-full, add opacity-100 + visible
+
+  In RTL, `-translate-x-full` moves the panel off-screen to the *right* edge
+  (the start edge), which is where the reference puts it via `start-0`. Its
+  id-based `translate-x-full` close class is the mirror of this, so binding the
+  base state is what actually produces the slide.
+
+  `lg:hidden` is belt-and-braces: the hamburger that opens this is itself
+  `lg:hidden`, so at desktop width the drawer can never be opened (tc 7).
+-->
+<div #panel tabindex="-1" class="lg:hidden" aria-hidden="true">
+  <div
+    class="fixed top-0 start-0 z-50 flex h-full w-[80%] flex-col bg-white shadow-lg transition-transform duration-300 ease-out sm:w-100 dark:bg-background-dark dark:text-white"
+    [class.-translate-x-full]="!isOpen()"
+    [class.translate-x-0]="isOpen()"
+    [class.opacity-0]="!isOpen()"
+    [class.invisible]="!isOpen()"
+    [class.opacity-100]="isOpen()"
+    [class.visible]="isOpen()"
+    role="dialog"
+    aria-modal="true"
+    aria-label="منوی ناوبری"
+  >
+    <!--
+      Header: the template's drawer has one (title + X), the static sidebar does
+      not. This is the only structural addition over reusing <app-sidebar>.
+    -->
+    <header
+      class="flex shrink-0 items-center justify-between border-b border-gray-400 p-3 dark:border-gray-600"
+    >
+      <h2 class="text-base font-bold">پنل ادمین</h2>
+      <button
+        type="button"
+        (click)="close()"
+        aria-label="بستن منو"
+        class="cursor-pointer text-gray-500 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"
+      >
+        <i class="pi pi-times text-2xl" aria-hidden="true"></i>
+      </button>
+    </header>
+
+    <!--
+      Body: the real Sidebar component, not a duplicated copy of its markup.
+      Reusing it keeps MENU and the permission filtering in one place, so a new
+      menu item cannot appear in the drawer but not the desktop sidebar.
+    -->
+    <div class="h-full flex-1 overflow-y-auto">
+      <app-sidebar (itemActivated)="onMenuActivate()" />
+    </div>
+  </div>
+</div>

@@ -4,10 +4,22 @@
   </aside>
 
   <div class="flex flex-col flex-1 overflow-hidden">
-    <app-topbar />
+    <!--
+      `menuToggle` is the only link between the topbar and the drawer: the
+      topbar announces "the user wants the menu", and this shell decides that
+      means "open the drawer". Neither component knows about the other.
+    -->
+    <app-topbar (menuToggle)="openDrawer()" />
 
     <main class="flex-1 overflow-y-auto p-6">
       <router-outlet />
     </main>
   </div>
+
+  <!--
+    Outside the shell, not inside the flex column: the drawer is `fixed`, and
+    keeping it a sibling of the `overflow-hidden` root avoids any chance of the
+    slide-in being clipped during the transition.
+  -->
+  <app-sidebar-drawer />
 </div>
