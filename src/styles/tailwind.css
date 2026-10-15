@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+
+/* Bind Tailwind's dark: variant to the same switch PrimeNG uses. */
+@custom-variant dark (&:where(.app-dark, .app-dark *));
+
+@theme {
+  --color-primary: #ff8229;
+  --color-primary-dark: #b76122;
+
+  --color-success: #10b981;
+  --color-success-dark: #34d399;
+
+  --color-danger: #ef4444;
+  --color-danger-dark: #f87171;
+
+  --color-warning: #f59e0b;
+  --color-warning-dark: #fbbf24;
+
+  --color-light: #f8fafc;
+  --color-background-dark: #0f172a;
+  --color-card-light: #ffffff;
+  --color-card-dark: #1e293b;
+  --color-dark: #1e293b;
+
+  --color-text-primary-light: #1e293b;
+  --color-text-primary-dark: #f8fafc;
+
+  --font-sans: 'Payda', system-ui, sans-serif;
+}

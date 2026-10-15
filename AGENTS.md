@@ -9,7 +9,7 @@ Read this before making changes — the commit rules are **enforced by git hooks
 | ------------------ | -------------------------------------------------------------------------- |
 | Framework          | Angular 21 — standalone components, signals, no NgModules                  |
 | Language           | TypeScript (strict), no `any`                                              |
-| Styling            | SCSS + PrimeNG tokens. Tailwind is **not** used                            |
+| Styling            | SCSS + PrimeNG tokens + Tailwind v4 (utility classes)                      |
 | Tests              | Vitest via `@angular/build:unit-test` (`npm test`)                         |
 | Node / npm         | Node 24.x, npm 11.x                                                        |
 | Language of the UI | Persian (Farsi), full RTL (`dir="rtl"`)                                    |
@@ -166,6 +166,48 @@ git push origin --delete feat/BO-<id>-<slug>
   spike) may you force it with `-D` — and then record the dropped SHAs in the commit or
   the task log first.
 
+## Styling
+
+Three layers, in this order of preference:
+
+1. **Tailwind utilities** for layout and spacing, using the design tokens in
+   `src/styles/tailwind.css` (`bg-light`, `dark:bg-background-dark`, `text-primary`, …).
+   Prefer these over hand-written CSS.
+2. **PrimeNG components** for widgets — tables, dialogs, buttons. They are themed by the
+   preset configured in `src/app/app.config.ts`, so they pick up the brand colour without
+   per-component overrides.
+3. **Component SCSS** only for what the first two cannot express.
+
+Design reference is the Arino admin template; the extracted palette and layout are
+recorded in `.workbuddy-ai/memory/MEMORY.md`.
+
+### Dark mode — one switch only
+
+PrimeNG toggles via `darkModeSelector: '.app-dark'`, and `src/styles/tailwind.css` binds
+Tailwind's `dark:` variant to the same class:
+
+```css
+@custom-variant dark (&:where(.app-dark, .app-dark *));
+```
+
+Add `.app-dark` to `<html>` to switch themes. **Do not** use `prefers-color-scheme` or a
+second toggle — the two systems would then disagree and half the UI would stay light.
+
+### Two styling gotchas
+
+- **The PrimeNG preset cannot live in SCSS.** `@primeng/themes` ships `.mjs` entry points,
+  so Sass `@use` cannot resolve it. Configure it in TypeScript (`app.config.ts`).
+- **Import Tailwind with CSS `@import`, not Sass `@use`.** Sass parses `@use`d files as its
+  own syntax and strips the semicolons from Tailwind's `@theme` block. Sass also requires
+  every `@use` to come before other rules, so `@use './styles/fonts'` goes first.
+
+### Fonts
+
+**Payda** (FaNum variant, Persian digits) lives in `public/fonts/` and is served from the
+site root, so reference it as `/fonts/…`, never `/assets/fonts/…`. Note there is no
+Regular cut — Medium is registered for both 400 and 500 to stop the browser synthesising
+a faux weight.
+
 ## Local tooling
 
 | Command                | Purpose                                         |
@@ -173,6 +215,8 @@ git push origin --delete feat/BO-<id>-<slug>
 | `npm start`            | dev server on http://localhost:4200             |
 | `npm run build`        | production build into `dist/backoffice/browser` |
 | `npm test`             | Vitest unit tests                               |
+| `npm run lint`         | ESLint over ts and html                         |
+| `npm run lint:fix`     | ESLint with autofix                             |
 | `npm run format`       | format the whole repo with Prettier             |
 | `npm run format:check` | check formatting without writing                |
 

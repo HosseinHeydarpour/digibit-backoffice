@@ -1,1 +1,20 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global styles for the back office.
+ *
+ * The PrimeNG preset is configured in TypeScript (src/app/app.config.ts) rather
+ * than here: @primeng/themes ships .mjs entry points, so it cannot be resolved
+ * by Sass `@use`.
+ *
+ * Sass requires every `@use` to precede any other rule, so the fonts come first.
+ * Tailwind is pulled in with plain CSS `@import` because Sass parses `@use`d
+ * files as its own syntax and mangles Tailwind's `@theme` block — the custom
+ * properties lose their semicolons. `@import` hands the file to the PostCSS
+ * plugin untouched.
+ */
+@use './styles/fonts';
+
+@import './styles/tailwind.css';
+
+body {
+  font-size: 15px;
+  line-height: 1.6;
+}

@@ -1,0 +1,33 @@
+/* Payda (FaNum variant — Persian digits).
+ *
+ * The template ships only Medium, Bold and Black; there is no Regular cut.
+ * Medium is therefore registered for both 400 and 500 so the browser never
+ * synthesises a faux weight, and Black is mapped to 800 for headings.
+ */
+@font-face {
+  font-family: 'Payda';
+  src: url('/fonts/PeydaWebFaNum-Medium.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Payda';
+  src: url('/fonts/PeydaWebFaNum-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Payda';
+  src: url('/fonts/PeydaWebFaNum-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Payda';
+  src: url('/fonts/PeydaWebFaNum-Black.woff2') format('woff2');
+  font-weight: 800;
+  font-display: swap;
+}
