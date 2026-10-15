@@ -249,6 +249,38 @@ site root, so reference it as `/fonts/…`, never `/assets/fonts/…`. Note ther
 Regular cut — Medium is registered for both 400 and 500 to stop the browser synthesising
 a faux weight.
 
+## Shared models
+
+`src/app/shared/models/` holds only types used by **more than one feature**. A model that
+belongs to a single feature lives in `features/<name>/models/`. The rule matters because
+the architecture forbids a feature importing from another feature: anything two features
+both need must be promoted to `shared/`.
+
+| File                     | Holds                                                           |
+| ------------------------ | --------------------------------------------------------------- |
+| `api-response.model.ts`  | `ApiResponse<T>`, `PageMeta`, `Page<T>`                         |
+| `api-error.model.ts`     | `ApiErrorBody`, `ApiError` (class)                              |
+| `id.model.ts`            | `EntityId`, `BaseEntity`                                        |
+| `select-option.model.ts` | `SelectOption<T>`, `toOptions()`                                |
+| `sort-state.model.ts`    | `SortState`, `SortOrder`, `fromPrimeSort()`, `toPrimeSort()`    |
+| `status.model.ts`        | `Activable`, `ACTIVE_LABELS`                                    |
+| `status-badge.model.ts`  | `OrderStatus`, `TicketStatus`, `CommentStatus`, `*_STATUS_META` |
+
+Three conventions worth keeping:
+
+- **`Page<T>`, not `PagedResult<T>`.** `TASKS-PHASE-1.md` calls the paged envelope
+  `PagedResult<T>`; this repo uses `Page<T>`. Same shape, and it matches the `PageEvent`
+  vocabulary PrimeNG already puts in the stack. Keep one name — do not add an alias.
+- **Status labels and badge colours live in one map.** `ORDER_STATUS_META` is read by the
+  orders list, the orders detail page, the dashboard widget and the invoice. Editing a
+  label there changes it everywhere; never inline a Persian status string in a template.
+- **Dates are UTC milliseconds** (`number`), per `ARCHITECTURE.md §5`. Convert to Jalali
+  only in the presentation layer, via the shared pipes in BO-B16.
+
+Barrel rule: `export type { … }` for interfaces and unions, plain `export { … }` for
+classes, functions and constants. `isolatedModules` is on, so mixing them is a compile
+error rather than a warning.
+
 ## Local tooling
 
 | Command                | Purpose                                         |
