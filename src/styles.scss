@@ -10,6 +10,8 @@
  * properties lose their semicolons. `@import` hands the file to the PostCSS
  * plugin untouched.
  */
+@use './styles/mixins';
+
 @use './styles/fonts';
 
 @import './styles/tailwind.css';

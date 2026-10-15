@@ -1,0 +1,29 @@
+/* RTL-safe helpers.
+ *
+ * Use logical properties (inline-start / inline-end) rather than left / right so
+ * the same stylesheet works if `dir` ever flips. In a RTL document, inline-start
+ * is the right edge.
+ */
+
+@mixin flex-center($direction: row) {
+  display: flex;
+  flex-direction: $direction;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between($direction: row) {
+  display: flex;
+  flex-direction: $direction;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* The card recipe lifted from the Arino reference template. */
+@mixin card-base {
+  background: var(--color-card-light);
+  border: 1px solid var(--color-gray-200, #e5e7eb);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  padding: 1.5rem;
+}

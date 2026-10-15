@@ -11,7 +11,8 @@ input {
   color: var(--p-inputtext-color, #1e293b);
   font: inherit;
   direction: rtl;
-  text-align: right;
+  /* `start` follows the document direction, so this stays correct if dir flips. */
+  text-align: start;
 }
 
 input:focus-visible {

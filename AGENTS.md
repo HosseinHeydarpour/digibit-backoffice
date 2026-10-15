@@ -181,6 +181,32 @@ Three layers, in this order of preference:
 Design reference is the Arino admin template; the extracted palette and layout are
 recorded in `.workbuddy-ai/memory/MEMORY.md`.
 
+### RTL and logical properties
+
+Never use physical `left` / `right` / `margin-left` / `padding-right`. Use the logical
+equivalents so a stylesheet stays correct if `dir` ever flips:
+
+| Instead of                       | Use                                           |
+| -------------------------------- | --------------------------------------------- |
+| `margin-left` / `margin-right`   | `margin-inline-start` / `margin-inline-end`   |
+| `padding-left` / `padding-right` | `padding-inline-start` / `padding-inline-end` |
+| `left` / `right`                 | `inset-inline-start` / `inset-inline-end`     |
+| `text-align: right`              | `text-align: start`                           |
+
+Tailwind already ships these as `ms-*`, `me-*`, `ps-*`, `pe-*` — **do not hand-write
+utility classes for them.** `src/styles/_mixins.scss` holds only mixins (`flex-center`,
+`flex-between`, `card-base`), not generated utilities.
+
+Import the mixins per component with a relative path and a namespace:
+
+```scss
+@use '../styles/mixins' as m;
+
+.card {
+  @include m.card-base;
+}
+```
+
 ### Dark mode — one switch only
 
 PrimeNG toggles via `darkModeSelector: '.app-dark'`, and `src/styles/tailwind.css` binds
