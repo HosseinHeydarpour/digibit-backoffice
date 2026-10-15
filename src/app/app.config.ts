@@ -1,9 +1,11 @@
+import { provideHttpClient, withFetch } from '@angular/common/http';
+import { LOCALE_ID } from '@angular/core';
 import {
   ApplicationConfig,
   provideBrowserGlobalErrorListeners,
   provideZoneChangeDetection,
 } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { definePreset } from '@primeng/themes';
 import Aura from '@primeng/themes/aura';
 import { providePrimeNG } from 'primeng/config';
@@ -35,11 +37,31 @@ const DigibitPreset = definePreset(Aura, {
   },
 });
 
+/**
+ * Root providers.
+ *
+ * `provideHttpClient` is registered before the router so a feature service that
+ * injects HttpClient can be constructed while routes resolve — a missing
+ * provider here is the usual cause of a NullInjectorError at boot.
+ *
+ * There is deliberately no `provideAnimationsAsync()`. PrimeNG 21 animates
+ * through `@primeuix/motion`, which is CSS driven, and never imports
+ * `@angular/animations`. That package is not a dependency of this project, so
+ * the provider would have nothing to configure.
+ */
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
+
+    // Dates and numbers render in Persian. Angular's fa-IR data comes from the
+    // built-in Intl implementation, so no registerLocaleData call is needed.
+    { provide: LOCALE_ID, useValue: 'fa-IR' },
+
+    provideHttpClient(withFetch()),
+
+    provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
+
     providePrimeNG({
       theme: {
         preset: DigibitPreset,
