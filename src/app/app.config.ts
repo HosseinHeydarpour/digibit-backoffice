@@ -1,11 +1,12 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { LOCALE_ID } from '@angular/core';
+import { LOCALE_ID, signal } from '@angular/core';
 import {
   ApplicationConfig,
   provideBrowserGlobalErrorListeners,
   provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
+import { PERMISSIONS } from '@core/auth/permissions.token';
 import { mockInterceptor } from '@core/mock/mock.interceptor';
 import { environment } from '@env/environment';
 import { definePreset } from '@primeng/themes';
@@ -13,6 +14,7 @@ import Aura from '@primeng/themes/aura';
 import { providePrimeNG } from 'primeng/config';
 
 import { routes } from './app.routes';
+import { MENU_PERMISSIONS } from './layout/sidebar/menu';
 
 /**
  * Aura with the Digibit brand colour substituted into the primary palette.
@@ -59,6 +61,15 @@ export const appConfig: ApplicationConfig = {
     // Dates and numbers render in Persian. Angular's fa-IR data comes from the
     // built-in Intl implementation, so no registerLocaleData call is needed.
     { provide: LOCALE_ID, useValue: 'fa-IR' },
+
+    // BO-D08 replaces this with the real list from /auth/me. Until then the
+    // token's own default is an empty set, which is the correct secure default
+    // but renders an empty sidebar — so mock mode grants everything to keep
+    // local development usable. Production gets nothing, and therefore a
+    // dashboard-only menu, until D08 lands.
+    ...(environment.useMockApi
+      ? [{ provide: PERMISSIONS, useValue: signal<readonly string[]>(MENU_PERMISSIONS) }]
+      : []),
 
     provideHttpClient(
       withFetch(),
