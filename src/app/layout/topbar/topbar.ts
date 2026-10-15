@@ -1,6 +1,7 @@
 // src/app/layout/topbar/topbar.ts
 import { Component, inject, output } from '@angular/core';
 import { PageTitleService } from '@core/services/page-title';
+import { ThemeService } from '@core/services/theme';
 
 @Component({
   selector: 'app-topbar',
@@ -13,6 +14,9 @@ export class Topbar {
 
   /** Mirrors `PageTitleService.title`; the template reads it as `title()`. */
   protected readonly title = this.pageTitle.title;
+
+  /** The header's theme switch, exposed so the button calls `theme.toggle()`. */
+  protected readonly theme = inject(ThemeService);
 
   /**
    * B04 listens to this to open the mobile drawer. Emitting rather than owning

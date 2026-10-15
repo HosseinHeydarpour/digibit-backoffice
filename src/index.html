@@ -10,6 +10,22 @@
       content="پنل مدیریت فروشگاه دیجی‌بیت — مدیریت محصولات، سفارش‌ها، مشتریان و تنظیمات فروشگاه"
     />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <!--
+      Anti-FOUC: apply the saved/system theme before Angular paints (BO-B07 tc 7).
+      Sits inside the existing <head> — a nested <head> is invalid HTML and the
+      `...` placeholder line would have rendered as visible page text.
+    -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('digibit.theme');
+          var dark =
+            saved === 'dark' ||
+            (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('app-dark', dark);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <app-root></app-root>
