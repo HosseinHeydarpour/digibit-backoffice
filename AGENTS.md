@@ -281,6 +281,35 @@ Barrel rule: `export type { … }` for interfaces and unions, plain `export { �
 classes, functions and constants. `isolatedModules` is on, so mixing them is a compile
 error rather than a warning.
 
+## Mock backend (BO-C07)
+
+There is no API yet, so `src/app/core/mock/` answers requests from local fixtures. This is
+what lets the ~137 UI-only tasks proceed. It is **temporary scaffolding** — when the real
+backend lands, the mock layer is deleted, not adapted.
+
+How the switch actually works:
+
+- `environment.useMockApi` (true in dev, false in prod) decides at runtime whether
+  `mockInterceptor` is registered and whether `mockHeaders()` adds `X-Mock: 1`.
+- **Every request must go through `ApiService`.** It is the only place that attaches
+  `X-Mock`, via `mockHeaders()` wrapping `JSON_HEADERS`. A feature service that injects
+  `HttpClient` directly silently bypasses the mock and hits a backend that does not exist.
+- Fixtures must match the real envelope (`{ data, meta, message }`) and use **string IDs**
+  and **UTC millis**, per `ARCHITECTURE.md §4`. A fixture with a numeric id or an ISO date
+  string teaches the UI a contract the real API will not honour.
+- Error paths are testable two ways: `?__mockStatus=500` forces a status, and an unknown
+  id returns a real 404 body.
+
+Production hygiene — this is subtle and was wrong once:
+
+`useMockApi: false` alone does **not** keep the mock layer out of the bundle. A runtime flag
+cannot remove code the bundler has already included; the fixtures were shipping 12.14 kB of
+dead weight. `angular.json` therefore has a second `fileReplacements` entry that swaps
+`core/mock/mock.interceptor.ts` for `environments/mock.interceptor.prod.ts` in the
+production configuration. If you add a file to `core/mock/` that production should not
+contain, it needs its own replacement entry — and the only way to know it worked is to grep
+the built bundle, not to trust the build succeeding.
+
 ## Local tooling
 
 | Command                | Purpose                                         |
