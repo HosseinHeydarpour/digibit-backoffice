@@ -11,6 +11,7 @@ import { mockInterceptor } from '@core/mock/mock-interceptor';
 import { environment } from '@env/environment';
 import { definePreset } from '@primeng/themes';
 import Aura from '@primeng/themes/aura';
+import { ConfirmationService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 
 import { routes } from './app.routes';
@@ -84,5 +85,12 @@ export const appConfig: ApplicationConfig = {
         options: { darkModeSelector: '.app-dark' },
       },
     }),
+
+    // PrimeNG's ConfirmationService is NOT `providedIn: 'root'` — unlike its
+    // config service, which is — so the confirm dialog would throw a
+    // NullInjectorError on first use. `ConfirmService` injects it and is itself
+    // injected by the root shell, so this one registration is the app-wide
+    // instance the dialog host subscribes to. BO-B11.
+    ConfirmationService,
   ],
 };

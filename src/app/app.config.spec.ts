@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { LOCALE_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { ConfirmationService } from 'primeng/api';
 
 import { appConfig } from './app.config';
 
@@ -28,5 +29,12 @@ describe('appConfig', () => {
 
   it('registers the Persian locale', () => {
     expect(TestBed.inject(LOCALE_ID)).toBe('fa-IR');
+  });
+
+  it('provides PrimeNG ConfirmationService for the confirm dialog (BO-B11)', () => {
+    // Not `providedIn: 'root'` — unlike PrimeNG's config service — so dropping
+    // this line breaks every `ConfirmService.confirm()` call at runtime, not at
+    // build time. That is exactly the kind of failure this spec exists to catch.
+    expect(TestBed.inject(ConfirmationService)).toBeTruthy();
   });
 });

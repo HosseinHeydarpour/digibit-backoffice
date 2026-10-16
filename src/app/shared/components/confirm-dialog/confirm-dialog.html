@@ -1,0 +1,53 @@
+<!-- src/app/shared/components/confirm-dialog/confirm-dialog.html -->
+<!--
+  THE HOST
+  --------
+  Two dialog instances, one per key:
+
+    * no key       — ordinary questions (the default)
+    * key="danger" — destructive ones, routed here by ConfirmService
+
+  They are rendered from one small table rather than written out twice, because
+  every attribute below is shared and only the key differs. PrimeNG matches a
+  request to a dialog by EXACT key equality, which is also why the default
+  instance leaves `key` undefined instead of inventing a name: a request that
+  carries no key (anybody calling PrimeNG's ConfirmationService directly) still
+  lands on a real dialog.
+
+  The attributes are the test cases of BO-B11, made visible:
+
+    dismissableMask=false  a click on the backdrop must NOT dismiss (tc 7) — for
+                           a delete confirmation, a stray click outside is the
+                           most likely way to lose data by accident
+    closeOnEscape=true     Escape DOES dismiss, and counts as "لغو" (tc 6)
+    defaultFocus=reject    focus starts on "لغو", not on "تأیید" (tc 8), so a
+                           reflexive Enter cancels instead of destroying
+    rtl=true               the app is Persian; PrimeNG mirrors its own internals
+    breakpoints            on a phone the dialog takes 90vw (tc 11)
+
+  The scrolling rule for tc 11 lives in the component (see `pt` in
+  confirm-dialog.ts): a long message must scroll inside the dialog rather than
+  run off the bottom of the screen.
+
+  The backdrop is the one thing deliberately NOT set here. The reference's
+  offcanvas overlay is `bg-black/70`, but a class on the mask cannot take
+  effect: PrimeNG injects the theme's own rule for the mask after the app
+  stylesheet, so the theme wins. Measured in the running app — Aura paints
+  rgba(0, 0, 0, 0.4) in light mode and rgba(0, 0, 0, 0.6) in dark, and a
+  `bg-black/70` class sitting on the element changes neither. Matching the
+  reference exactly means changing the `overlay.modal.background` token in the
+  preset in app.config.ts, and that is a decision about every dialog in the app,
+  not about this component.
+-->
+@for (dialog of dialogs; track dialog.id) {
+  <p-confirmDialog
+    [key]="dialog.key"
+    [dismissableMask]="false"
+    [closeOnEscape]="true"
+    [defaultFocus]="'reject'"
+    [rtl]="true"
+    [breakpoints]="breakpoints"
+    [pt]="pt"
+    (onHide)="onHide($event)"
+  />
+}

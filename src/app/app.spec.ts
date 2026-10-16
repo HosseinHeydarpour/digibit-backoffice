@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { ConfirmationService } from 'primeng/api';
 
 import { App } from './app';
 
@@ -7,7 +8,11 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      // The root shell now mounts the confirm dialog (BO-B11), and PrimeNG's
+      // ConfirmationService is not root-provided — the real app registers it in
+      // app.config.ts, so this test has to register it too or the shell throws
+      // a NullInjectorError while creating the dialog host.
+      providers: [provideRouter([]), ConfirmationService],
     }).compileComponents();
   });
 
