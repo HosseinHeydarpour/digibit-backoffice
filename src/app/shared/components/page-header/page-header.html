@@ -1,0 +1,72 @@
+<!-- src/app/shared/components/page-header/page-header.html -->
+<!--
+  Scenarios:
+  - Desktop (>=640px): one flex row. In RTL the first child (the title block)
+    sits at the inline-start edge — the RIGHT — and the projected actions sit at
+    the inline-end edge — the LEFT. That is exactly what the task asks for
+    ("دکمه‌های اصلی سمت چپ عنوان") and it needs no `flex-row-reverse`: order in
+    the DOM already produces it, because the document is `dir="rtl"`.
+  - Mobile (<640px): `flex-col` stacks the actions UNDER the title. Squeezing
+    both into one row at 320px is what truncates titles to «محصو…», so they get
+    their own line instead.
+  - No actions projected: the actions wrapper stays in the DOM but has no
+    children, so it collapses to zero height and the title keeps the whole row
+    (tc 3). Nothing needs to be conditionally hidden.
+-->
+<header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+  <!--
+    `min-w-0` is load-bearing, not decoration. A flex item defaults to
+    `min-width: auto`, which refuses to shrink below its content — so a long
+    title would push the actions off-screen instead of ellipsising. `min-w-0`
+    lets this column shrink, which is what makes `truncate` below able to work.
+  -->
+  <div class="min-w-0">
+    <!--
+      The trail from BO-B08. It self-hides when the route declares no crumb, so
+      the `@if` here is only the manual [showBreadcrumb] override.
+    -->
+    @if (showBreadcrumb()) {
+      <app-breadcrumb />
+    }
+
+    <!--
+      `truncate` = overflow-hidden + text-overflow:ellipsis + white-space:nowrap.
+      The `nowrap` half is tc 4: the title must never break onto a second line.
+      Type scale matches the panel: xl on mobile, 2xl from `sm` up (tc 10).
+    -->
+    <h1 class="truncate text-xl font-bold text-dark sm:text-2xl dark:text-light">
+      {{ title() }}
+    </h1>
+
+    <!--
+      `@if (description())` — a falsy description renders NO <p>, so a page
+      without one has no stray margin (tc 1, tc 3). Same `truncate`, because a
+      long description must ellipsise rather than wrap to three lines (tc 5).
+    -->
+    @if (description()) {
+      <p class="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">
+        {{ description() }}
+      </p>
+    }
+  </div>
+
+  <!--
+    THE ACTIONS SLOT (tc 2, tc 7).
+
+    `<ng-content select="[page-header-actions]" />` projects only the elements
+    that carry the `page-header-actions` attribute. Two consequences worth
+    knowing:
+
+    1. An element WITHOUT the attribute is silently dropped — it is not
+       rendered anywhere. That is the point: the header decides where actions
+       go, and the `select` is the contract.
+    2. Several elements may carry it, and they are rendered in source order.
+
+    `shrink-0` keeps the buttons at their natural size while the title column
+    absorbs the shrinking; `flex-wrap` lets three buttons stack onto two rows on
+    a narrow desktop instead of overflowing.
+  -->
+  <div class="flex shrink-0 flex-wrap items-center gap-2">
+    <ng-content select="[page-header-actions]" />
+  </div>
+</header>
