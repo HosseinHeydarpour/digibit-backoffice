@@ -1,0 +1,92 @@
+<!-- src/app/shared/components/empty-state/empty-state.html -->
+<!--
+  THE BLOCK
+
+  `p-8` and `text-center` are the whole layout: everything is centred in a single
+  column, which is what makes it readable at 320px with nothing to reflow (tc 7).
+  No grid, no breakpoint, no `sm:` variants — a centred column is already the
+  mobile layout, so there is nothing to collapse.
+
+  `role="status"` announces the sentence politely when it replaces a list, rather
+  than cutting off the screen reader the way `role="alert"` would. See the
+  component header.
+
+  The block deliberately paints NO surface of its own — no card, no border. Half
+  the callers put it inside a `p-table` cell or a card that already has the
+  surface, and a second border inside the first looks like a mistake. When a
+  caller wants a bare bordered panel, that is one class on its own wrapper:
+
+    <div class="rounded-xl border border-gray-200 bg-white p-6
+                dark:border-gray-700 dark:bg-gray-800">
+      <app-empty-state … />
+    </div>
+-->
+<div class="flex flex-col items-center justify-center p-8 text-center" role="status">
+  <!--
+    THE GLYPH
+
+    The reference has no empty-state block of its own — its nearest relative is
+    the icon+text row it repeats in the sidebar footer (a 48px tinted box with a
+    glyph). This one is deliberately BIGGER and UNTINTED: at 64px on a neutral
+    circle it reads as "the page is empty" rather than "here is a feature", which
+    is the distinction between an empty state and a menu item.
+
+    `bg-gray-100 dark:bg-gray-700` is the same neutral pair the sidebar footer
+    card uses, so the block sits in the palette without inventing a colour (tc 8).
+
+    `aria-hidden` because the title beside it already says what happened; a screen
+    reader reading the glyph's name too would say it twice. Same call stat-card
+    makes for its decorative arrows.
+  -->
+  <div
+    class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
+  >
+    <i class="text-3xl" [class]="icon()" aria-hidden="true"></i>
+  </div>
+
+  <!--
+    THE SENTENCE (tc 3, tc 6)
+
+    `text-dark dark:text-light` is this project's heading pair — the same tokens
+    page-header's <h1> uses — which is what gives the block its contrast in both
+    themes (tc 8). A <p> and not an <h2>: an empty state is body copy inside a
+    list region, not a section of the document outline.
+  -->
+  <p class="text-base font-medium text-dark dark:text-light">{{ title() }}</p>
+
+  <!--
+    THE SECOND LINE
+
+    `@if (description())` — falsy → no <p> at all, so a title-only state has no
+    leftover margin (tc 1). `mt-1` only exists on the element that is actually
+    rendered, which is the difference between this and a permanently-present
+    paragraph with an empty string.
+  -->
+  @if (description()) {
+    <p class="mt-1 max-w-md text-sm text-gray-500 dark:text-gray-400">
+      {{ description() }}
+    </p>
+  }
+
+  <!--
+    THE ACTION (tc 2, tc 10)
+
+    `@if (actionLabel(); as label)` does double duty: it hides the button when
+    the input is absent OR null OR empty, and it narrows the type so the
+    interpolation below is a plain string. There is no third "is it null?"
+    branch to get wrong.
+
+    `max-w-md` keeps a long description from stretching to the full width of a
+    wide table cell, which is what would make the centred column read as
+    left-aligned on a 1600px screen.
+  -->
+  @if (actionLabel(); as label) {
+    <button
+      type="button"
+      class="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      (click)="action.emit()"
+    >
+      {{ label }}
+    </button>
+  }
+</div>

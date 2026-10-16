@@ -1,0 +1,9 @@
+// src/app/shared/components/empty-state/empty-state.scss
+//
+// Intentionally empty — every visual decision is a Tailwind utility in the
+// template, which is AGENTS.md's first styling preference (same as
+// page-header.scss).
+//
+// This file exists because the repo gives every component one, so a future
+// override has an obvious home. Before writing a selector here, check whether a
+// token in src/styles/tailwind.css already expresses it.
