@@ -1,4 +1,4 @@
-// src/app/shared/components/breadcrumb/breadcrumb.component.ts
+// src/app/shared/components/breadcrumb/breadcrumb.ts
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BreadcrumbService } from '@core/services/breadcrumb';
@@ -20,10 +20,10 @@ import { BreadcrumbService } from '@core/services/breadcrumb';
 @Component({
   selector: 'app-breadcrumb',
   imports: [RouterLink],
-  templateUrl: './breadcrumb.component.html',
-  styleUrl: './breadcrumb.component.scss',
+  templateUrl: './breadcrumb.html',
+  styleUrl: './breadcrumb.scss',
 })
-export class BreadcrumbComponent {
+export class Breadcrumb {
   private readonly breadcrumbs = inject(BreadcrumbService);
 
   /**

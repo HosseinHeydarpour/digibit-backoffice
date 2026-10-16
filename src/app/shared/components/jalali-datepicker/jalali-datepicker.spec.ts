@@ -3,10 +3,10 @@ import { TestBed } from '@angular/core/testing';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Jalali } from 'jalali-ts';
 
-import { JalaliDatepickerComponent } from './jalali-datepicker.component';
+import { JalaliDatepicker } from './jalali-datepicker';
 
 @Component({
-  imports: [ReactiveFormsModule, JalaliDatepickerComponent],
+  imports: [ReactiveFormsModule, JalaliDatepicker],
   template: `<app-jalali-datepicker [control]="control" />`,
 })
 class HostComponent {
@@ -47,7 +47,7 @@ function pickDay(host: HTMLElement, day: string): void {
   cell?.click();
 }
 
-describe('JalaliDatepickerComponent', () => {
+describe('JalaliDatepicker', () => {
   it('converts between shamsi and gregorian (jalali-ts sanity)', () => {
     expect(Jalali.parse('1404/07/19').gregorian('YYYY-MM-DD')).toBe('2025-10-11');
     expect(Jalali.gregorian('2025-10-11').format('YYYY/MM/DD')).toBe('1404/07/19');

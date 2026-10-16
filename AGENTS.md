@@ -328,6 +328,35 @@ site root, so reference it as `/fonts/…`, never `/assets/fonts/…`. Note ther
 Regular cut — Medium is registered for both 400 and 500 to stop the browser synthesising
 a faux weight.
 
+## Naming — one convention, applied everywhere
+
+The rule comes from Angular 21's own style guide (`angular.dev/style-guide`) and the CLI
+default: **the file name mirrors the class name, and neither carries a type suffix that the
+folder already states.**
+
+| Thing                | Convention                                                 | Example                                           |
+| -------------------- | ---------------------------------------------------------- | ------------------------------------------------- |
+| Component file       | `feature-name.ts` + `.html` + `.scss` + `.spec.ts`         | `shared/components/page-header/page-header.ts`    |
+| Component class      | no `Component` suffix                                      | `export class PageHeader`                         |
+| Service / state file | `thing.ts` — the `services/` folder already says "service" | `core/services/api.ts`                            |
+| Service class        | keeps `Service`; it stays distinct from a same-named model | `export class ApiService`                         |
+| Models               | keep `.model.ts`                                           | `shared/models/sort-state.model.ts`               |
+| Other qualifiers     | only where two files share one folder                      | `sidebar-drawer.state.ts`, `permissions.token.ts` |
+
+Why the split: dropping `Service` from `BreadcrumbService` would collide with a `Breadcrumb`
+component or a `Breadcrumb` model — the classic "same name, two meanings" trap that makes an
+import need an alias. Putting the role on the class and leaving it off the file gives short
+paths and unambiguous identifiers at once. The same reasoning renamed the model that backs a
+crumb to `BreadcrumbItem`, freeing `Breadcrumb` for the component.
+
+Consequences worth remembering:
+
+- Functional interceptors are `mock-interceptor.ts` (hyphen, as `ng g interceptor` writes
+  them), **not** `mock.interceptor.ts`.
+- A spec name always matches the file under test: `api.ts` → `api.spec.ts`.
+- A rename is a `git mv`, never delete + create — history has to survive it.
+- `npm run lint:fix` owns import order, so a rename never needs hand-sorting.
+
 ## Shared models
 
 `src/app/shared/models/` holds only types used by **more than one feature**. A model that
@@ -384,7 +413,7 @@ Production hygiene — this is subtle and was wrong once:
 `useMockApi: false` alone does **not** keep the mock layer out of the bundle. A runtime flag
 cannot remove code the bundler has already included; the fixtures were shipping 12.14 kB of
 dead weight. `angular.json` therefore has a second `fileReplacements` entry that swaps
-`core/mock/mock.interceptor.ts` for `environments/mock.interceptor.prod.ts` in the
+`core/mock/mock-interceptor.ts` for `environments/mock-interceptor.prod.ts` in the
 production configuration. If you add a file to `core/mock/` that production should not
 contain, it needs its own replacement entry — and the only way to know it worked is to grep
 the built bundle, not to trust the build succeeding.

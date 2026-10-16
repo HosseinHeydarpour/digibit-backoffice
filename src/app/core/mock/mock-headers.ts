@@ -1,7 +1,7 @@
 import { HttpHeaders } from '@angular/common/http';
 import { environment } from '@env/environment';
 
-import { MOCK_HEADER } from './mock.interceptor';
+import { MOCK_HEADER } from './mock-interceptor';
 
 /**
  * Headers to attach to a request. In mock mode this adds `X-Mock: 1` so the

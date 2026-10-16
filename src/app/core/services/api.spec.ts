@@ -2,11 +2,11 @@ import { HttpHeaders, provideHttpClient, withInterceptors } from '@angular/commo
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { mockHeaders } from '@core/mock/mock-headers';
-import { mockInterceptor } from '@core/mock/mock.interceptor';
+import { mockInterceptor } from '@core/mock/mock-interceptor';
 import { environment } from '@env/environment';
 import { ApiError } from '@shared/models';
 
-import { ApiService, toHttpParams } from './api-service';
+import { ApiService, toHttpParams } from './api';
 
 interface Product {
   id: string;

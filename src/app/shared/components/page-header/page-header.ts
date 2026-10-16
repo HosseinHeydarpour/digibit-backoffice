@@ -1,6 +1,6 @@
 // src/app/shared/components/page-header/page-header.ts
 import { Component, input } from '@angular/core';
-import { BreadcrumbComponent } from '@shared/components/breadcrumb/breadcrumb.component';
+import { Breadcrumb } from '@shared/components/breadcrumb/breadcrumb';
 
 /**
  * The uniform header every page starts with: an optional breadcrumb trail, the
@@ -57,13 +57,13 @@ import { BreadcrumbComponent } from '@shared/components/breadcrumb/breadcrumb.co
  */
 @Component({
   selector: 'app-page-header',
-  // BreadcrumbComponent is a real import (not a slot) — see decision 3 in the
+  // Breadcrumb is a real import (not a slot) — see decision 3 in the
   // task handover: the trail is part of what the header *is*.
-  imports: [BreadcrumbComponent],
+  imports: [Breadcrumb],
   templateUrl: './page-header.html',
   styleUrl: './page-header.scss',
 })
-export class PageHeaderComponent {
+export class PageHeader {
   /**
    * The page heading, rendered as the page's <h1>. Required.
    *
@@ -89,7 +89,7 @@ export class PageHeaderComponent {
    * Why a flag rather than "just remove the tag": the trail is useful on nested
    * pages and pointless on a one-level page, so the default favours the common
    * case. Even when `true`, a route that declares no `data.breadcrumb` produces
-   * an EMPTY trail and `BreadcrumbComponent` renders nothing (BO-B08 tc 9), so
+   * an EMPTY trail and `Breadcrumb` renders nothing (BO-B08 tc 9), so
    * this flag is a manual override, not a requirement.
    *
    * @example

@@ -29,10 +29,10 @@ const SHAMSI_FORMAT = 'YYYY/MM/DD';
 @Component({
   selector: 'app-jalali-datepicker',
   imports: [ReactiveFormsModule, NgPersianDatepickerModule],
-  templateUrl: './jalali-datepicker.component.html',
-  styleUrl: './jalali-datepicker.component.scss',
+  templateUrl: './jalali-datepicker.html',
+  styleUrl: './jalali-datepicker.scss',
 })
-export class JalaliDatepickerComponent implements OnChanges, OnDestroy {
+export class JalaliDatepicker implements OnChanges, OnDestroy {
   /** Holds the Gregorian date, e.g. `2025-09-23`. */
   @Input({ required: true }) control!: FormControl<string | null>;
 

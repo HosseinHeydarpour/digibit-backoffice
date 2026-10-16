@@ -11,7 +11,7 @@ import type { BaseEntity, EntityId, OrderStatus, SelectOption, SortState } from 
 
 describe('shared models', () => {
   it('keeps the ApiError contract intact', () => {
-    // already covered in api-service.spec.ts — this asserts the barrel re-exports it
+    // already covered in api.spec.ts — this asserts the barrel re-exports it
     expect(typeof ORDER_STATUS_META).toBe('object');
   });
 

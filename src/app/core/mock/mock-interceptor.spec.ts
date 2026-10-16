@@ -10,7 +10,7 @@ import { environment } from '@env/environment';
 import type { ApiResponse, PageMeta } from '@shared/models';
 import { catchError, firstValueFrom, of } from 'rxjs';
 
-import { MOCK_HEADER, mockInterceptor } from './mock.interceptor';
+import { MOCK_HEADER, mockInterceptor } from './mock-interceptor';
 
 describe('mockInterceptor', () => {
   let http: HttpClient;

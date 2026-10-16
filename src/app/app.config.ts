@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { PERMISSIONS } from '@core/auth/permissions.token';
-import { mockInterceptor } from '@core/mock/mock.interceptor';
+import { mockInterceptor } from '@core/mock/mock-interceptor';
 import { environment } from '@env/environment';
 import { definePreset } from '@primeng/themes';
 import Aura from '@primeng/themes/aura';

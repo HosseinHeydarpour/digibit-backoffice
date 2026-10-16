@@ -5,7 +5,7 @@
  *   [{ label: 'محصولات', url: '/products' },
  *    { label: 'ویرایش محصول 12', url: '/products/12' }]
  */
-export interface Breadcrumb {
+export interface BreadcrumbItem {
   /** Persian text of the step, e.g. «محصولات». */
   readonly label: string;
 

@@ -3,7 +3,7 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
-import { PageHeaderComponent } from './page-header';
+import { PageHeader } from './page-header';
 
 /**
  * Host components, because a projected slot can only be tested from a parent
@@ -13,7 +13,7 @@ import { PageHeaderComponent } from './page-header';
 
 /** The full usage: breadcrumb on, description on, one action projected. */
 @Component({
-  imports: [PageHeaderComponent],
+  imports: [PageHeader],
   template: `
     <app-page-header title="محصولات" description="مدیریت کالاهای فروشگاه">
       <button type="button" page-header-actions>افزودن محصول</button>
@@ -24,23 +24,23 @@ class WithActions {}
 
 /** The minimal usage: a required title and nothing else at all. */
 @Component({
-  imports: [PageHeaderComponent],
+  imports: [PageHeader],
   template: `<app-page-header title="پیشخوان" />`,
 })
 class WithoutActions {}
 
 /** The override: breadcrumb explicitly switched off. */
 @Component({
-  imports: [PageHeaderComponent],
+  imports: [PageHeader],
   template: `<app-page-header title="تنظیمات" [showBreadcrumb]="false" />`,
 })
 class WithoutBreadcrumb {}
 
-describe('PageHeaderComponent', () => {
+describe('PageHeader', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [WithActions, WithoutActions, WithoutBreadcrumb],
-      // BreadcrumbComponent injects BreadcrumbService, which injects Router —
+      // Breadcrumb injects BreadcrumbService, which injects Router —
       // so every host needs a router provider even though no navigation happens.
       providers: [provideRouter([])],
     }).compileComponents();

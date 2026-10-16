@@ -1,9 +1,9 @@
-// src/app/shared/components/breadcrumb/breadcrumb.component.spec.ts
+// src/app/shared/components/breadcrumb/breadcrumb.spec.ts
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Params, Router, provideRouter } from '@angular/router';
 
-import { BreadcrumbComponent } from './breadcrumb.component';
+import { Breadcrumb } from './breadcrumb';
 
 @Component({ selector: 'app-blank', template: '' })
 class Blank {}
@@ -30,17 +30,17 @@ const ROUTES = [
   { path: '**', children: [] },
 ];
 
-describe('BreadcrumbComponent', () => {
-  let fixture: ComponentFixture<BreadcrumbComponent>;
+describe('Breadcrumb', () => {
+  let fixture: ComponentFixture<Breadcrumb>;
   let router: Router;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [BreadcrumbComponent],
+      imports: [Breadcrumb],
       providers: [provideRouter(ROUTES)],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(BreadcrumbComponent);
+    fixture = TestBed.createComponent(Breadcrumb);
     router = TestBed.inject(Router);
   });
 

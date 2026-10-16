@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Params, Router } from '@angular/router';
-import type { Breadcrumb } from '@shared/models';
+import type { BreadcrumbItem } from '@shared/models';
 import { filter, map, startWith } from 'rxjs';
 
 /**
@@ -50,7 +50,7 @@ export class BreadcrumbService {
   private readonly router = inject(Router);
 
   /** The raw trail; `crumbs` is the public, read-only view of it. */
-  private readonly trail = signal<readonly Breadcrumb[]>([]);
+  private readonly trail = signal<readonly BreadcrumbItem[]>([]);
 
   /** The trail for the active route. Empty when no step declares a crumb. */
   readonly crumbs = this.trail.asReadonly();
@@ -108,8 +108,8 @@ export class BreadcrumbService {
    * params are not part of the crumb URL, and secondary (named-outlet) routes
    * are not walked.
    */
-  private readTrail(): readonly Breadcrumb[] {
-    const crumbs: Breadcrumb[] = [];
+  private readTrail(): readonly BreadcrumbItem[] {
+    const crumbs: BreadcrumbItem[] = [];
     let route = this.router.routerState.root.firstChild;
     let url = '';
 

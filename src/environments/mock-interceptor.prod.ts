@@ -1,7 +1,7 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 
 /**
- * Production stand-in for `mock.interceptor.ts`.
+ * Production stand-in for `mock-interceptor.ts`.
  *
  * `fileReplacements` in angular.json swaps this file in whenever the production
  * configuration is built. That is what actually keeps the interceptor and its
