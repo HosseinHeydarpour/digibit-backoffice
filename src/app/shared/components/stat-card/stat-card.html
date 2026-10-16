@@ -1,0 +1,79 @@
+<!-- src/app/shared/components/stat-card/stat-card.html -->
+<!--
+  Layout mirrors the reference screen (arino admin-panel-index.html): label on
+  top, big value under it, the icon bubble pushed to the far edge. In RTL the
+  text starts at the right and the bubble lands on the left, exactly as in the
+  template — which is why nothing here uses a physical margin.
+-->
+<article
+  class="flex w-full items-center justify-between gap-4 rounded-xl border border-gray-200 bg-card-light p-6 shadow-sm transition-colors dark:border-gray-700 dark:bg-card-dark"
+  [class.cursor-pointer]="actionable()"
+  [attr.data-actionable]="actionable() ? '' : null"
+  [attr.role]="actionable() ? 'button' : null"
+  [attr.tabindex]="actionable() ? 0 : null"
+  (click)="onCardClick()"
+  (keydown.enter)="onCardKey($event)"
+  (keydown.space)="onCardKey($event)"
+>
+  <!--
+    `min-w-0` is load-bearing: a flex child refuses to shrink below its content
+    width without it, so a long value would push the icon bubble out of the card.
+  -->
+  <div class="min-w-0">
+    <p class="truncate text-sm text-gray-500 dark:text-gray-400">{{ label() }}</p>
+    <!--
+      The value is NOT truncated: a clipped amount ("۴٬۵۰۰…") silently reports a
+      wrong number. It wraps instead, which is ugly but honest.
+    -->
+    <p class="mt-1 text-2xl leading-tight font-bold text-dark dark:text-light">{{ value() }}</p>
+
+    <!--
+      Three separate branches rather than [class.text-success]="…":
+      Tailwind variant classes such as `dark:text-success-dark` contain a colon,
+      which cannot be bound through [class.x] — and relying on class-attribute
+      order to resolve two colour utilities of equal specificity is a trap.
+      Static lists are boring, unambiguous and greppable.
+    -->
+    @if (trendValue(); as trendText) {
+      @if (trend() === 'up') {
+        <p
+          class="mt-1 flex items-center gap-1 text-xs font-medium text-success dark:text-success-dark"
+        >
+          <i class="pi pi-arrow-up" aria-hidden="true"></i>
+          <span>{{ trendText }}</span>
+        </p>
+      } @else if (trend() === 'down') {
+        <p
+          class="mt-1 flex items-center gap-1 text-xs font-medium text-danger dark:text-danger-dark"
+        >
+          <i class="pi pi-arrow-down" aria-hidden="true"></i>
+          <span>{{ trendText }}</span>
+        </p>
+      } @else {
+        <!-- A neutral trend is text only: there is no arrow to point the wrong way. -->
+        <p
+          class="mt-1 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+        >
+          <span>{{ trendText }}</span>
+        </p>
+      }
+    }
+  </div>
+
+  @if (icon(); as iconClass) {
+    <!--
+      Tone classes (.positive / .negative) live in the SCSS file, because
+      Tailwind's opacity shorthand (`bg-success/10`) does not survive a [class.x]
+      binding. `neutral` needs no class — it is the base rule on .icon-bubble.
+      The glyph is decorative (the label already says what the number is), so it
+      is hidden from screen readers.
+    -->
+    <div
+      class="icon-bubble flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl"
+      [class.positive]="tone() === 'positive'"
+      [class.negative]="tone() === 'negative'"
+    >
+      <i [class]="iconClass" aria-hidden="true"></i>
+    </div>
+  }
+</article>
