@@ -188,13 +188,25 @@ template iterates it — **never branch on permissions or hardcode items in the 
 BO-B03 filters this array; BO-B04 reuses it for the mobile drawer; the spec unit-tests it.
 Add or reorder items by editing the array only.
 
-Sidebar width (`w-72`) is owned by `Sidebar`'s own root element, not by `MainLayout`. The
-`hidden lg:flex` desktop-only gate lives on the `<aside>` in `main-layout.html` and is
-lifted for mobile in BO-B04.
+Sidebar width is owned by the **container**, not by `Sidebar` itself: `w-72` lives on the
+`<aside>` in `main-layout.html` (desktop) and on the drawer's panel body (mobile). The
+sidebar is width-agnostic — its root is `w-full` and its host claims `width: 100%` beside
+`height: 100%` — because the same component is reused in both places (BO-B04). A fixed
+width on the component leaves a gap in whichever container is wider.
 
 Menu routes are real children of `MainLayout` in `app.routes.ts`. `routerLinkActive` only
 highlights a **matched** route, so a new menu item needs a corresponding route entry or it
 will never highlight. Unmatched navigations throw `NG04002` unless a wildcard exists.
+
+### Breadcrumb crumbs are route data, not markup
+
+`BreadcrumbService` (`@core/services/breadcrumb`) walks the matched route chain on every
+`NavigationEnd` and emits one crumb per node that declares `data.breadcrumb` — a Persian
+string, or a `(params) => string` function for parameterised routes. The 404 wildcard
+declares none, so no trail renders there (BO-B08 tc 9), and the service spec pins every
+feature route to declaring one. Labels live in a separate field from `data.title` so a
+page heading and its crumb can diverge. `<app-breadcrumb />` (in `@shared/components`) is
+the only consumer; nothing mounts it until BO-B09.
 
 ### Permission filtering (BO-B03)
 

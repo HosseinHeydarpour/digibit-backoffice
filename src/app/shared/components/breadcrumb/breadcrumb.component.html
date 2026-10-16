@@ -1,0 +1,28 @@
+@if (crumbs().length > 0) {
+  <nav aria-label="مسیر صفحه" class="mb-4 text-sm">
+    <ol class="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+      @for (crumb of crumbs(); track $index) {
+        <li class="flex items-center gap-2">
+          @if ($last) {
+            <span aria-current="page" class="font-semibold text-dark dark:text-light">
+              {{ crumb.label }}
+            </span>
+          } @else {
+            <a
+              [routerLink]="crumb.url"
+              class="text-gray-500 transition-colors hover:text-primary dark:text-gray-400"
+            >
+              {{ crumb.label }}
+            </a>
+          }
+          @if (!$last) {
+            <i
+              class="pi pi-chevron-left text-xs text-gray-400 dark:text-gray-500"
+              aria-hidden="true"
+            ></i>
+          }
+        </li>
+      }
+    </ol>
+  </nav>
+}

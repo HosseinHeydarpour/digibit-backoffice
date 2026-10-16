@@ -29,19 +29,85 @@ export const routes: Routes = [
       // every child URL, so the redirect would shadow the whole app.
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
+      // `data.breadcrumb` is the trail label read by `BreadcrumbService`
+      // (BO-B08) — the same walk as `data.title`, but a separate field, so a
+      // page can later title itself «جزئیات سفارش 42» while its crumb stays
+      // «سفارش 42». Every feature route below declares one; the wildcard
+      // deliberately does not, so the 404 page shows no chips (BO-B08 tc 9).
+
       // feature routes land here from queue C onward
-      { path: 'dashboard', data: { title: 'پیشخوان' }, title: 'پیشخوان', children: [] },
-      { path: 'products', data: { title: 'محصولات' }, title: 'محصولات', children: [] },
-      { path: 'categories', data: { title: 'دسته‌بندی‌ها' }, title: 'دسته‌بندی‌ها', children: [] },
-      { path: 'brands', data: { title: 'برندها' }, title: 'برندها', children: [] },
-      { path: 'orders', data: { title: 'سفارش‌ها' }, title: 'سفارش‌ها', children: [] },
-      { path: 'customers', data: { title: 'مشتریان' }, title: 'مشتریان', children: [] },
-      { path: 'coupons', data: { title: 'کوپن تخفیف' }, title: 'کوپن تخفیف', children: [] },
-      { path: 'shipping', data: { title: 'روش‌های ارسال' }, title: 'روش‌های ارسال', children: [] },
-      { path: 'banners', data: { title: 'بنر و محتوا' }, title: 'بنر و محتوا', children: [] },
-      { path: 'comments', data: { title: 'نظرات' }, title: 'نظرات', children: [] },
-      { path: 'tickets', data: { title: 'پشتیبانی' }, title: 'پشتیبانی', children: [] },
-      { path: 'settings', data: { title: 'تنظیمات' }, title: 'تنظیمات', children: [] },
+      {
+        path: 'dashboard',
+        data: { title: 'پیشخوان', breadcrumb: 'پیشخوان' },
+        title: 'پیشخوان',
+        children: [],
+      },
+      {
+        path: 'products',
+        data: { title: 'محصولات', breadcrumb: 'محصولات' },
+        title: 'محصولات',
+        children: [],
+      },
+      {
+        path: 'categories',
+        data: { title: 'دسته‌بندی‌ها', breadcrumb: 'دسته‌بندی‌ها' },
+        title: 'دسته‌بندی‌ها',
+        children: [],
+      },
+      {
+        path: 'brands',
+        data: { title: 'برندها', breadcrumb: 'برندها' },
+        title: 'برندها',
+        children: [],
+      },
+      {
+        path: 'orders',
+        data: { title: 'سفارش‌ها', breadcrumb: 'سفارش‌ها' },
+        title: 'سفارش‌ها',
+        children: [],
+      },
+      {
+        path: 'customers',
+        data: { title: 'مشتریان', breadcrumb: 'مشتریان' },
+        title: 'مشتریان',
+        children: [],
+      },
+      {
+        path: 'coupons',
+        data: { title: 'کوپن تخفیف', breadcrumb: 'کوپن تخفیف' },
+        title: 'کوپن تخفیف',
+        children: [],
+      },
+      {
+        path: 'shipping',
+        data: { title: 'روش‌های ارسال', breadcrumb: 'روش‌های ارسال' },
+        title: 'روش‌های ارسال',
+        children: [],
+      },
+      {
+        path: 'banners',
+        data: { title: 'بنر و محتوا', breadcrumb: 'بنر و محتوا' },
+        title: 'بنر و محتوا',
+        children: [],
+      },
+      {
+        path: 'comments',
+        data: { title: 'نظرات', breadcrumb: 'نظرات' },
+        title: 'نظرات',
+        children: [],
+      },
+      {
+        path: 'tickets',
+        data: { title: 'پشتیبانی', breadcrumb: 'پشتیبانی' },
+        title: 'پشتیبانی',
+        children: [],
+      },
+      {
+        path: 'settings',
+        data: { title: 'تنظیمات', breadcrumb: 'تنظیمات' },
+        title: 'تنظیمات',
+        children: [],
+      },
 
       // Catch-all so an unknown URL resolves to a fallback title instead of
       // throwing NG04002 ("Cannot match any routes"). BO-B05 tc 6 wants a
@@ -53,6 +119,7 @@ export const routes: Routes = [
       // while still letting `readDeepestTitle()` find this node's title.
       {
         path: '**',
+        // No `breadcrumb` here on purpose — see the note above.
         data: { title: 'صفحه یافت نشد' },
         title: 'صفحه یافت نشد',
         children: [],

@@ -1,0 +1,7 @@
+// src/app/shared/components/breadcrumb/breadcrumb.component.scss
+//
+// Intentionally free of rules: every visual decision is a Tailwind utility in
+// the template, which is AGENTS.md's first styling preference. This file
+// exists because the repo convention gives every component one, so a future
+// override has an obvious home. Before writing a selector here, check whether
+// a token in src/styles/tailwind.css already expresses it.
