@@ -1,12 +1,34 @@
 <!-- src/app/shared/components/stat-card/stat-card.html -->
 <!--
-  Layout mirrors the reference screen (arino admin-panel-index.html): label on
-  top, big value under it, the icon bubble pushed to the far edge. In RTL the
-  text starts at the right and the bubble lands on the left, exactly as in the
-  template — which is why nothing here uses a physical margin.
+  A reproduction of the reference's summary cards
+  (arino/page/fa/admin-panel-index.html, lines 481-561). Every utility class on
+  a static element below is the reference's own class for that element, so
+  "does it still look like the reference?" is answerable by diffing the two
+  templates rather than by trusting a comment. The class ORDER differs (grouped
+  by surface / shape / size), which Tailwind does not care about.
+
+  Three differences cannot be avoided, and only these three:
+
+    1. The glyph. The reference inlines a 24x24 Heroicon; this project's icon
+       font is PrimeIcons (AGENTS.md), so the bubble pins the same 48x48 box
+       with `h-12 w-12` + `text-2xl` (24px) instead of `p-3` around a 24x24 SVG.
+    2. The card claims `w-full`. The reference's card is a grid cell and is
+       stretched by its parent; ours is a custom element behind a host, so it
+       says so out loud. The page still owns the column count (tc 6).
+    3. The trend pill adds `inline-flex items-center`. A flex container ignores
+       whitespace between its children, which stops the formatter's line breaks
+       from insetting the glyph — the reference's hand-written one-liner never
+       had that problem. The gap itself is still the reference's `me-1`.
+
+  Two additions are invisible until they matter, and both are opt-in:
+
+    * `transition-colors` lives in the SCSS with the rest of the actionable
+      styling, not here, so this class list stays the reference's.
+    * `aria-hidden` on the decorative arrows: the adjacent text already says
+      what happened, so a screen reader should not hear the glyph too.
 -->
 <article
-  class="flex w-full items-center justify-between gap-4 rounded-xl border border-gray-200 bg-card-light p-6 shadow-sm transition-colors dark:border-gray-700 dark:bg-card-dark"
+  class="w-full rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:shadow-gray-700"
   [class.cursor-pointer]="actionable()"
   [attr.data-actionable]="actionable() ? '' : null"
   [attr.role]="actionable() ? 'button' : null"
@@ -15,65 +37,164 @@
   (keydown.enter)="onCardKey($event)"
   (keydown.space)="onCardKey($event)"
 >
-  <!--
-    `min-w-0` is load-bearing: a flex child refuses to shrink below its content
-    width without it, so a long value would push the icon bubble out of the card.
-  -->
-  <div class="min-w-0">
-    <p class="truncate text-sm text-gray-500 dark:text-gray-400">{{ label() }}</p>
+  <!-- Reference: <div class="flex items-center justify-between"> (line 484). -->
+  <div class="flex items-center justify-between">
     <!--
-      The value is NOT truncated: a clipped amount ("۴٬۵۰۰…") silently reports a
-      wrong number. It wraps instead, which is ugly but honest.
+      `min-w-0` is load-bearing and the reference has no equivalent: a flex child
+      refuses to shrink below its content width without it, so a long value would
+      push the icon bubble out of the card instead of wrapping.
     -->
-    <p class="mt-1 text-2xl leading-tight font-bold text-dark dark:text-light">{{ value() }}</p>
+    <div class="min-w-0">
+      <!-- Reference: <p class="text-gray-500 dark:text-gray-400 text-sm"> (line 486). -->
+      <p class="text-sm text-gray-500 dark:text-gray-400">{{ label() }}</p>
 
-    <!--
-      Three separate branches rather than [class.text-success]="…":
-      Tailwind variant classes such as `dark:text-success-dark` contain a colon,
-      which cannot be bound through [class.x] — and relying on class-attribute
-      order to resolve two colour utilities of equal specificity is a trap.
-      Static lists are boring, unambiguous and greppable.
-    -->
-    @if (trendValue(); as trendText) {
-      @if (trend() === 'up') {
-        <p
-          class="mt-1 flex items-center gap-1 text-xs font-medium text-success dark:text-success-dark"
-        >
-          <i class="pi pi-arrow-up" aria-hidden="true"></i>
-          <span>{{ trendText }}</span>
-        </p>
-      } @else if (trend() === 'down') {
-        <p
-          class="mt-1 flex items-center gap-1 text-xs font-medium text-danger dark:text-danger-dark"
-        >
-          <i class="pi pi-arrow-down" aria-hidden="true"></i>
-          <span>{{ trendText }}</span>
-        </p>
-      } @else {
-        <!-- A neutral trend is text only: there is no arrow to point the wrong way. -->
-        <p
-          class="mt-1 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
-        >
-          <span>{{ trendText }}</span>
-        </p>
-      }
+      <!--
+        Reference (line 487):
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">
+            42,850,000 <span class="text-sm">تومان</span>
+          </p>
+
+        The value is NOT truncated for the same reason it is not reformatted: a
+        clipped amount ("۴۲٬۸۵۰…") silently reports a wrong number. It wraps
+        instead, which is ugly but honest.
+
+        The gap between the number and its unit is the reference's own literal
+        space. Angular collapses this template's newline and indentation into one
+        space, and CSS drops a leading space at the start of a line — so the span
+        needs no margin class and stays exactly `class="text-sm"`.
+      -->
+      <p class="text-2xl font-bold text-gray-900 dark:text-white">
+        {{ value() }}
+        @if (unit(); as unitText) {
+          <span class="text-sm">{{ unitText }}</span>
+        }
+      </p>
+    </div>
+
+    @if (icon(); as iconClass) {
+      <!--
+        Reference (line 489):
+          <div class="p-3 rounded-xl bg-primary-100 dark:bg-primary-900/30
+                      text-primary-600 dark:text-primary-400"> … </div>
+
+        The colour half of that list comes from the tone table in stat-card.ts —
+        it has to, because `dark:…` contains a colon and `…/30` a slash, neither
+        of which survives a `[class.x]` binding. Angular merges the bound list
+        with the static `class` here, so the two halves land on one element.
+
+        `shrink-0` keeps the bubble square while the text beside it wraps.
+      -->
+      <div
+        class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
+        [class]="bubbleClasses()"
+      >
+        <i [class]="iconClass" aria-hidden="true"></i>
+      </div>
     }
   </div>
 
-  @if (icon(); as iconClass) {
+  <!--
+    THE FOOTER
+
+    The reference has one footer shape per card (lines 495-500, 515-518, 533-536,
+    551-558). Ours picks between the two shapes that exist: a progress bar, or a
+    row of text / left-to-the-caller content / trend pill.
+
+    The row hides ITSELF when it has nothing in it. Every child is behind an @if
+    or a <ng-content>, so with no footer inputs and nothing projected the element
+    is left with nothing but Angular's comment anchors — and `:empty` ignores
+    comments. That is what keeps a bare `label + value` tile free of a stray
+    bordered band without needing a "showFooter" input.
+  -->
+  @if (progress() !== undefined) {
+    <!-- Reference: <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"> (line 551). -->
+    <div class="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700" data-stat-footer>
+      <!-- Reference: <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5"> (line 552). -->
+      <div class="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-600">
+        <!--
+          Reference (line 553): <div class="bg-yellow-500 dark:bg-yellow-400 h-1.5 rounded-full"
+          style="width: 85%">. The fill colour follows the card's tone, and the
+          width is clamped in stat-card.ts so a bad number cannot overflow.
+        -->
+        <div
+          class="h-1.5 rounded-full"
+          [class]="barClasses()"
+          [style.width.%]="progressWidth()"
+        ></div>
+      </div>
+
+      <!-- Reference: <div class="flex justify-between items-center mt-1"> (line 555). -->
+      <div class="mt-1 flex items-center justify-between">
+        @if (footerText(); as text) {
+          <span class="text-xs text-gray-500 dark:text-gray-400">{{ text }}</span>
+        }
+        @if (progressText(); as text) {
+          <span class="text-xs" [class]="barLabelClasses()">{{ text }}</span>
+        }
+      </div>
+    </div>
+  } @else {
     <!--
-      Tone classes (.positive / .negative) live in the SCSS file, because
-      Tailwind's opacity shorthand (`bg-success/10`) does not survive a [class.x]
-      binding. `neutral` needs no class — it is the base rule on .icon-bubble.
-      The glyph is decorative (the label already says what the number is), so it
-      is hidden from screen readers.
+      Reference (line 495):
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700
+                    flex justify-between items-center">
+
+      `empty:hidden` is the self-hiding rule described above.
     -->
     <div
-      class="icon-bubble flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl"
-      [class.positive]="tone() === 'positive'"
-      [class.negative]="tone() === 'negative'"
+      class="mt-4 flex items-center justify-between border-t border-gray-200 pt-4 empty:hidden dark:border-gray-700"
+      data-stat-footer
     >
-      <i [class]="iconClass" aria-hidden="true"></i>
+      @if (footerText(); as text) {
+        <!-- Reference (line 496). -->
+        <span class="text-xs text-gray-500 dark:text-gray-400">{{ text }}</span>
+      }
+
+      <!--
+        Whatever the page wants at the inline-end besides the pill — in the
+        reference, the «مشاهده همه» link of cards 2 and 3 (lines 517, 535):
+
+          <app-stat-card …>
+            <a href="#" class="text-xs text-primary-600 hover:text-primary-800
+                                dark:text-primary-400 dark:hover:text-primary-300">
+              مشاهده همه
+            </a>
+          </app-stat-card>
+
+        Navigation stays the page's business: a shared tile has no business
+        knowing about the router.
+      -->
+      <ng-content />
+
+      @if (trendPercent(); as percent) {
+        <!--
+          Reference (lines 497-499):
+            <span class="text-xs px-2 py-1 rounded-full bg-green-100
+                         dark:bg-green-900/30 text-green-800 dark:text-green-400">
+              <i class="fas fa-arrow-up me-1"></i> 12%
+            </span>
+
+          PrimeIcons replaces Font Awesome, and the colour comes from the trend
+          table. Two details are deliberate:
+
+            * `inline-flex items-center` — a flex container IGNORES whitespace
+              between its children, so the formatter's line breaks cannot add a
+              stray space inside the pill. Inline layout would keep that space,
+              which is exactly why the gap is `me-1` (the reference's own
+              logical margin, 4px) and not a literal space.
+            * `aria-hidden` on the glyph: "۱۲٪" is the message; the arrow is
+              decoration, and a screen reader reading both says it twice.
+        -->
+        <span
+          class="inline-flex items-center rounded-full px-2 py-1 text-xs"
+          [class]="pillClasses()"
+        >
+          @if (trendArrow(); as arrow) {
+            <i class="me-1" [class]="arrow" aria-hidden="true"></i>
+          }
+          {{ percent }}
+        </span>
+      }
     </div>
   }
 </article>

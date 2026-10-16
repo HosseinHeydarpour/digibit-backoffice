@@ -1,15 +1,17 @@
 // src/app/shared/components/stat-card/stat-card.scss
 //
-// Everything that CAN be a Tailwind utility is one, in the template. Three
-// things cannot be, and they live here:
+// The reference's card is pure Tailwind utilities and so is ours: the template
+// carries the surface, the spacing and every colour (fed by the lookup tables in
+// stat-card.ts, which exist only because Tailwind variant classes — `dark:…`,
+// `hover:…`, `…/30` — cannot be bound through `[class.x]`).
 //
-//   1. the icon-bubble tint (Tailwind's `bg-success/10` cannot be bound through
-//      [class.x] — the slash does not survive the binding),
-//   2. the hover border on an actionable card (Tailwind's `hover:` variant
-//      contains a colon, same problem), and
-//   3. the focus ring, so the keyboard-focusable card is actually visible.
+// Two things are left over, because utilities genuinely cannot express them:
 //
-// The palette is read as CSS custom properties straight out of
+//   1. the host box, so the PAGE's grid decides the card's width (tc 6), and
+//   2. the hover/focus affordances of the OPT-IN actionable card, whose utility
+//      names contain colons and therefore cannot be bound either.
+//
+// Colours are read as CSS custom properties straight out of
 // src/styles/tailwind.css (@theme emits them on :root), so a brand change needs
 // no edit here.
 
@@ -17,54 +19,20 @@
   display: block;
 
   // The card never claims a width of its own: the page grid owns the column
-  // count (see BO-B10 tc 6), which is what makes the mobile layout 1-column.
+  // count, which is what makes the mobile layout single-column.
   width: 100%;
 }
 
-// ---------------------------------------------------------------------------
-// 1. Icon bubble — tone colours
-// ---------------------------------------------------------------------------
-// color-mix() gives the same 12% tint as `bg-success/10` would, and because it
-// composites over whatever card background is behind it, one rule serves both
-// themes. `neutral` is the base rule; the template adds .positive/.negative only.
-.icon-bubble {
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
-
-  &.positive {
-    background: color-mix(in srgb, var(--color-success) 12%, transparent);
-    color: var(--color-success);
-  }
-
-  &.negative {
-    background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-    color: var(--color-danger);
-  }
-}
-
-// In the dark theme, reach for the light cut of each tone — the same tokens
-// Tailwind's `dark:` variants use — so the glyph keeps its contrast against the
-// dark card (tc 7). The brand orange is already bright enough to stay as-is.
-// `.app-dark` sits on <html>, which is outside this component, so the class
-// survives Angular's emulated view encapsulation untouched.
-.app-dark .icon-bubble {
-  &.positive {
-    color: var(--color-success-dark);
-  }
-
-  &.negative {
-    color: var(--color-danger-dark);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 2. Actionable hover + focus (tc 10)
-// ---------------------------------------------------------------------------
 // The card is interactive ONLY while `actionable` is on — see stat-card.ts. The
 // template tags the element with data-actionable in that case, and these rules
 // follow it. (The pointer cursor is a plain Tailwind class on the element; no
 // need to repeat it here.)
 article[data-actionable] {
+  // Not in the reference, which has no clickable cards at all. It is here so the
+  // hover border arrives instead of snapping — and it lives in the SCSS rather
+  // than in the template so the template's class list stays the reference's.
+  transition: border-color 150ms ease;
+
   &:hover {
     border-color: var(--color-primary);
   }

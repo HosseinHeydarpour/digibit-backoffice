@@ -10,8 +10,19 @@
      have neither a sidebar nor a hamburger. */
   --breakpoint-lg: 992px;
 
+  /* Brand scale, lifted from the reference template's compiled CSS so a tint or
+     a shade of the brand colour can be asked for by name. `--color-primary` IS
+     that palette's primary-500 — the template's own build emits #ff8229 for it,
+     which is what this project extracted — so `text-primary` and
+     `text-primary-500` are the same colour by construction. Only the steps the
+     UI actually paints are listed. */
   --color-primary: #ff8229;
   --color-primary-dark: #b76122;
+  --color-primary-100: #ffe1cc;
+  --color-primary-400: #ff9a52;
+  --color-primary-500: #ff8229;
+  --color-primary-600: #ff6a00;
+  --color-primary-900: #572400;
 
   --color-success: #10b981;
   --color-success-dark: #34d399;
