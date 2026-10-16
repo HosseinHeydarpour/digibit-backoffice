@@ -1,0 +1,28 @@
+<!-- src/app/shared/components/toast-host/toast-host.html -->
+<!--
+  ONE TOAST FOR THE WHOLE APP
+  ---------------------------
+  Everything a message SAYS is decided by ToastService. What is decided here is
+  how the toast behaves as a container:
+
+    position=top-left        the free (end) edge in this RTL app — see the
+                             component's header for why not top-right
+    [preventOpenDuplicates]  two identical messages do not pile up (tc 5): the
+                             second is dropped while the first is still on
+                             screen. PrimeNG compares summary + detail +
+                             severity, so a genuinely different message still
+                             appears — the column never fills with copies of the
+                             same sentence
+    [breakpoints]            on a phone: bottom, full width (tc 9)
+
+  `key` is deliberately NOT set. PrimeNG routes a message to the toast whose
+  `key` equals the message's `key` (both `undefined` here), so anything that
+  calls `MessageService.add()` directly — code written before this service
+  existed, or a library — still lands on this toast instead of vanishing into a
+  key nobody hosts.
+
+  `life` is not set either: ToastService stamps a duration on every message it
+  builds, and that is the single place the four levels' timings live. PrimeNG's
+  3000ms default therefore applies only to messages that bypass the service.
+-->
+<p-toast position="top-left" [preventOpenDuplicates]="true" [breakpoints]="breakpoints" />

@@ -31,7 +31,7 @@ export class ApiService {
         params: toHttpParams(params),
         headers: JSON_HEADERS,
       })
-      .pipe(map(unwrap), catchError(toApiError));
+      .pipe(map(unwrap), catchError(throwApiError));
   }
 
   /** GET a list endpoint and flatten envelope + meta into a `Page<T>`. */
@@ -41,31 +41,31 @@ export class ApiService {
         params: toHttpParams(params),
         headers: JSON_HEADERS,
       })
-      .pipe(map(toPage), catchError(toApiError));
+      .pipe(map(toPage), catchError(throwApiError));
   }
 
   post<T>(path: string, body: unknown): Observable<T> {
     return this.http
       .post<ApiResponse<T>>(this.url(path), body, { headers: JSON_HEADERS })
-      .pipe(map(unwrap), catchError(toApiError));
+      .pipe(map(unwrap), catchError(throwApiError));
   }
 
   put<T>(path: string, body: unknown): Observable<T> {
     return this.http
       .put<ApiResponse<T>>(this.url(path), body, { headers: JSON_HEADERS })
-      .pipe(map(unwrap), catchError(toApiError));
+      .pipe(map(unwrap), catchError(throwApiError));
   }
 
   patch<T>(path: string, body: unknown): Observable<T> {
     return this.http
       .patch<ApiResponse<T>>(this.url(path), body, { headers: JSON_HEADERS })
-      .pipe(map(unwrap), catchError(toApiError));
+      .pipe(map(unwrap), catchError(throwApiError));
   }
 
   delete<T>(path: string): Observable<T> {
     return this.http
       .delete<ApiResponse<T>>(this.url(path), { headers: JSON_HEADERS })
-      .pipe(map(unwrap), catchError(toApiError));
+      .pipe(map(unwrap), catchError(throwApiError));
   }
 
   private url(path: string): string {
@@ -105,32 +105,41 @@ export function toHttpParams(params?: Record<string, QueryValue>): HttpParams | 
   return httpParams;
 }
 
-/** Normalise any failure into an ApiError so callers only handle one type. */
-function toApiError(error: unknown): Observable<never> {
-  // Already normalised — e.g. `unwrap()` rejects a malformed body. Re-wrapping it
-  // here would erase the specific code and downgrade it to UNKNOWN.
+/**
+ * Normalise any failure into an ApiError so callers only handle one type.
+ *
+ * Exported because the error interceptor (BO-B12) has to report the very same
+ * message the caller receives: the corner of the screen and an inline error must
+ * not disagree about one failure, and a second copy of this rule would drift.
+ */
+export function toApiError(error: unknown): ApiError {
+  // Already normalised — e.g. `unwrap()` rejects a malformed body, or the error
+  // interceptor has already been through here. Re-wrapping it would erase the
+  // specific code and downgrade it to UNKNOWN.
   if (error instanceof ApiError) {
-    return throwError(() => error);
+    return error;
   }
 
   if (error instanceof HttpErrorResponse) {
     // status 0 = network down / CORS / request blocked, not a server response.
     if (error.status === 0) {
-      return throwError(() => new ApiError('NETWORK', 'ارتباط با سرور برقرار نشد.', 0));
+      return new ApiError('NETWORK', 'ارتباط با سرور برقرار نشد.', 0);
     }
     const body = error.error as {
       error?: { code?: string; message?: string; fields?: Record<string, string[]> };
     } | null;
-    return throwError(
-      () =>
-        new ApiError(
-          body?.error?.code ?? 'HTTP_' + error.status,
-          body?.error?.message ?? 'خطای نامشخص در ارتباط با سرور.',
-          error.status,
-          body?.error?.fields,
-        ),
+    return new ApiError(
+      body?.error?.code ?? 'HTTP_' + error.status,
+      body?.error?.message ?? 'خطای نامشخص در ارتباط با سرور.',
+      error.status,
+      body?.error?.fields,
     );
   }
   // Non-HTTP failure (e.g. a JSON parse error thrown by map()).
-  return throwError(() => new ApiError('UNKNOWN', 'خطای غیرمنتظره رخ داد.', -1));
+  return new ApiError('UNKNOWN', 'خطای غیرمنتظره رخ داد.', -1);
+}
+
+/** `catchError` handler: throws the normalised error rather than returning it. */
+function throwApiError(error: unknown): Observable<never> {
+  return throwError(() => toApiError(error));
 }

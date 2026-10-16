@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { LOCALE_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { appConfig } from './app.config';
 
@@ -36,5 +36,12 @@ describe('appConfig', () => {
     // this line breaks every `ConfirmService.confirm()` call at runtime, not at
     // build time. That is exactly the kind of failure this spec exists to catch.
     expect(TestBed.inject(ConfirmationService)).toBeTruthy();
+  });
+
+  it('provides PrimeNG MessageService for the toast (BO-B12)', () => {
+    // Same trap, one level down: the toast host subscribes to this service in
+    // its constructor, so a missing registration is a NullInjectorError at
+    // runtime — the first time a feature reports anything, not at build time.
+    expect(TestBed.inject(MessageService)).toBeTruthy();
   });
 });

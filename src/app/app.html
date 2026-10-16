@@ -1,11 +1,19 @@
 <!--
   The root shell: every page renders through the outlet.
 
-  `<app-confirm-dialog>` sits OUTSIDE the outlet on purpose. A confirmation can
-  be open while the user navigates (a list page asks "delete this?", the answer
-  arrives after a route change), so the dialog must live somewhere that is never
-  destroyed. Anything mounted inside a routed page or the layout would be torn
-  down mid-flight, taking its pending Promise with it. BO-B11.
+  Both overlays sit OUTSIDE the outlet on purpose.
+
+  `<app-confirm-dialog>`: a confirmation can be open while the user navigates (a
+  list page asks "delete this?", the answer arrives after a route change), so the
+  dialog must live somewhere that is never destroyed. Anything mounted inside a
+  routed page or the layout would be torn down mid-flight, taking its pending
+  Promise with it. BO-B11.
+
+  `<app-toast-host>`: same reasoning, different failure. A message about what
+  just happened usually arrives AFTER a navigation — save, then leave the page —
+  so a toast inside a routed page would be destroyed by the very navigation it is
+  reporting. BO-B12.
 -->
 <router-outlet />
 <app-confirm-dialog />
+<app-toast-host />

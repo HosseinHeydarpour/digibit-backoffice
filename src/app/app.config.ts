@@ -7,11 +7,12 @@ import {
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { PERMISSIONS } from '@core/auth/permissions.token';
+import { errorInterceptor } from '@core/interceptors/error-interceptor';
 import { mockInterceptor } from '@core/mock/mock-interceptor';
 import { environment } from '@env/environment';
 import { definePreset } from '@primeng/themes';
 import Aura from '@primeng/themes/aura';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 
 import { routes } from './app.routes';
@@ -74,7 +75,14 @@ export const appConfig: ApplicationConfig = {
 
     provideHttpClient(
       withFetch(),
-      ...(environment.useMockApi ? [withInterceptors([mockInterceptor])] : []),
+      withInterceptors([
+        // The error interceptor is registered FIRST, which makes it the
+        // outermost handler: whether the failure comes from the mock layer, from
+        // the network, or from a body that is not the envelope it should be, it
+        // passes through here on its way back to the caller. BO-B12.
+        errorInterceptor,
+        ...(environment.useMockApi ? [mockInterceptor] : []),
+      ]),
     ),
 
     provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
@@ -92,5 +100,12 @@ export const appConfig: ApplicationConfig = {
     // injected by the root shell, so this one registration is the app-wide
     // instance the dialog host subscribes to. BO-B11.
     ConfirmationService,
+
+    // MessageService is not root-provided either, for the same reason and with
+    // the same failure mode: the toast would throw a NullInjectorError the first
+    // time a feature reported anything. It is the channel `ToastService` writes
+    // to and the toast host reads from, so both halves must share this one
+    // instance. BO-B12.
+    MessageService,
   ],
 };
