@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { MessageService } from 'primeng/api';
 
 import { MainLayout } from './main-layout';
 
@@ -7,7 +8,12 @@ describe('MainLayout', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [MainLayout],
-      providers: [provideRouter([])],
+      // MessageService is not `providedIn: 'root'` — the real app registers it
+      // in app.config.ts. The TEMPORARY BO-B13 empty-state sample in this
+      // shell's template has an action button wired to ToastService, which
+      // injects MessageService, so the shell now needs it here too or it throws
+      // NG0201 while creating. Delete this provider with the sample block.
+      providers: [provideRouter([]), MessageService],
     }).compileComponents();
   });
 
