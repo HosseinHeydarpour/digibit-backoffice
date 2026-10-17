@@ -59,6 +59,8 @@ async remove(product: Product): Promise<void> {
 
 یک پرسش معمولی فقط به پیام نیاز دارد:
 
+An ordinary question needs only the message:
+
 ```ts
 if (await this.confirm.confirm({ message: 'آیا از خروج از حساب مطمئن هستید؟' })) {
   this.auth.logout();
@@ -82,8 +84,6 @@ if (await this.confirm.confirm({ message: 'آیا از خروج از حساب م
 | ------------------ | ------------------ | ------------------------------------------- |
 | `confirm(options)` | `Promise<boolean>` | فیچرها.                                     |
 | `settle(accepted)` | `void`             | **فقط host دیالوگ.** بخشی از API فیچر نیست. |
-
-An ordinary question needs only the message:
 
 ### `ConfirmOptions`
 

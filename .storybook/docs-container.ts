@@ -3,6 +3,8 @@ import { createElement, useEffect, useState, type PropsWithChildren, type ReactN
 import { GLOBALS_UPDATED } from 'storybook/internal/core-events';
 import type { ThemeVars } from 'storybook/theming';
 
+import { watchDocsDirection } from './docs-direction';
+import { DOCS_STYLES } from './docs-styles';
 import { docsThemes } from './theme';
 
 /**
@@ -56,7 +58,24 @@ import { docsThemes } from './theme';
  * The `globalsUpdated` listener is kept as the second source: it re-renders the
  * page when a global changes *after* mount, which is the case the URL parsing
  * above cannot see until the manager re-navigates the iframe.
+ *
+ * Third thing the parameter file declares but Storybook itself never applies:
+ * `parameters.docs.lang`. It lands in `context.projectAnnotations.parameters`
+ * (project-level), and Storybook's own docs container does not read it — so this
+ * wrapper copies it onto the page root itself, where `lang` shapes Persian text
+ * and tells screen readers the page is Persian.
+ *
+ * And the fourth, which is presentation rather than mechanics: Storybook's docs
+ * stylesheet is neutral and partly physical. The page needs a card, a real type
+ * scale, code and table surfaces, and logical offsets instead of Storybook's
+ * `right: 100%` heading link and `padding-left` list indent. That lives in
+ * `docs-styles.ts`, injected once and scoped to `.docs-shell`. The bilingual
+ * flow — English blocks inside a Persian page — is resolved per block by
+ * `docs-direction.ts`.
  */
+
+/** The id of the injected docs stylesheet, so a re-render cannot duplicate it. */
+const DOCS_STYLE_ID = 'branded-docs-styles';
 
 /** The toolbar globals this file reads, plus whatever else Storybook sends. */
 type GlobalsRecord = Record<string, unknown>;
@@ -66,18 +85,25 @@ let latestGlobals: GlobalsRecord = {};
 /**
  * The toolbar globals carried in this document's URL, as Storybook encodes them.
  *
- * The manager puts every global into the preview iframe's `src` as
- * `globals=theme:dark,direction:ltr` — one `key:value` pair per global,
- * comma-separated. Only the keys this app defines are picked out, so an unknown
- * key cannot smuggle itself in, and a value containing a separator (which none
- * of ours do) is simply not supported.
+ * The manager puts every global into the preview iframe's `src`. One
+ * `key:value` pair per global, but the **pair separator is not stable across
+ * versions**: Storybook 11 joins two or more globals with a `;`
+ * (`mergeSerializedParams` → `.join(";")`, measured in the shipped
+ * `manager/globals-runtime.js`), while earlier releases used a `,`. Splitting on
+ * one of them must not orphan the other — the moment both toolbars differ from
+ * their defaults, `globals=direction:ltr;theme:dark` reached this function and a
+ * comma-only split turned the whole string into one value under `direction`,
+ * silently re-rendering the page RTL + light against an LTR + dark toolbar.
+ * Only the keys this app defines are picked out, so an unknown key cannot
+ * smuggle itself in, and a value containing a separator (which none of ours do)
+ * is simply not supported.
  */
 export function globalsFromUrl(search: string): GlobalsRecord {
   const raw = new URLSearchParams(search).get('globals');
   if (!raw) return {};
 
   const globals: GlobalsRecord = {};
-  for (const pair of raw.split(',')) {
+  for (const pair of raw.split(/[,;]/)) {
     const separator = pair.indexOf(':');
     if (separator <= 0) continue;
     const key = pair.slice(0, separator).trim();
@@ -120,6 +146,25 @@ function readGlobals(payload: unknown): GlobalsRecord {
 }
 
 /**
+ * Pulls the docs `lang` out of the project annotations without trusting shape.
+ *
+ * `context` crosses from Storybook core and `projectAnnotations.parameters`
+ * stays generic over a renderer, so the language tag is narrowed from unknown
+ * rather than assumed — same discipline as `readGlobals` above.
+ */
+function readDocsLang(projectAnnotations: unknown): string | undefined {
+  if (
+    projectAnnotations &&
+    typeof projectAnnotations === 'object' &&
+    'parameters' in projectAnnotations
+  ) {
+    const { parameters } = projectAnnotations as { parameters?: { docs?: { lang?: unknown } } };
+    if (typeof parameters?.docs?.lang === 'string') return parameters.docs.lang;
+  }
+  return undefined;
+}
+
+/**
  * The docs page wrapper, assigned to `parameters.docs.container` in
  * `preview.ts`. See the file header for why it exists.
  */
@@ -146,6 +191,47 @@ export function BrandedDocsContainer({
     ...latestGlobals,
   };
   const { dir, theme } = resolveDocsAppearance(globals);
+  const lang = readDocsLang(context.projectAnnotations);
+  const dark = theme.base === 'dark';
 
-  return createElement('div', { dir }, createElement(DocsContainer, { context, theme }, children));
+  /**
+   * Document-level direction and colour scheme.
+   *
+   * The preview decorator in `preview.ts` does this for stories, but a docs page
+   * runs no story, so without this `<html>` stays LTR/`en` and the browser puts
+   * the scrollbar on the wrong side of a Persian page. `lang` comes from the
+   * project parameter; when it is absent the attribute is removed rather than
+   * guessed, so the manager's own `en` cannot leak in.
+   */
+  useEffect(() => {
+    const html = document.documentElement;
+    html.setAttribute('dir', dir);
+    if (lang) html.setAttribute('lang', lang);
+    else html.removeAttribute('lang');
+    html.classList.toggle('app-dark', dark);
+  }, [dir, lang, dark]);
+
+  /**
+   * Docs-only styles and the bilingual direction pass. Both are installed once;
+   * the disposer stops the observer when the docs page unmounts.
+   */
+  useEffect(() => {
+    if (!document.getElementById(DOCS_STYLE_ID)) {
+      const style = document.createElement('style');
+      style.id = DOCS_STYLE_ID;
+      style.textContent = DOCS_STYLES;
+      document.head.appendChild(style);
+    }
+    return watchDocsDirection(document.body);
+  }, []);
+
+  return createElement(
+    'div',
+    {
+      dir,
+      lang,
+      className: dark ? 'docs-shell docs-shell--dark' : 'docs-shell',
+    },
+    createElement(DocsContainer, { context, theme }, children),
+  );
 }

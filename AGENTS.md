@@ -526,6 +526,40 @@ appear once** — code has no language, only the prose is translated. Tables app
 because the "notes" column is prose. This is the one place where duplication is correct:
 a Persian team reads the Persian, and a new contributor can check the English.
 
+### Docs pages are typeset and oriented, not raw
+
+Storybook's docs stylesheet is a neutral default written for one Latin language. On a
+bilingual Persian catalogue it is wrong in four visible ways, and the docs container
+fixes all four itself:
+
+- **The page direction.** `BrandedDocsContainer` sets `dir`, `lang` and `.app-dark` on
+  `<html>`, because an MDX page runs no preview decorator. Without it the content is RTL
+  inside an LTR document — right text, wrong scrollbar and wrong `lang`.
+- **The typesetting.** `.storybook/docs-styles.ts` is a CSS string injected once as a
+  `<style>` element and scoped to `.docs-shell`, the wrapper the container renders. It
+  gives the page a card, a real heading scale, bordered code/table surfaces and the
+  brand accent. It is deliberately **not** an import in `preview.ts`: a CSS module import
+  would need a declaration file and would load docs rules for every story, while the
+  app bundle has no business carrying docs CSS. Because it is a template literal, a
+  backtick anywhere inside — including in a CSS comment — terminates the string; that
+  failure shows up as a babel `Missing initializer` error, not as CSS.
+- **Storybook's physical offsets.** Its heading copy-link sits at `right: 100%` with
+  `padding-right: 8px`, and its list indent is `padding-left: 30px`. In RTL the link
+  lands in the wrong gutter and the bullets hang off the right edge. Both are restated
+  with logical properties; the physical declaration is overridden by specificity, not
+  by a second physical one.
+- **Bilingual blocks.** `.storybook/docs-direction.ts` decides the direction of every
+  paragraph, list, table and sub-heading from its own text: an English block is LTR, a
+  Persian block RTL, and a heading with any Persian letter stays RTL (the bilingual
+  heading would otherwise flip on its English half). `h1` is excluded because it is the
+  page title; story canvases are excluded because their direction belongs to the preview
+  decorator. The Direction toolbar set to LTR disables the pass, so the diagnostic shows
+  a genuinely LTR page rather than half a mirrored one.
+
+The pass is synchronous. Scheduling it in `requestAnimationFrame` looks tidier, but rAF
+is paused while the preview document is hidden, so a docs page opened in a background tab
+renders every English block on the wrong side until it is looked at.
+
 ### Tables need `remark-gfm`
 
 MDX compiles CommonMark only, and GitHub tables are an **extension**. Without the plugin
@@ -534,6 +568,14 @@ API pages looked like before it was added. Storybook does not ship it and only e
 `rehypePlugins`, so `.storybook/main.ts` passes it through
 `mdxPluginOptions.mdxCompileOptions.remarkPlugins`. If a table ever renders as raw pipes
 again, that wiring is the first thing to check.
+
+**And check the server's age before doubting that wiring.** The `.mdx` loader rule is
+resolved once when the server boots (`mdxLoaderOptions` runs through the preset chain at
+startup), so an edit to `main.ts` while the dev server is running is never re-applied —
+the stale process keeps compiling MDX without the plugin and tables stay raw even though
+the source is right. Measured on 17.10: tables stayed broken with `remark-gfm` on disk
+until the server was restarted; the restart alone fixed every page. Restart
+`npm run storybook` first, then look at `main.ts`.
 
 ### Rules for adding an entry
 
@@ -596,6 +638,16 @@ again, that wiring is the first thing to check.
   change into the manager URL and rebuilds the preview iframe's `src` with
   `globals=theme:dark` in it (measured, for stories and docs alike). Keep the
   `globalsUpdated` listener as the second source for a change _after_ mount.
+- **SB11 joins two or more globals with `;`, not `,`.** A single global deep-links as
+  `&globals=theme:dark`, but with both toolbars off their defaults the manager writes
+  `&globals=direction:ltr;theme:dark` (`mergeSerializedParams` → `.join(";")` in the
+  shipped manager bundle). `globalsFromUrl` in `docs-container.ts` splits on both
+  separators; with a comma-only split the one pair under `direction` swallowed the theme
+  and the page re-rendered RTL + light against an LTR + dark toolbar (measured).
+- **`parameters.docs.lang` is honoured by the custom container.** Storybook never applies
+  it to an MDX docs page itself — its own `htmlLang` parameter only reaches story roots
+  and embedded story canvases. `BrandedDocsContainer` copies the project-level
+  `docs.lang` onto the page root, so the page is `dir="rtl" lang="fa"` by default.
 
 ### Recommendations — not yet done, in priority order
 
