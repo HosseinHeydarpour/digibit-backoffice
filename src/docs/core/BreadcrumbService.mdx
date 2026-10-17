@@ -1,0 +1,214 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Core/BreadcrumbService" />
+
+# BreadcrumbService
+
+`src/app/core/services/breadcrumb.ts` · rendered by
+[Breadcrumb](/docs/shared-breadcrumb--docs) inside
+[PageHeader](/docs/shared-pageheader--docs)
+
+مسیر breadcrumb را از سلسله‌مراتب route فعال می‌سازد، با خواندن `data.breadcrumb` از هر route تطبیق‌خورده و جمع کردن URL‌ها.
+
+Builds the breadcrumb trail from the active route hierarchy, by reading
+`data.breadcrumb` off each matched route and accumulating the URLs.
+
+---
+
+## کاربرد / Use case
+
+**کِی سراغش برو:** وقتی در حال نوشتن shell هستی، یا وقتی دیباگ می‌کنی چرا یک مسیر غلط است. این نیمهٔ state breadcrumb است؛ کامپوننت نیمهٔ نمایش است.
+
+**کِی سراغش نرو:** وقتی در حال نوشتن یک صفحه هستی. یک صفحه خرده‌های خود را در **route** اعلام می‌کند:
+
+```ts
+export const routes: Routes = [
+  {
+    path: 'products',
+    data: { breadcrumb: 'محصولات' },
+    children: [
+      {
+        path: ':id',
+        // A function, when the label needs this route's own params.
+        data: { breadcrumb: (params: Params) => `ویرایش محصول ${params['id']}` },
+      },
+    ],
+  },
+];
+```
+
+سپس کامپوننت را بگذار و دیگر به آن فکر نکن:
+
+```html
+<app-breadcrumb />
+```
+
+**Reach for it when** you are writing the shell, or debugging why a trail is wrong. It is
+the state half of the breadcrumb; the component is the presentation half.
+
+**Do not reach for it when** you are writing a page. A page declares its crumbs in the
+**route**:
+
+Then drop the component in and stop thinking about it:
+
+---
+
+## نحوهٔ استفاده / How to use
+
+```ts
+import { inject } from '@angular/core';
+import { BreadcrumbService } from '@core/services/breadcrumb';
+
+private readonly breadcrumbs = inject(BreadcrumbService);
+
+this.breadcrumbs.crumbs();   // readonly BreadcrumbItem[]  ·  [] when nothing declares one
+```
+
+`BreadcrumbItem` یک `{ label: string; url: string }` است — به [مدل‌های مشترک](/docs/core-shared-models--docs) نگاه کن.
+
+| عضو      | نوع                                 | معنی             |
+| -------- | ----------------------------------- | ---------------- |
+| `crumbs` | `Signal<readonly BreadcrumbItem[]>` | مسیر route فعال. |
+
+> **نکتهٔ قالب.** `@for` و `@if` سیگنال‌ها را باز نمی‌کنند. کامپوننت باید `crumbs()` را صدا بزند، نه اینکه به `crumbs` ارجاع دهد. فقط درج‌ها `{{ }}` خودکار باز می‌شوند.
+
+### نوع `BreadcrumbLabel`
+
+```ts
+export type BreadcrumbLabel = string | ((params: Params) => string);
+```
+
+یک رشتهٔ ساده برای label‌های ثابت، یا یک تابع وقتی label به params خود route نیاز دارد. تابع **فقط** `params` را می‌گیرد — هرگز کل snapshot را — پس خالص می‌ماند و تستش بی‌زحمت است.
+
+`BreadcrumbItem` is `{ label: string; url: string }` — see
+[Shared Models](/docs/core-shared-models--docs).
+
+| Member   | Type                                | Meaning                         |
+| -------- | ----------------------------------- | ------------------------------- |
+| `crumbs` | `Signal<readonly BreadcrumbItem[]>` | The trail for the active route. |
+
+> **Template note.** `@for` and `@if` do **not** unwrap signals. The component must call
+> `crumbs()`, not reference `crumbs`. Only interpolations `{{ }}` unwrap automatically.
+
+### `BreadcrumbLabel`
+
+A plain string for static labels, or a function when the label needs the route's own
+params. The function receives **only** `params` — never the whole snapshot — so it stays
+pure and is trivial to test.
+
+---
+
+## منطق پشت طراحی / Logic
+
+### اصلاً چرا سرویس وجود دارد
+
+همان دلیل [PageTitleService](/docs/core-pagetitleservice--docs): رویدادهای router از جنس RxJS‌اند، سیگنال‌ها نیستند. اشتراک روی `NavigationEnd` همان پل است، و همان کل دلیل وجود این فایل. تنها کارش نوشتن `trail` است؛ `crumbs` هر چیز دیگری را مشتق می‌کند.
+
+`startWith(null)` بلافاصله `readTrail()` را اجرا می‌کند، پس یک deep link که مستقیم باز شده (`/products/12`) در **اولین رنگ‌آمیزی** درست است، نه با یک فلش خالی.
+
+`NavigationEnd` و نه `NavigationStart`، چون در طول یک route lazy داده هنوز قابل resolve شدن نیست و خواندن زودهنگام یک مسیر کهنه را emit می‌کند.
+
+### چرا URL‌ها دستی جمع می‌شوند
+
+`route.snapshot.url` فقط **سگمنت‌های خود همین گره** را نگه می‌دارد — `['12']` برای `products/:id` — نه سگمنت‌های اجدادش. پس حلقه پایین می‌رود و ضمیمه می‌کند، و همین است که `products` + `:id` + `edit` را به `/products/12/edit` تبدیل می‌کند:
+
+```
+root.firstChild → products   url '/products'      data.breadcrumb 'محصولات'
+  └ firstChild → :id         url '/products/12'   data.breadcrumb fn → 'ویرایش محصول 12'
+```
+
+یک گره با **بدون سگمنت** (یک والد بدون کامپوننت) نباید یک `/` سرگردان ضمیمه کند — `/products/` بررسی‌های برابری `routerLink` را می‌شکند، پس ضمیمه با `segments.length > 0` محافظت شده است.
+
+### تلهٔ ارث‌بری label
+
+Angular `data` یک والد را در فرزندانی که هیچ اعلام نکرده‌اند ادغام می‌کند — همان ارث‌بری‌ای که `data.title` از آن بهره می‌برد. پس روی `/orders/42/edit`، که فقط `orders/:id` یک label اعلام می‌کند، مسیر «سفارش‌ها» **دو بار** است: سطح `edit` برچسب والدش را زیر URL عمیق‌تر خودش به ارث می‌برد.
+
+**به‌ازای هر سطح یک label اعلام کن، به‌جای تکیه بر ارث‌بری.** یک label تکراری در UI به‌عنوان یک باگ خوانده می‌شود، و خواننده راهی ندارد بفهمد عمدی بوده است.
+
+### چرا یک مسیر خالی چیزی رندر نمی‌کند، و چرا این درست است
+
+وقتی هیچ‌چیز در زنجیرهٔ تطبیق‌خورده یک breadcrumb اعلام نمی‌کند — از جمله wildcard ۴۰۴ — `readTrail()` مقدار `[]` را برمی‌گرداند، هرگز یک خردهٔ fallback. سپس `Breadcrumb` هیچ chip‌ی رندر نمی‌کند (و `PageHeader` فاصله‌اش را نگه می‌دارد، چون کامپوننت خودش را پنهان می‌کند به‌جای رندر کردن یک فهرست خالی).
+
+سکوت عمدی است: یک ۴۰۴ جایی در مسیر ندارد، و یک chip مصنوعی «خانه» لینکی به یک route می‌شد که ممکن است وجود نداشته باشد.
+
+### چرا کامپوننت هیچ منطق route ندارد
+
+`Breadcrumb` عمداً خنگ است: هر چیزی که `crumbs` نگه می‌دارد را رندر می‌کند. تفکیک نمایش (کامپوننت) در برابر state (سرویس) است، همان تفکیکی که `Topbar` در برابر `PageTitleService` دارد. کامپوننتی که خودش هم router را می‌پیمود بدون یک `RouterTestingHarness` تست‌ناپذیر می‌شد، و دو جا می‌داشتیم که شکل مسیر را می‌دانند.
+
+### محدودیت‌های شناخته‌شدهٔ دامنه
+
+ارزش دانستن دارند، همه برای این برنامه مشکلی ندارند:
+
+- **matrix و query params بخشی از URL یک خرده نیستند.** یک مسیر برای `/products?page=3` به `/products` لینک می‌دهد.
+- **route‌های secondary (named-outlet) پیموده نمی‌شوند.** فقط زنجیرهٔ outlet اصلی خرده تولید می‌کند.
+
+### چه چیزی عمداً اینجا نیست
+
+- **نه خروجی JSON-LD `BreadcrumbList`.** موتورهای جست‌وجو یک پنل ادمین را ایندکس نمی‌کنند.
+- **نه قاعدهٔ جمع‌شدن.** مسیرهای بلند به «…» کوتاه نمی‌شوند. در واقعیت هیچ route‌ی اینجا عمیق‌تر از سه سطح تودرتو نیست، و یک قاعدهٔ کوتاه‌سازی تصمیمی است که باید در برابر یک مثال واقعی گرفته شود، نه از پیش.
+
+### Why the service exists at all
+
+Same reason as [PageTitleService](/docs/core-pagetitleservice--docs): router events are
+RxJS, signals are not. The subscription to `NavigationEnd` is the bridge, and it is the
+whole reason the file exists. Its one job is to write `trail`; `crumbs` derives
+everything else.
+
+`startWith(null)` runs `readTrail()` immediately, so a deep link opened directly
+(`/products/12`) is correct on the **first paint** instead of flashing empty.
+
+`NavigationEnd` rather than `NavigationStart`, because during a lazy route the data is
+not resolvable yet and reading early would emit a stale trail.
+
+### Why the URLs are accumulated by hand
+
+`route.snapshot.url` holds only **this node's own segments** — `['12']` for
+`products/:id` — never its ancestors'. So the loop walks down and appends, which is what
+turns `products` + `:id` + `edit` into `/products/12/edit`:
+
+A node with **no segments** (a component-less parent) must not append a stray `/` —
+`/products/` would break `routerLink` equality checks, so the append is guarded by
+`segments.length > 0`.
+
+### The label-inheritance trap
+
+Angular merges a parent's `data` into children that declare none — the same inheritance
+`data.title` enjoys. So on `/orders/42/edit`, where only `orders/:id` declares a label,
+the trail is «سفارش‌ها» **twice**: the `edit` level inherits its parent's label under its
+own deeper URL.
+
+**Declare a label per level rather than relying on the inheritance.** A duplicated label
+reads as a bug in the UI, and the reader has no way to tell it was intentional.
+
+### Why an empty trail renders nothing, and why that is right
+
+When nothing in the matched chain declares a breadcrumb — including the 404 wildcard —
+`readTrail()` returns `[]`, never a fallback crumb. `Breadcrumb` then renders no chips
+(and `PageHeader` keeps its spacing, because the component hides itself rather than
+rendering an empty list).
+
+The silence is deliberate: a 404 has no place in a trail, and a synthetic «خانه» chip
+would be a link to a route that may not exist.
+
+### Why the component owns no route logic
+
+`Breadcrumb` is deliberately dumb: it renders whatever `crumbs` holds. The split is
+presentation (component) against state (service), the same split as `Topbar` against
+`PageTitleService`. A component that also walked the router would be untestable without
+a `RouterTestingHarness`, and there would be two places that know the trail's shape.
+
+### Known scope limits
+
+Worth knowing, all fine for this app:
+
+- **Matrix and query params are not part of a crumb URL.** A trail for
+  `/products?page=3` links to `/products`.
+- **Secondary (named-outlet) routes are not walked.** Only the primary outlet's chain
+  produces crumbs.
+
+### What is deliberately not here
+
+- **No JSON-LD `BreadcrumbList` output.** Search engines do not index an admin panel.
+- **No collapse rule.** Long trails are not truncated to «…». Realistically no route
+  nests deeper than three levels here, and a truncation rule is a decision that should be
+  made against a real example rather than in advance.

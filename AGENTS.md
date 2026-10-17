@@ -420,15 +420,198 @@ the built bundle, not to trust the build succeeding.
 
 ## Local tooling
 
-| Command                | Purpose                                         |
-| ---------------------- | ----------------------------------------------- |
-| `npm start`            | dev server on http://localhost:4200             |
-| `npm run build`        | production build into `dist/backoffice/browser` |
-| `npm test`             | Vitest unit tests                               |
-| `npm run lint`         | ESLint over ts and html                         |
-| `npm run lint:fix`     | ESLint with autofix                             |
-| `npm run format`       | format the whole repo with Prettier             |
-| `npm run format:check` | check formatting without writing                |
+| Command                   | Purpose                                         |
+| ------------------------- | ----------------------------------------------- |
+| `npm start`               | dev server on http://localhost:4200             |
+| `npm run build`           | production build into `dist/backoffice/browser` |
+| `npm test`                | Vitest unit tests                               |
+| `npm run lint`            | ESLint over ts and html                         |
+| `npm run lint:fix`        | ESLint with autofix                             |
+| `npm run format`          | format the whole repo with Prettier             |
+| `npm run format:check`    | check formatting without writing                |
+| `npm run storybook`       | Storybook dev server                            |
+| `npm run build-storybook` | static Storybook build into `storybook-static/` |
 
 Formatting is applied automatically to staged files by the `pre-commit` hook
 (Husky + lint-staged), and commit messages are validated by the `commit-msg` hook.
+
+## Storybook — the living catalogue
+
+Storybook 11 (alpha) is the reference for **every** shared component, every layout
+piece, and every non-visual building block. It is the place to look before writing a
+component and the place to check one after changing it.
+
+### Run it — only through the Angular CLI
+
+```bash
+npm run storybook          # ng run backoffice:storybook
+npm run build-storybook    # ng run backoffice:build-storybook
+```
+
+**`storybook dev` does not work here.** Storybook 11's Angular framework reads the
+build configuration from an **Angular target** (`browserTarget:
+"backoffice:build:storybook"`), not from `.storybook/main.ts` — the `tsConfig`, the
+global `styles`, the `assets`, the `fileReplacements`. Without the target it raises
+`AngularLegacyBuildOptionsError`. The upside is that the preview iframe compiles
+through the _same_ pipeline as the app, so Tailwind, the Payda fonts and PrimeIcons
+are exactly what ships.
+
+`angular.json` also has a `storybook` **build configuration** adding
+`allowedCommonJsDependencies` for `jalali-ts`, `axe-core`, `semver` and `strip-ansi`.
+Without it the CommonJS bailout warnings become errors and the build fails.
+
+### The catalogue
+
+Sidebar order comes from `options.storySort.order` in `.storybook/preview.ts`, keyed on
+the **first segment** of each `title`. A typo there silently reorders the sidebar
+instead of failing, so check it when you add a new root.
+
+| Root           | Contents                                                       |
+| -------------- | -------------------------------------------------------------- |
+| `Introduction` | orientation, tooling, the doc standard                         |
+| `Foundations`  | design tokens — colour, type, RTL, dark mode, breakpoints      |
+| `Conventions`  | how to write a story and its docs                              |
+| `Shared`       | `src/app/shared/components/**`                                 |
+| `Layout`       | `src/app/layout/**`                                            |
+| `Core`         | services, interceptors, tokens, models — everything non-visual |
+
+Every entry, with its file and its docs id:
+
+| Entry               | File                                    | Docs id                         |
+| ------------------- | --------------------------------------- | ------------------------------- |
+| `StatCard`          | `shared/components/stat-card/`          | `shared-statcard--docs`         |
+| `EmptyState`        | `shared/components/empty-state/`        | `shared-emptystate--docs`       |
+| `PageHeader`        | `shared/components/page-header/`        | `shared-pageheader--docs`       |
+| `Breadcrumb`        | `shared/components/breadcrumb/`         | `shared-breadcrumb--docs`       |
+| `ToastHost`         | `shared/components/toast-host/`         | `shared-toasthost--docs`        |
+| `ConfirmDialogHost` | `shared/components/confirm-dialog/`     | `shared-confirmdialog--docs`    |
+| `JalaliDatepicker`  | `shared/components/jalali-datepicker/`  | `shared-jalalidatepicker--docs` |
+| `MainLayout`        | `layout/main-layout/`                   | `layout-mainlayout--docs`       |
+| `Sidebar`           | `layout/sidebar/`                       | `layout-sidebar--docs`          |
+| `SidebarDrawer`     | `layout/sidebar-drawer/`                | `layout-sidebardrawer--docs`    |
+| `Topbar`            | `layout/topbar/`                        | `layout-topbar--docs`           |
+| `ApiService`        | `core/services/api.ts`                  | `core-apiservice--docs`         |
+| `ThemeService`      | `core/services/theme.ts`                | `core-themeservice--docs`       |
+| `ToastService`      | `core/services/toast.ts`                | `core-toastservice--docs`       |
+| `ConfirmService`    | `core/services/confirm.ts`              | `core-confirmservice--docs`     |
+| `PageTitleService`  | `core/services/page-title.ts`           | `core-pagetitleservice--docs`   |
+| `BreadcrumbService` | `core/services/breadcrumb.ts`           | `core-breadcrumbservice--docs`  |
+| HTTP pipeline       | `core/interceptors/`, `core/mock/`      | `core-http-pipeline--docs`      |
+| Permissions & menu  | `core/auth/`, `layout/sidebar/menu*.ts` | `core-permissions--docs`        |
+| Shared models       | `shared/models/**`                      | `core-shared-models--docs`      |
+
+Also documented: `layout/sidebar/menu.ts` (`MENU`, `MENU_PERMISSIONS`),
+`layout/sidebar/menu-filter.ts` (`filterMenu`), `layout/sidebar-drawer/sidebar-drawer.state.ts`
+(`SidebarDrawerState`).
+
+**Not covered because they do not exist yet:** `src/app/features/**`,
+`src/app/shared/pipes/`, `src/app/shared/directives/`, `src/app/core/guards/` — all four
+folders are empty. The first pipe, directive or guard to land gets a story file or an MDX
+page the same way a component does.
+
+### The docs standard — three parts, always in this order
+
+1. **Use case** — when to reach for it, and **when not to**. The negative half matters
+   most: the component someone reaches for by mistake is what causes the bug.
+2. **How to use** — the public surface, with a copy-pasteable Persian example.
+3. **Logic** — why it is built this way and what it protects you from: the decision, the
+   trap a naive implementation produces, and what is deliberately _not_ in the module.
+
+An entry that only lists the API tells you what the code does and never whether it is the
+right tool. The rule is applied to every MDX page and every autodocs description.
+
+**Every page is bilingual, Persian first.** Section headings carry both languages
+(`## کاربرد / Use case`); the prose is written twice, Persian above English. **Code blocks
+appear once** — code has no language, only the prose is translated. Tables appear twice
+because the "notes" column is prose. This is the one place where duplication is correct:
+a Persian team reads the Persian, and a new contributor can check the English.
+
+### Tables need `remark-gfm`
+
+MDX compiles CommonMark only, and GitHub tables are an **extension**. Without the plugin
+every `| a | b |` table compiles to a single `<p>` of literal pipes — which is what the
+API pages looked like before it was added. Storybook does not ship it and only exposes
+`rehypePlugins`, so `.storybook/main.ts` passes it through
+`mdxPluginOptions.mdxCompileOptions.remarkPlugins`. If a table ever renders as raw pipes
+again, that wiring is the first thing to check.
+
+### Rules for adding an entry
+
+- Stories live **next to what they document**: `stat-card.stories.ts` beside
+  `stat-card.ts`.
+- `tags: ['autodocs']` on every component story, or there is no page for the description
+  to live on.
+- A `/** … */` comment above every story export — it becomes the story's description.
+- Name stories for the **scenario** (`SalesToday`, `OrdersWithProgress`), never for the
+  values (`Variant1`).
+- Prefer `args` over `render`. `args` are editable in Controls and appear in the props
+  table; a hand-written `render` is opaque. Use `render` only when the component needs a
+  host — a `FormControl`, an injected service.
+- **Never import app fixtures into a story.** Define the data in the story file; the mock
+  layer is compiled out of production and Storybook must not depend on it.
+- MDX pages live in `src/docs/`, one per non-visual concern. `src/docs/core/*.mdx` is the
+  convention for services, interceptors, tokens and models.
+
+### Gotchas
+
+- **SB11's Angular `render` has no `component` key.** The return type is
+  `StoryFnAngularReturnType` = `{ props?, moduleMetadata?, applicationConfig?, template?, styles? }`.
+  Returning `{ component: X }` fails to compile — use `template` + `moduleMetadata`.
+- **`preview.ts` already provides the app's global providers** — `LOCALE_ID: 'fa-IR'`,
+  `provideHttpClient`, `provideRouter([])`, `providePrimeNG` with the Digibit preset,
+  `MessageService`, `ConfirmationService`. A story never provides those. The two PrimeNG
+  services are registered **explicitly** because neither is `providedIn: 'root'`.
+- **`.storybook/tsconfig.json` must keep `["./**/*.ts", "../src/**/*.stories.ts"]` in
+  `include`.** Drop the stories and `@ngtools/webpack` fails with "missing from the
+  TypeScript compilation". The manager-only file is excluded, because it is Node-side.
+- **The "is part of the TypeScript compilation but it's unused" warnings are filtered**
+  in `main.ts`'s `webpackFinal`. They are unavoidable with the webpack Angular builder and
+  they hide real warnings.
+- **The dev server needs `.storybook/webpack-context-include-fix.ts` on Windows.** Storybook
+  builds the story list as a webpack _context module_ whose `webpackInclude` filter is
+  generated from a forward-slash glob, but webpack tests that filter against a `path.join`
+  absolute path — backslashes on Windows. Nothing matches, the context map comes out empty,
+  and every story dies at runtime with `Cannot find module './docs/…'`. The plugin widens
+  `\/` to `[\\/]` in the filter, which is a no-op on POSIX. Note that `build-storybook` never
+  builds a context, so **a green static build proves nothing about the dev server** — check
+  both.
+- **Adjacent string literals are a syntax error, not concatenation.** In a docs array,
+  a missing `+` produces a confusing `Parsing error: ':' expected` at the end of the
+  following line. `tsc -p .storybook/tsconfig.json --noEmit` finds it in a second.
+- **`a11y.test` is `'todo'`, not `'error'`.** Violations are reported in the panel without
+  failing the build — the right level while the feature pages are still being written.
+- **The docs page follows the Theme and Direction toolbars, and is RTL by default.**
+  Both come from `docs.container`, not from a parameter: the preview decorator only
+  runs for _stories_, so a pure MDX page never gets `dir` and would render LTR, and
+  `parameters.docs.theme` is resolved once at config time so it can never follow a
+  global. Do not "simplify" it back to `parameters.docs.theme`.
+- **Read the toolbar state off the preview document's own URL, not the context or the
+  channel.** Three ways that all look right and all silently fail:
+  `DocsContextProps` has no `globals` (only `projectAnnotations.initialGlobals`, which
+  holds the _defaults_, so a `theme:dark` deep link still reported `light`);
+  `globalsUpdated` never fires for a global applied before the container mounted, and
+  `channel.last()` does not hold it either; and `useGlobals()` from
+  `storybook/preview-api` throws outside a story render, killing the whole page.
+  What works is `globalsFromUrl(location.search)` — Storybook persists every toolbar
+  change into the manager URL and rebuilds the preview iframe's `src` with
+  `globals=theme:dark` in it (measured, for stories and docs alike). Keep the
+  `globalsUpdated` listener as the second source for a change _after_ mount.
+
+### Recommendations — not yet done, in priority order
+
+1. Raise `a11y.test` to `'error'` once the feature pages exist.
+2. Add `play` functions (`@storybook/test`) for `ConfirmDialog` and `ToastHost`, which
+   currently ask a human to click. A `play` function asserting that the Promise resolves
+   on Escape would pin the exact bug the `settle()`-on-`onHide` design exists to prevent.
+3. Add visual regression (Chromatic, or `storybook/test-runner` snapshots) before the
+   feature pages land — nothing today catches a component that renders _wrong_ rather than
+   _broken_.
+4. Publish `storybook-static/` so designers can browse it without a checkout.
+
+### Known defect found while documenting
+
+`layout/sidebar-drawer/sidebar-drawer.html` puts a static `aria-hidden="true"` on the
+panel wrapper, which is an ancestor of the `role="dialog"` element. That removes the open
+drawer from the accessibility tree entirely — a screen reader never sees it. It should be
+`[attr.aria-hidden]="!isOpen()"`. Flagged rather than changed, because it alters component
+behaviour and is not part of the Storybook work.

@@ -1,0 +1,197 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Core/PageTitleService" />
+
+# PageTitleService
+
+`src/app/core/services/page-title.ts` · consumed by
+[Topbar](/docs/layout-topbar--docs)
+
+سرصفحهٔ هدر را با route فعال همگام نگه می‌دارد، با خواندن `data.title` از زنجیرهٔ route
+تطبیق‌خورده.
+
+Keeps the header's heading in sync with the active route, by reading `data.title` off the
+matched route chain.
+
+---
+
+## کاربرد / Use case
+
+**کِی سراغش برو:** وقتی داری shell را می‌نویسی — topbar آن را می‌خواند و هیچ‌چیز دیگری. یا
+وقتی می‌خواهی بررسی کنی چرا سرصفحه آنچه می‌گوید را می‌گوید.
+
+**کِی سراغش نرو:** وقتی داری یک صفحه می‌نویسی. یک صفحه عنوانش را در **route** اعلام
+می‌کند، نه در کد:
+
+```ts
+{
+  path: 'products',
+  loadComponent: () => import('./products').then((m) => m.Products),
+  data: { title: 'محصولات' },
+}
+```
+
+همین کل integration است. صفحه‌ای که `pageTitle.set('…')` را صدا بزند، سرصفحه را از دست
+router بیرون آورده و از breadcrumb واگرا می‌شود، که از همان درخت route مشتق می‌شود.
+
+**Reach for it when** you are writing the shell — the topbar reads it and nothing else
+does. Or when you want to check why the heading says what it says.
+
+**Do not reach for it when** you are writing a page. A page declares its title in the
+**route**, not in code:
+
+That is the whole integration. A page that calls `pageTitle.set('…')` has taken the
+heading out of the router's hands and it will drift from the breadcrumb, which is derived
+from the same route tree.
+
+---
+
+## نحوهٔ استفاده / How to use
+
+```ts
+import { inject } from '@angular/core';
+import { PageTitleService } from '@core/services/page-title';
+
+private readonly pageTitle = inject(PageTitleService);
+
+this.pageTitle.title();   // 'محصولات'  ·  'پنل مدیریت' when no route declares one
+```
+
+استفادهٔ topbar:
+
+```html
+<h1 class="text-lg font-semibold text-dark dark:text-light">{{ title() }}</h1>
+```
+
+| عضو     | نوع              | معنی                                          |
+| ------- | ---------------- | --------------------------------------------- |
+| `title` | `Signal<string>` | عمیق‌ترین عنوان اعلام‌شده، یا `'پنل مدیریت'`. |
+
+`DEFAULT_TITLE = 'پنل مدیریت'` تنها fallback است و در یک جا اعمال می‌شود.
+
+The topbar's usage:
+
+| Member  | Type             | Meaning                                        |
+| ------- | ---------------- | ---------------------------------------------- |
+| `title` | `Signal<string>` | The deepest declared title, or `'پنل مدیریت'`. |
+
+`DEFAULT_TITLE = 'پنل مدیریت'` is the only fallback, applied in one place.
+
+---
+
+## منطق پشت طراحی / Logic
+
+### اصلاً چرا این سرویس وجود دارد
+
+Signalها به‌تنهایی نمی‌توانند ناوبری router را مشاهده کنند — `Router` یک جریان رویداد
+**RxJS** عرضه می‌کند، نه یک signal. یک‌جایی چیزی باید به `NavigationEnd` subscribe کند و در
+یک signal بنویسد. همان پل، کل دلیل وجود این فایل است و تنها کارش نوشتن در یک signal
+خصوصی است؛ `title` هر چیز دیگری را مشتق می‌کند.
+
+این دقیقاً همان شکل [BreadcrumbService](/docs/core-breadcrumbservice--docs) است، عمداً.
+خواندن این دو کنار هم سریع‌ترین راه یاد گرفتن این الگو است.
+
+### چرا `NavigationEnd` و نه `NavigationStart`
+
+در طول یک route تنبل (lazy)، عنوان هنوز قابل حل نیست. گوش دادن در `NavigationStart` تا
+زمانی که chunk بارگذاری شود یک سرصفحهٔ کهنه نشان می‌دهد.
+
+### چرا `startWith(null)`
+
+تا **اولین paint** از قبل عنوان درست را داشته باشد. بدون آن، باز کردن مستقیم `/orders/42`
+— یک deep link — اول «پنل مدیریت» را flash می‌کرد و بعد خودش را تصحیح می‌کرد. با آن،
+`readDeepestTitle()` بلافاصله روی حالت فعلی router اجرا می‌شود.
+
+### چرا تا انتها در `firstChild` پایین می‌رود
+
+یک route فیچر _زیرِ_ `MainLayout` می‌نشیند، پس زنجیرهٔ تطبیق‌خورده `'' → MainLayout` +
+`products` است. گرهٔ ریشه هیچ `data.title` اعلام نمی‌کند؛ عنوان یک یا چند سطح پایین‌تر
+زندگی می‌کند. `route.snapshot` ارث‌بری نمی‌کند، پس حلقه تا عمیق‌ترین گره پایین می‌رود و
+آخرین عنوان ناتهی‌ای را که پیدا کند برمی‌دارد.
+
+```
+/products        → root (no title) → products ('محصولات')        ⇒ 'محصولات'
+/orders/42       → root (no title) → orders/:id ('جزئیات سفارش')  ⇒ 'جزئیات سفارش'
+/nowhere         → ** wildcard (no title anywhere)                ⇒ 'پنل مدیریت'
+```
+
+توجه کن که `/orders/42` عنوان **تحت‌اللفظی** «جزئیات سفارش» را می‌دهد حتی با اینکه segment
+پارامتریک است — `data.title` به ازای هر route ثابت است. چسباندن id واقعی به `route.params`
+نیاز داشت که دغدغهٔ جدایی است و همان چیزی است که
+[function breadcrumb labels](/docs/core-breadcrumbservice--docs) برای آن وجود دارند.
+
+### چرا `readDeepestTitle()` همیشه `null` برمی‌گرداند و هرگز پیش‌فرض را نه
+
+تا فراخوان بتواند **«هیچ routeی عنوان اعلام نکرد»** را از **«یک route عنوانی برابر با
+fallback اعلام کرد»** تشخیص بدهد. اگر این تابع `'پنل مدیریت'` را برمی‌گرداند، یک route
+واقعی که به‌طور مشروع همان رشته را اعلام کرده باشد از یک route غایب قابل تشخیص نبود.
+`title` fallback را دقیقاً یک بار، در یک جا اعمال می‌کند.
+
+### چرا `takeUntilDestroyed()`
+
+سرویس‌های root-provided تا طول عمر برنامه زنده می‌مانند، پس subscription در عمل هرگز نشت
+نمی‌کرد. با این حال `takeUntilDestroyed()` آن را درست می‌کند، و این از همان لحظه‌ای مهم
+می‌شود که یک تست سرویس را به یک کامپوننت محدود کند — listener آزاد می‌شود و هیچ callbackی
+نمی‌تواند در یک signal نابودشده بنویسد.
+
+### چه چیزی عمداً اینجا نیست
+
+- **هیچ side effectی روی document title نیست.** سرویس مالک _سرصفحه_ است، نه
+  `document.title`. سیم‌کشی تب مرورگر به آن یک effect یک‌خطی و تصمیمی جداگانه است.
+- **هیچ درج پارامتری نیست.** بالا را ببین — آن کار breadcrumb است و انجامش اینجا به یک
+  منبع حقیقت دوم برای همان رشته نیاز داشت.
+
+### Why the service exists at all
+
+Signals cannot observe router navigation on their own — `Router` exposes an **RxJS** event
+stream, not a signal. Somewhere, something has to subscribe to `NavigationEnd` and write
+to a signal. That bridge is the entire reason this file exists, and its only job is to
+write one private signal; `title` derives everything else.
+
+This is the same shape as [BreadcrumbService](/docs/core-breadcrumbservice--docs), on
+purpose. Reading the two side by side is the fastest way to learn the pattern.
+
+### Why `NavigationEnd` and not `NavigationStart`
+
+During a lazy route the title is not resolvable yet. Listening at `NavigationStart` shows
+a stale heading for as long as the chunk takes to load.
+
+### Why `startWith(null)`
+
+So the **first paint** already has the right title. Without it, opening `/orders/42`
+directly — a deep link — would flash «پنل مدیریت» and then correct itself. With it,
+`readDeepestTitle()` runs immediately on the current router state.
+
+### Why it walks `firstChild` all the way down
+
+A feature route sits _under_ `MainLayout`, so the matched chain is
+`'' → MainLayout` + `products`. The root node declares no `data.title`; the title lives
+one or more levels down. `route.snapshot` does not inherit, so the loop walks to the
+deepest node and takes the last non-empty title it finds.
+
+Note that `/orders/42` yields the **literal** «جزئیات سفارش» even though the segment is
+parameterised — `data.title` is static per route. Appending the actual id would need
+`route.params`, which is a separate concern and is what
+[function breadcrumb labels](/docs/core-breadcrumbservice--docs) exist for.
+
+### Why `readDeepestTitle()` returns `null` and never the default
+
+So the caller can tell **"no route declared a title"** apart from **"a route declared a
+title equal to the fallback"**. If this function returned `'پنل مدیریت'`, a real route
+that legitimately declares that same string would be indistinguishable from a missing one.
+`title` applies the fallback exactly once, in one place.
+
+### Why `takeUntilDestroyed()`
+
+Root-provided services live for the app's lifetime, so the subscription would never leak
+in practice. `takeUntilDestroyed()` makes it correct anyway, which matters the moment a
+test scopes the service to a component — the listener is released and no callback can
+write to a destroyed signal.
+
+### What is deliberately not here
+
+- **No document-title side effect.** The service owns the _heading_, not
+  `document.title`. Wiring the browser tab to it is a one-line effect and a separate
+  decision.
+- **No parameter interpolation.** See above — that is the breadcrumb's job, and doing it
+  here would need a second source of truth for the same string.

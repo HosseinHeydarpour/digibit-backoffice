@@ -1,0 +1,257 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Core/ApiService" />
+
+# ApiService
+
+`src/app/core/services/api.ts`
+
+تنها دروازهٔ ورود به بک‌اند. هر سرویس فیچر با API از طریق همین کلاس حرف می‌زند و
+هیچ‌وقت مستقیم سراغ `HttpClient` نمی‌رود.
+
+The single entry point to the backend. Every feature service talks to the API through
+this class and never through `HttpClient` directly.
+
+---
+
+## کاربرد / Use case
+
+**کِی سراغش برو:** وقتی یک فیچر به دادهٔ سرور نیاز دارد یا باید چیزی روی سرور بنویسد.
+یعنی هر صفحهٔ فهرست، هر فرم، هر صفحهٔ جزئیات. راه دیگری برای زدن درخواست HTTP در این
+مخزن وجود ندارد.
+
+**کِی سراغش نرو:** وقتی داری کامپوننت می‌نویسی. کامپوننت یک سرویس _فیچر_ را صدا می‌زند
+(`ProductsService`، `OrdersService`، …) و آن سرویس `ApiService` را. اگر کامپوننتی
+`ApiService` را import کند، شکل درخواست به لایهٔ نمایش نشت کرده است و دیگر جایی برای
+گذاشتن کش، retry یا query مشترک باقی نمی‌ماند.
+
+**Reach for it when** a feature needs data from — or has to write data to — the server.
+That is every list page, every form, every detail view. There is no other supported way
+to make an HTTP call in this codebase.
+
+**Do not reach for it when** you are writing a component. A component calls a _feature_
+service (`ProductsService`, `OrdersService`, …), which calls `ApiService`. If a
+component imports `ApiService`, the request shape has leaked into the view layer and
+there is now nowhere to put a cache, a retry, or a shared query.
+
+---
+
+## نحوهٔ استفاده / How to use
+
+```ts
+import { inject } from '@angular/core';
+import { ApiService } from '@core/services/api';
+import type { Page } from '@shared/models';
+
+@Injectable({ providedIn: 'root' })
+export class ProductsService {
+  private readonly api = inject(ApiService);
+
+  /** GET /api/v1/products?page=2&pageSize=20&q=هدفون */
+  list(query: { page: number; pageSize: number; q?: string }): Observable<Page<Product>> {
+    return this.api.getPage<Product>('/products', query);
+  }
+
+  /** GET /api/v1/products/12 */
+  find(id: string): Observable<Product> {
+    return this.api.get<Product>(`/products/${id}`);
+  }
+
+  create(draft: ProductDraft): Observable<Product> {
+    return this.api.post<Product>('/products', draft);
+  }
+
+  update(id: string, draft: ProductDraft): Observable<Product> {
+    return this.api.put<Product>(`/products/${id}`, draft);
+  }
+
+  remove(id: string): Observable<void> {
+    return this.api.delete<void>(`/products/${id}`);
+  }
+}
+```
+
+### متدها / Methods
+
+| متد                         | خروجی                 | توضیح                                                                    |
+| --------------------------- | --------------------- | ------------------------------------------------------------------------ |
+| `get<T>(path, params?)`     | `Observable<T>`       | `data` را از پوشش پاسخ بیرون می‌کشد.                                     |
+| `getPage<T>(path, params?)` | `Observable<Page<T>>` | هم پوشش و هم `meta` را به `{ items, total, page, pageSize }` تخت می‌کند. |
+| `post<T>(path, body)`       | `Observable<T>`       |                                                                          |
+| `put<T>(path, body)`        | `Observable<T>`       |                                                                          |
+| `patch<T>(path, body)`      | `Observable<T>`       |                                                                          |
+| `delete<T>(path)`           | `Observable<T>`       |                                                                          |
+
+`path` را با اسلش ابتدایی یا بدون آن بنویس — `'/products'` و `'products'` هر دو کار
+می‌کنند. آدرس پایه از `environment.API_BASE_URL` می‌آید.
+
+`path` may be written with or without a leading slash — `'/products'` and `'products'`
+both work. The base URL comes from `environment.API_BASE_URL`.
+
+### پارامترهای کوئری / Query parameters
+
+یک آبجکت ساده بده. مقادیر `null`، `undefined` و `''` **حذف می‌شوند**:
+
+```ts
+this.api.getPage<Product>('/products', { page: 1, pageSize: 20, q: '' });
+// → /api/v1/products?page=1&pageSize=20      ← no "q=" at the end
+```
+
+Pass a plain object. `null`, `undefined` and `''` values are **dropped**.
+
+### خطاها / Errors
+
+هیچ‌چیز در کد تو لازم نیست خطا را بگیرد تا _نشان_ داده شود.
+[اینترسپتور خطا](/docs/core-http-pipeline--docs) تا زمانی که شاخهٔ `error` تو اجرا شود،
+خطا را از طریق toast به کاربر گفته است. فقط وقتی شاخهٔ `error` بگذار که کار مشخصی
+داری:
+
+```ts
+this.products.create(draft).subscribe({
+  next: () => this.toast.success('محصول ذخیره شد.'),
+  // No `error` branch: the interceptor already told the user.
+  // Add one only to keep the form open, or to mark a field red:
+  // error: (e: ApiError) => { if (e.isValidation) this.form.markInvalid(e.fields); },
+});
+```
+
+Nothing you write has to catch an error to _show_ it. The
+[error interceptor](/docs/core-http-pipeline--docs) has already reported it through the
+toast by the time your `error` branch runs. Only add an `error` branch when you have
+something specific to do.
+
+هر شکست به‌صورت **`ApiError`** می‌رسد — یک نوع، همیشه:
+
+| ویژگی              | معنی                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| `code`             | `'VALIDATION'`، `'NOT_FOUND'`، `'NETWORK'`، `'HTTP_500'`، `'MALFORMED'`، `'UNKNOWN'` … |
+| `message`          | فارسی، آمادهٔ نمایش                                                                    |
+| `status`           | کد وضعیت HTTP؛ `0` برای قطع شبکه و `-1` برای شکست غیر-HTTP                             |
+| `fields`           | پیام هر فیلد، برای خطاهای اعتبارسنجی                                                   |
+| `isValidation`     | `true` وقتی محتوا رد شده باشد، نه خود درخواست                                          |
+| `fieldError(name)` | اولین پیام یک فیلد، یا `undefined`                                                     |
+
+Every failure arrives as an **`ApiError`** — one type, always:
+
+| Property           | Meaning                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| `code`             | `'VALIDATION'`, `'NOT_FOUND'`, `'NETWORK'`, `'HTTP_500'`, `'MALFORMED'`, `'UNKNOWN'` … |
+| `message`          | Persian, ready to display                                                              |
+| `status`           | HTTP status, `0` for network-down, `-1` for a non-HTTP failure                         |
+| `fields`           | Per-field messages, for validation failures                                            |
+| `isValidation`     | `true` when the payload was rejected rather than the request                           |
+| `fieldError(name)` | First message for a field, or `undefined`                                              |
+
+---
+
+## منطق پشت طراحی / Logic
+
+### اصلاً چرا یک پوشش (wrapper)
+
+سه چیز در مورد هر درخواست این برنامه درست است، و پوشش تنها راهی است که آن‌ها را در
+یک جا درست کند، نه در چهل نقطهٔ فراخوانی:
+
+1. **هر پاسخ همان پوشش است.** `{ data, meta, message }`. `unwrap()` و `toPage()` دو
+   شکلی هستند که فراخوان‌ها واقعاً می‌خواهند و هر دو یک بار پیاده شده‌اند.
+2. **هر شکست همان یک نوع است.** `toApiError()` یک `HttpErrorResponse`، یک قطع شبکه،
+   یک بدنهٔ خراب و یک `ApiError` از پیش نرمال‌شده را به یک کلاس تبدیل می‌کند، پس
+   فراخوان یک شاخهٔ `error` می‌نویسد، نه چهار تا.
+3. **هر درخواست JSON است.** `Accept: application/json` روی همه‌شان ست می‌شود — Angular
+   خودش آن را ست نمی‌کند، و بدون آن سروری که content negotiation دارد می‌تواند HTML
+   جواب بدهد، که آن‌وقت به‌صورت خطای parse شدن JSON و خیلی دور از علت واقعی ظاهر می‌شود.
+
+### هدر `X-Mock` و اینکه چرا همین‌جا ست می‌شود
+
+`JSON_HEADERS` توسط `mockHeaders()` ساخته می‌شود که تا وقتی
+`environment.useMockApi` درست است، `X-Mock: 1` را رویش می‌گذارد. انجام این کار در
+همان نقطهٔ واحدی که هر درخواست ساخته می‌شود یعنی **هیچ سرویس فیچری نمی‌داند بک‌اند
+وجود دارد یا نه**. کل هدف راهبرد «اول رابط کاربری» همین است: جایگزینی API واقعی یک
+پرچم محیط را عوض می‌کند، نه هر سرویس را.
+
+### چرا `toApiError` صادر می‌شود ولی `throwApiError` نه
+
+شبیه یک جفت به نظر می‌رسند و عمداً از هم جدا شده‌اند:
+
+- **`toApiError` یک نرمال‌ساز خالص است.** هر چیزی می‌گیرد و یک `ApiError` برمی‌گرداند.
+  اینترسپتور خطا آن را import می‌کند تا toast و شاخهٔ `error` فراخوان نتوانند در مورد
+  یک شکست واحد با هم اختلاف داشته باشند — یک تابع، یک تصمیم.
+- **`throwApiError` یک اپراتور RxJS است** که هیچ کاری جز پرتاب نتیجه نمی‌کند. داخلی
+  است، چون فراخوانی که این اپراتور را بخواهد، `ApiService` را می‌خواهد نه این را.
+
+### چرا یک `ApiError` از پیش ساخته‌شده دست‌نخورده رد می‌شود
+
+`unwrap()` وقتی بدنه پوشش نباشد یک `ApiError` پرتاب می‌کند، و اینترسپتور ممکن است
+از قبل یک شکست را نرمال کرده باشد. دوباره بسته‌بندی کردن آن، کد مشخص
+(`'MALFORMED'`، `'NOT_FOUND'`) را پاک می‌کند و به `'UNKNOWN'` تنزل می‌دهد — یعنی خطا
+هرچه بیشتر سفر کند، **مبهم‌تر** می‌شود. پس اولین خط `toApiError` یک pass-through است.
+
+### چرا `MALFORMED` یک کد جداگانه است
+
+پاسخی که `200 OK` است ولی پوشش نیست، همان حالتی است که یک رابط کاربری را
+گیج‌کننده‌ترین شکل می‌شکند: لایهٔ HTTP می‌گوید موفق، کامپوننت `undefined` می‌گیرد، و
+قالب جایی بی‌ربط خطا می‌دهد. `unwrap()` بدنه را همان‌جا در مرز رد می‌کند و اسم مشکل را
+می‌گوید، پس کنسول به علت واقعی اشاره می‌کند.
+
+### چه چیزی عمداً اینجا نیست
+
+- **نه کش، نه retry، نه حذف تکراری‌ها.** این‌ها جایشان سرویس فیچر است، یا یک
+  اینترسپتور آینده، جایی که سیاست می‌تواند برای هر endpoint فرق کند.
+- **نه ریدایرکت ۴۰۱.** تسک‌های احراز هویت (BO-D07/D08) صاحب آن هستند. ریدایرکت در
+  اینترسپتور باعث می‌شود هر درخواست هم‌زمان برای ناوبری مسابقه بدهد.
+- **نه شناسهٔ `string`.** `EntityId` سراسر `string` است — به
+  [مدل‌های مشترک](/docs/core-shared-models--docs) نگاه کن.
+
+### Why a wrapper at all
+
+Three things are true of every request in this app, and a wrapper is the only way to
+make them true in one place rather than at forty call sites:
+
+1. **Every response is the same envelope.** `{ data, meta, message }`. `unwrap()` and
+   `toPage()` are the two shapes callers actually want, and both are implemented once.
+2. **Every failure is the same type.** `toApiError()` normalises an `HttpErrorResponse`,
+   a network failure, a malformed body and an already-normalised `ApiError` into one
+   class, so a caller writes one `error` branch instead of four.
+3. **Every request is JSON.** `Accept: application/json` is set on all of them — Angular
+   does not set it, and without it a server doing content negotiation can answer with
+   HTML, which then fails as a JSON parse error far from the cause.
+
+### The `X-Mock` header, and why it is set here
+
+`JSON_HEADERS` is built by `mockHeaders()`, which layers `X-Mock: 1` on top while
+`environment.useMockApi` is true. Doing it at the single point where every request is
+built means **no feature service knows whether a backend exists yet**. That is the
+whole point of the UI-first strategy: swapping in the real API changes one environment
+flag, not every service.
+
+### Why `toApiError` is exported but `throwApiError` is not
+
+They look like a pair and are deliberately split:
+
+- **`toApiError` is a pure normaliser.** It takes anything and returns an `ApiError`.
+  The error interceptor imports it so the toast and the caller's `error` branch cannot
+  disagree about the same failure — one function, one decision.
+- **`throwApiError` is an RxJS operator** that does nothing but throw the result. It is
+  internal, because a caller that wants the operator wants `ApiService`, not this.
+
+### Why an already-`ApiError` passes through unchanged
+
+`unwrap()` throws an `ApiError` when the body is not the envelope, and the interceptor
+may already have normalised a failure. Re-wrapping it would erase the specific code
+(`'MALFORMED'`, `'NOT_FOUND'`) and downgrade it to `'UNKNOWN'` — the error would get
+_vaguer_ the further it travelled. So the first line of `toApiError` is a pass-through.
+
+### Why `MALFORMED` is a distinct code
+
+A response that is `200 OK` but not the envelope is the failure mode that breaks a UI
+most confusingly: the HTTP layer says success, the component receives `undefined`, and
+the template fails somewhere unrelated. `unwrap()` refuses the body at the boundary and
+names the problem, so the console points at the real cause.
+
+### What is deliberately not here
+
+- **No caching, retry or deduplication.** Those belong in a feature service, or in a
+  future interceptor, where the policy can differ per endpoint.
+- **No 401 redirect.** Auth tasks (BO-D07/D08) own it. A redirect in the interceptor
+  would make every concurrent request race to navigate.
+- **No `string` ids.** `EntityId` is a `string` throughout — see
+  [Shared Models](/docs/core-shared-models--docs).

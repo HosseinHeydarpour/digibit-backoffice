@@ -65,6 +65,9 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "storybook": {
+              "allowedCommonJsDependencies": ["jalali-ts", "axe-core", "semver", "strip-ansi"]
             }
           },
           "defaultConfiguration": "production"
@@ -88,6 +91,28 @@
           "builder": "@angular-eslint/builder:lint",
           "options": {
             "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
+          }
+        },
+        "storybook": {
+          "builder": "@storybook/angular:start-storybook",
+          "options": {
+            "browserTarget": "backoffice:build:storybook",
+            "configDir": ".storybook",
+            "tsConfig": ".storybook/tsconfig.json",
+            "port": 6006,
+            "compodoc": false,
+            "experimentalZoneless": false
+          }
+        },
+        "build-storybook": {
+          "builder": "@storybook/angular:build-storybook",
+          "options": {
+            "browserTarget": "backoffice:build:storybook",
+            "configDir": ".storybook",
+            "tsConfig": ".storybook/tsconfig.json",
+            "outputDir": "storybook-static",
+            "compodoc": false,
+            "experimentalZoneless": false
           }
         }
       }

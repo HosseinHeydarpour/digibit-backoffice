@@ -1,0 +1,260 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Core/ToastService" />
+
+# ToastService
+
+`src/app/core/services/toast.ts` · rendered by
+[ToastHost](/docs/shared-toasthost--docs) in the root template
+
+تنها راهی که این برنامه با آن «ذخیره شد.» می‌گوید — پیامی کوتاه که در گوشه‌ای ظاهر می‌شود، گزارش می‌دهد همین الان چه شد، و خودش می‌رود.
+
+The one way this app says «ذخیره شد.» — a short message that appears in a corner,
+reports what just happened, and leaves on its own.
+
+---
+
+## کاربرد / Use case
+
+**کِی سراغش برو:** وقتی کاربر کاری انجام داده و باید بداند که موفق شده یا نه: یک ذخیره، یک حذف، یک درخواست ناموفق، یک کپی در کلیپ‌بورد.
+
+**کِی سراغش نرو:** وقتی پیام جای‌اش _کنار یک فیلد_ است. خطای اعتبارسنجی پیامی برای فرم است — هر فیلد خطای خودش را نشان می‌دهد، درست کنار همان ورودی‌ای که باید اصلاح شود. یک toast نمی‌تواند به یک فیلد اشاره کند، پس همان شکست را دو بار گزارش می‌کند و نسخهٔ دوم بی‌فایده است. دقیقاً به همین دلیل اینترسپتور خطا خطاهای اعتبارسنجی را رد می‌کند — به [Http Pipeline](/docs/core-http-pipeline--docs) نگاه کن.
+
+**کِی سراغش نرو:** وقتی کاربر باید پیش از ادامه تأیید کند. آن یک [دیالوگ تأیید](/docs/core-confirmservice--docs) است؛ یک toast پاسخی برای دادن ندارد.
+
+**Reach for it when** the user performed an action and needs to know whether it worked:
+a save, a delete, a failed request, a copy to clipboard.
+
+**Do not reach for it when** the message belongs _next to a field_. A validation error
+is a message for the form — each field shows its own error, right beside the input that
+has to be corrected. A toast cannot point at a field, so it reports the same failure
+twice and the second copy is the useless one. This is exactly why the error interceptor
+skips validation errors — see [Http Pipeline](/docs/core-http-pipeline--docs).
+
+**Do not reach for it when** the user must acknowledge before continuing. That is a
+[confirm dialog](/docs/core-confirmservice--docs); a toast has no answer to give.
+
+---
+
+## نحوهٔ استفاده / How to use
+
+```ts
+import { inject } from '@angular/core';
+import { ToastService } from '@core/services/toast';
+
+private readonly toast = inject(ToastService);
+
+// «انجام شد.»
+this.toast.success('محصول با موفقیت ذخیره شد.');
+
+// «انجام نشد.» — with the reason underneath
+this.toast.error('ذخیره محصول انجام نشد.', { detail: 'ارتباط با سرور برقرار نشد.' });
+
+// «انجام شد، اما…»
+this.toast.warning('موجودی این کالا رو به پایان است.');
+
+// Neutral information
+this.toast.info('لینک در کلیپ‌بورد کپی شد.');
+
+// A message that must not disappear before it is read
+this.toast.warning('این عملیات در حال انجام است.', { sticky: true });
+
+// Clear the screen — call this on navigation and on sign-out
+this.toast.clear();
+```
+
+### چهار سطح
+
+| متد                          | عمر پیش‌فرض | برای                                  |
+| ---------------------------- | ----------- | ------------------------------------- |
+| `success(summary, options?)` | 3000 ms     | کار انجام شد.                         |
+| `error(summary, options?)`   | 5000 ms     | کار شکست خورد.                        |
+| `warning(summary, options?)` | 5000 ms     | انجام شد، اما چیزی نیاز به توجه دارد. |
+| `info(summary, options?)`    | 3000 ms     | هیچ‌کدام — یک یادداشت بی‌طرف.         |
+| `clear()`                    | —           | همه‌چیز روی صفحه را رد کن.            |
+
+### گزینه‌های `ToastOptions`
+
+| گزینه      | نوع       | پیش‌فرض      | معنی                                                           |
+| ---------- | --------- | ------------ | -------------------------------------------------------------- |
+| `detail`   | `string`  | —            | خط دوم، با فونت کوچک‌تر. جزئیاتی که خلاصه ناچار به حذفشان بود. |
+| `life`     | `number`  | بر پایهٔ سطح | میلی‌ثانیه روی صفحه. **`0` به معنای ابدی نیست.**               |
+| `sticky`   | `boolean` | `false`      | هرگز خودش محو نشود. بر `life` غلبه می‌کند.                     |
+| `closable` | `boolean` | `true`       | `false` کن تا ✕ حذف شود و پیام کاملاً اطلاع‌رسانی شود.         |
+
+هیچ گزینهٔ `icon` وجود ندارد، و این عمدی است — پایین‌تر را ببینید.
+
+### The four levels
+
+| Method                       | Default life | For                                          |
+| ---------------------------- | ------------ | -------------------------------------------- |
+| `success(summary, options?)` | 3000 ms      | The action completed.                        |
+| `error(summary, options?)`   | 5000 ms      | The action failed.                           |
+| `warning(summary, options?)` | 5000 ms      | It completed, but something needs attention. |
+| `info(summary, options?)`    | 3000 ms      | Neither — a neutral note.                    |
+| `clear()`                    | —            | Dismiss everything on screen.                |
+
+### `ToastOptions`
+
+| Option     | Type      | Default   | Meaning                                                             |
+| ---------- | --------- | --------- | ------------------------------------------------------------------- |
+| `detail`   | `string`  | —         | Second line, smaller type. The detail the summary had to leave out. |
+| `life`     | `number`  | per level | Milliseconds on screen. **`0` does not mean forever.**              |
+| `sticky`   | `boolean` | `false`   | Never fade on its own. Wins over `life`.                            |
+| `closable` | `boolean` | `true`    | Set `false` to remove the ✕ and make it purely informational.       |
+
+There is no `icon` option, and that is deliberate — see below.
+
+---
+
+## منطق پشت طراحی / Logic
+
+### چرا یک پوشش به‌جای `MessageService` خود PrimeNG
+
+`MessageService.add()` یک کیسهٔ `ToastMessageOptions` می‌گیرد که `severity` آن یک `string` شل است. بدون پوشش، هر نقطهٔ فراخوانی دوباره این کیسه را می‌نویسد، و سه چیز به‌راحتی اشتباه می‌شود. هر کدام با یک تست در `toast.spec.ts` قفل شده است.
+
+**1. PrimeNG اخطار را `warn` می‌نویسد، نه `warning`.**
+
+```ts
+this.messages.add({ severity: 'warn', summary: '…' }); // correct
+this.messages.add({ severity: 'warning', summary: '…' }); // renders with NO colour
+```
+
+`'warning'` حدس واضح است، با هیچ‌یک از کلاس‌های severity جور درنمی‌آید، و نتیجه مثل یک باگ استایل دیده می‌شود نه یک غلط تایپی. کامپایل می‌شود، در بازبینی درست خوانده می‌شود، و فقط روی صفحه خودش را نشان می‌دهد. نگاشت در جدول `SEVERITY`، در یک جا، زندگی می‌کند.
+
+**2. هر پیام به یک `life` نیاز دارد.** در غیر این صورت هر چیزی را که به host داده شده به ارث می‌برد. چهار سطح سزاوار یک مدت نیستند — ۳ ثانیه برای خواندن «ذخیره شد.» کافی است و برای خواندن خطای سرور کافی نیست، و پیامی که پیش از خوانده‌شدن ناپدید شود _از نبودن پیام بدتر است_: کاربر مطمئن نمی‌شود که کار انجام شده یا نه. پیش‌فرض خود PrimeNG ۳۰۰۰ ms است، پس فقط `warning` و `error` واقعاً یک تصمیم‌اند.
+
+**3. نوع `severity` یک `string` است، پس هر مقداری کامپایل می‌شود.** اینجا چهار سطح چهار متد هستند و رشته‌ای برای غلط نوشتن وجود ندارد.
+
+### `life: 0` به معنای ابدی نیست
+
+رایج‌ترین سوءتفاهم دربارهٔ این API. PrimeNG یک `life` **falsy** را «تنظیم‌نشده» می‌بیند و به پیش‌فرض ۳۰۰۰ ms خودش برمی‌گردد — پس `{ life: 0 }` پیامی به تو می‌دهد که در سه ثانیه محو می‌شود، که برعکس آن چیزی است که به نظر می‌رسد. پیامی که باید منتظر کاربر بماند `{ sticky: true }` است.
+
+### چرا `sticky` و `closable` جدا هستند
+
+به دو سؤال متفاوت جواب می‌دهند و به‌راحتی با هم اشتباه می‌شوند:
+
+|                   | اثر                                                                   |
+| ----------------- | --------------------------------------------------------------------- |
+| `sticky: true`    | هرگز خودش محو نمی‌شود؛ تا رد شدن می‌ماند. `life` نادیده گرفته می‌شود. |
+| `closable: false` | بدون دکمهٔ ✕؛ با دست قابل رد کردن نیست.                               |
+
+هر دو را ست کن و پیام **هرگز** حذف نمی‌شود. پس `closable` به‌طور پیش‌فرض روشن است، و فقط یک `false` صریح خاموشش می‌کند — یک پیام sticky باید همچنان قابل بستن باشد.
+
+### چرا `void` و نه یک Promise یا یک handle
+
+یک toast از نوع «بزن و برو» است: هیچ‌چیز منتظر خواندنش نمی‌ماند، و هیچ‌چیز روی پاسخ عمل نمی‌کند، چون پاسخی وجود ندارد. تنها چیزی که فراخوان ممکن است بخواهد رد کردن زودهنگام یک پیام است، و آن `clear()` است (همه‌شان) یا یک `life` کوتاه (یکی از آن‌ها). یک handle برگشتی API‌ای می‌شد که هیچ‌کس صدا نمی‌زند.
+
+### چرا گزینهٔ `icon` وجود ندارد
+
+PrimeNG 21 یک **SVG درون‌خطی** به‌ازای هر severity رسم می‌کند — یک تیک، یک دایره-i، یک دایره-✕، یک مثلث اخطار — و فقط وقتی پیام یک `icon` صریح داشته باشد به یک گلیف فونت `pi` برمی‌گردد. در معرض گذاشتن `icon` نقطه‌های فراخوانی را دعوت می‌کرد که یک SVG شارپ و درست-رنگ را بی‌دلیل با یک آیکون فونت عوض کنند.
+
+### کجا ظاهر می‌شود، و چرا
+
+روی دسکتاپ بالا-**چپ**، که در این برنامهٔ RTL سمت _پایان_ است، و روی گوشی‌ها تمام‌عرض در پایین.
+
+`position` در PrimeNG **فیزیکی** است — `top-left` یعنی لبهٔ چپ، هر جهت سندی که باشد. سایدبار مالک لبهٔ شروع (راست) است، پس یک toast ۲۵rem روی `top-right` روی ناوبری می‌افتاد. لبهٔ پایان آزاد است، و همان‌جایی است که مرجع طراحی هم overlay خودش را می‌گذارد.
+
+چیدمان موبایل با ورودی `breakpoints` روی `<p-toast>` کنترل می‌شود، نه با یک listener `matchMedia` یا یک signal موقعیت: PrimeNG هر ورودی را به یک media query واقعی با `!important` تبدیل می‌کند، که تنها چیزی است که می‌تواند بر `top`/`right` درون‌خطی‌ای که کامپوننت روی ریشهٔ خودش می‌نویسد غلبه کند.
+
+### چرا موقعیت یک input نیست
+
+موقعیت toast یک قانون خانگی است، نه یک انتخاب هر صفحه. دو toast در دو گوشه یک باگ می‌شد، نه یک قابلیت. ثابت کردنش در `ToastHost` یعنی هیچ نقطهٔ فراخوانی نمی‌تواند با دیگری اختلاف داشته باشد.
+
+### چرا `clear()` مهم است
+
+وقتی کاربر از صفحه می‌رود یا خارج می‌شود صدایش کن. پیامی دربارهٔ صفحه‌ای که همین الان ترک کرده از نبودن پیام بدتر است.
+
+### چه چیزی عمداً اینجا نیست
+
+- **نه صف و نه حذف تکراری‌ها.** دو toast یکسان روی هم می‌افتند. اگر صفحه‌ای روزی پیام‌های تکراری تولید کند، اصلاح در نقطهٔ فراخوانی است، جایی که نیت معلوم است.
+- **نه `icon`.** بالا را ببینید.
+- **نه `position`.** بالا را ببینید.
+
+### Why a wrapper instead of PrimeNG's `MessageService`
+
+`MessageService.add()` takes a `ToastMessageOptions` bag whose `severity` is a loose
+`string`. Without a wrapper every call site spells the bag out again, and three things
+become easy to get wrong. Each one is pinned by a test in `toast.spec.ts`.
+
+**1. PrimeNG spells warning `warn`, not `warning`.**
+
+`'warning'` is the obvious guess, it matches none of the severity classes, and the
+result looks like a styling bug rather than a typo. It compiles, it reads correctly in
+review, and it only shows up on screen. The mapping lives in the `SEVERITY` table, in
+one place.
+
+**2. Every message needs a `life`.** Otherwise it inherits whatever the host was given.
+The four levels do not deserve the same duration — 3 seconds is enough to read «ذخیره
+شد.» and not enough to read a server error, and a message that disappears before it is
+read is _worse than no message_: the user is left unsure whether the action worked.
+PrimeNG's own default is 3000 ms, so only `warning` and `error` are really a decision.
+
+**3. `severity` is typed `string`, so any value compiles.** Here the four levels are
+four methods and there is no string to mistype.
+
+### `life: 0` is not "forever"
+
+The single most common misunderstanding about this API. PrimeNG treats a **falsy** `life`
+as "not set" and falls back to its own 3000 ms — so `{ life: 0 }` gives you a message
+that vanishes in three seconds, which is the opposite of what it looks like. A message
+that must wait for the user is `{ sticky: true }`.
+
+### Why `sticky` and `closable` are separate
+
+They answer different questions and are easy to conflate:
+
+|                   | Effect                                                            |
+| ----------------- | ----------------------------------------------------------------- |
+| `sticky: true`    | Never fades on its own; stays until dismissed. `life` is ignored. |
+| `closable: false` | No ✕ button; cannot be dismissed by hand.                         |
+
+Set both and the message can **never** be removed. So `closable` defaults to on, and only
+an explicit `false` turns it off — a sticky message should still be closable.
+
+### Why `void` and not a Promise or a handle
+
+A toast is fire-and-forget: nothing waits for the user to read it, and nothing acts on
+the answer, because there is no answer. The only thing a caller might want is to dismiss
+a message early, and that is `clear()` (all of them) or a short `life` (one of them). A
+returned handle would be an API nobody calls.
+
+### Why there is no `icon` option
+
+PrimeNG 21 renders a per-severity **inline SVG** — a check, a circle-i, a circle-✕, a
+warning triangle — and only falls back to a `pi` font glyph when the message carries an
+explicit `icon`. Exposing `icon` would invite call sites to replace a crisp,
+correctly-coloured SVG with a font icon for no reason.
+
+### Where it appears, and why
+
+Top-**left** on desktop, which is the _end_ side in this RTL app, and full-width along
+the bottom on phones.
+
+`position` in PrimeNG is **physical** — `top-left` means the left edge whatever the
+document direction is. The sidebar owns the start (right) edge, so a 25rem toast at
+`top-right` would sit on top of the navigation. The end edge is free, and it is also
+where the design reference puts its own overlay.
+
+The mobile layout is driven by the `breakpoints` input on `<p-toast>`, not by a
+`matchMedia` listener or a position signal: PrimeNG turns each entry into a real media
+query with `!important`, which is the only thing that can beat the inline `top`/`right`
+the component writes onto its own root element.
+
+### Why the position is not an input
+
+A toast position is a house rule, not a per-page choice. Two toasts in two corners would
+be a bug, not a feature. Fixing it in `ToastHost` means no call site can disagree with
+any other.
+
+### Why `clear()` matters
+
+Call it when the user navigates away or signs out. A message about the page they just
+left is worse than no message.
+
+### What is deliberately not here
+
+- **No queue or deduplication.** Two identical toasts stack. If a page ever produces
+  duplicate messages, the fix is at the call site, where the intent is known.
+- **No `icon`.** See above.
+- **No `position`.** See above.

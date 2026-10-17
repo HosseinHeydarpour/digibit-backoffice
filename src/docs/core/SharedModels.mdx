@@ -1,0 +1,340 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Core/Shared Models" />
+
+# Shared models
+
+`src/app/shared/models/` — the types and lookup tables every feature shares.
+
+اینجا هیچ کامپوننتی برای تماشا کردن نیست. این صفحه واژگان را مستند می‌کند: شکلی که یک پاسخ دارد، شکلی که یک خطا دارد، و نگاشت‌هایی که یک برچسب فارسی را در یک جا نگه می‌دارند.
+
+There is no component to look at here. This page documents the vocabulary: the shape a
+response has, the shape an error has, and the maps that keep a Persian label in one place.
+
+---
+
+## کاربرد / Use case
+
+**این را بخوان وقتی** داری یک سرویس فیچر می‌نویسی و نوع (type) یک پاسخ را لازم داری، یا داری یک برچسب وضعیت فارسی می‌نویسی و می‌خواهی ببینی از قبل وجود ندارد.
+
+**برای هیچ‌کدام از این‌ها نوع محلی تعریف نکن.** یک `interface Page<T>` دوم در پوشهٔ فیچر بدون خطا کامپایل می‌شود و تضمین می‌کند که آن دو واگرا شوند. از `@shared/models` import کن.
+
+```ts
+import type { ApiResponse, Page, ApiError } from '@shared/models';
+import { toOptions, ACTIVE_LABELS, ORDER_STATUS_META } from '@shared/models';
+```
+
+همه‌چیز از `@shared/models` (فایل `index.ts` همان پوشه) دوباره صادر می‌شود، پس یک مسیر import واحد کل مجموعه را پوشش می‌دهد. نوع‌ها با `export type` صادر می‌شوند — چیزی که `isolatedModules` می‌طلبد.
+
+**Read this when** you are writing a feature service and need the type of a response, or
+you are about to write a Persian status label and want to check one does not already exist.
+
+**Do not define a local type for one of these.** A second `interface Page<T>` in a feature
+folder compiles fine and guarantees the two diverge. Import from `@shared/models`.
+
+Everything is re-exported from `@shared/models` (the folder's `index.ts`), so a single
+import path covers the lot. Types are exported with `export type` — required by
+`isolatedModules`.
+
+---
+
+## پوشش پاسخ / The response envelope
+
+### `ApiResponse<T>`
+
+شکل سیمی که **هر** endpoint مقدار `payload` خود را در آن می‌پیچد. آینهٔ §4 در `ARCHITECTURE.md` است.
+
+The wire shape **every** endpoint wraps its payload in. Mirrors `ARCHITECTURE.md` §4.
+
+```ts
+interface ApiResponse<T> {
+  data: T;
+  meta?: PageMeta;
+  message?: string;
+}
+```
+
+### `PageMeta`
+
+```ts
+interface PageMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+}
+```
+
+### `Page<T>`
+
+```ts
+interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+```
+
+> **`Page<T>` شکل سیمی نیست.** شکل سیمی `ApiResponse<T[]>` است. `ApiService` هم envelope و هم `meta` را در همین تخت می‌کند، پس فراخوان هیچ‌وقت `data` و `meta` را در یک سطح نمی‌بیند. [ApiService](/docs/core-apiservice--docs) را ببین.
+
+> **`Page<T>` is not the wire shape.** The wire shape is `ApiResponse<T[]>`. `ApiService`
+> flattens envelope _and_ `meta` into this, so a caller never handles `data` and `meta`
+> at the same level. See [ApiService](/docs/core-apiservice--docs).
+
+---
+
+## خطاها / Errors
+
+### `ApiErrorBody`
+
+```ts
+interface ApiErrorBody {
+  error: {
+    code: string;
+    message: string;
+    fields?: Record<string, string[]>;
+  };
+}
+```
+
+### `ApiError`
+
+چیزی که **هر** درخواست شکست‌خورده — پس از آن‌که [اینترسپتور خطا](/docs/core-http-pipeline--docs) آن را نرمال می‌کند — به شکل آن نمایان می‌شود. کامپوننت‌ها همیشه فقط همین نوع را می‌بینند — هیچ‌وقت یک `HttpErrorResponse` را.
+
+What **every** failed request surfaces as, after the
+[error interceptor](/docs/core-http-pipeline--docs) has normalised it. Components only
+ever see this type — never an `HttpErrorResponse`.
+
+```ts
+class ApiError extends Error {
+  readonly code: string;
+  readonly message: string; // Persian, ready to display
+  readonly status: number; // 0 = network down, -1 = non-HTTP failure
+  readonly fields?: Record<string, string[]>;
+  get isValidation(): boolean;
+  fieldError(field: string): string | undefined;
+}
+```
+
+| عضو                | کاربرد                                                                         |
+| ------------------ | ------------------------------------------------------------------------------ |
+| `code`             | روی `'NOT_FOUND'`، `'NETWORK'`، … شاخه بزن.                                    |
+| `message`          | مستقیم نمایش بده. بازنویسی‌اش نکن — همان رشته‌ای است که toast نشان داده.       |
+| `status`           | به‌ندرت لازم می‌شود. `0` یعنی درخواست هرگز به سروری نرسیده.                    |
+| `fields`           | پیام هر فیلد. روی خطاهای `FormControl` نگاشت کن.                               |
+| `isValidation`     | `code === 'VALIDATION' \|\| !!fields`. وقتی درست است که _payload_ رد شده باشد. |
+| `fieldError(name)` | `fields[name]?.[0]` — اولین پیام یک فیلد.                                      |
+
+| Member             | Use                                                                           |
+| ------------------ | ----------------------------------------------------------------------------- |
+| `code`             | Branch on `'NOT_FOUND'`, `'NETWORK'`, …                                       |
+| `message`          | Display directly. Do not rewrite it — it is the same string the toast showed. |
+| `status`           | Rarely needed. `0` means the request never reached a server.                  |
+| `fields`           | Per-field messages. Map onto `FormControl` errors.                            |
+| `isValidation`     | `code === 'VALIDATION' \|\| !!fields`. True when the _payload_ was rejected.  |
+| `fieldError(name)` | `fields[name]?.[0]` — the first message for one field.                        |
+
+### کدها / The codes
+
+| کد           | وضعیت | معنی                                                      |
+| ------------ | ----- | --------------------------------------------------------- |
+| `VALIDATION` | 400   | payload رد شده. `fields` دارد.                            |
+| `NOT_FOUND`  | 404   | رکوردی با آن id وجود ندارد.                               |
+| `NETWORK`    | 0     | درخواست هرگز به سروری نرسیده — آفلاین، CORS، یا بلاک‌شده. |
+| `HTTP_<n>`   | n     | هر وضعیت دیگری که `error.code` در بدنه ندارد.             |
+| `MALFORMED`  | 200   | یک `200 OK` که بدنه‌اش envelope نبوده.                    |
+| `UNKNOWN`    | -1    | یک شکست غیر-HTTP، مثلاً خطای parse شدن JSON.              |
+
+| Code         | Status | Means                                                           |
+| ------------ | ------ | --------------------------------------------------------------- |
+| `VALIDATION` | 400    | The payload was rejected. Has `fields`.                         |
+| `NOT_FOUND`  | 404    | No record with that id.                                         |
+| `NETWORK`    | 0      | The request never reached a server — offline, CORS, or blocked. |
+| `HTTP_<n>`   | n      | Any other status with no `error.code` in the body.              |
+| `MALFORMED`  | 200    | A `200 OK` whose body was not the envelope.                     |
+| `UNKNOWN`    | -1     | A non-HTTP failure, e.g. a JSON parse error.                    |
+
+---
+
+## شناسه / Identity
+
+```ts
+type EntityId = string;
+
+interface BaseEntity {
+  id: EntityId;
+  createdAt: number; // UTC millis
+  updatedAt?: number;
+}
+```
+
+---
+
+## کمکی‌های فرم و جدول / Form and table helpers
+
+### `SelectOption<T>`
+
+```ts
+interface SelectOption<T = string> {
+  label: string; // Persian, what the user sees
+  value: T; // what the API wants
+  disabled?: boolean;
+}
+```
+
+عمداً generic است: `SelectOption<number>` برای idهای عددی، `SelectOption<string>` برای کدهای enum.
+
+Generic on purpose: `SelectOption<number>` for numeric ids, `SelectOption<string>` for
+enum codes.
+
+### `toOptions(values, labels)`
+
+از یک union و یک نگاشت برچسب، option می‌سازد:
+
+Builds options from a union and a label map:
+
+```ts
+export const ORDER_STATUS_OPTIONS = toOptions(
+  ORDER_STATUSES,
+  mapValues(ORDER_STATUS_META, (m) => m.label),
+);
+```
+
+### `SortState`
+
+```ts
+interface SortState {
+  field: string;            // the API's field name, English — never the Persian header
+  order: 'asc' | 'desc';
+}
+
+fromPrimeSort(order?: number): SortOrder   // p-table emits 1 / -1
+toPrimeSort(order: SortOrder): number      // the reverse
+```
+
+`p-table` برای صعودی `1` و برای نزولی `-1` می‌فرستد. آن دو تابع تنها جایی هستند که این ترجمه در آن انجام می‌شود.
+
+`p-table` emits `1` for ascending and `-1` for descending. Those two functions are the
+only place that translation lives.
+
+---
+
+## برچسب‌های وضعیت / Status labels
+
+### `Activable` و `ACTIVE_LABELS`
+
+```ts
+interface Activable {
+  isActive: boolean;
+}
+
+ACTIVE_LABELS = { active: 'فعال', inactive: 'غیرفعال' };
+```
+
+مشترک بین Product، Category، Brand، Coupon، ShippingMethod و Banner.
+
+Shared by Product, Category, Brand, Coupon, ShippingMethod and Banner.
+
+### نگاشت‌های وضعیت / The status maps
+
+```ts
+ORDER_STATUS_META: Record<OrderStatus, { label: string; severity: BadgeSeverity }>;
+TICKET_STATUS_META: Record<TicketStatus, { label: string; severity: BadgeSeverity }>;
+COMMENT_STATUS_META: Record<CommentStatus, { label: string; severity: BadgeSeverity }>;
+```
+
+| نوع             | مقادیر                                                                     |
+| --------------- | -------------------------------------------------------------------------- |
+| `OrderStatus`   | `pending` `paid` `processing` `shipped` `delivered` `cancelled` `returned` |
+| `TicketStatus`  | `open` `pending` `closed`                                                  |
+| `CommentStatus` | `pending` `approved` `rejected`                                            |
+| `BadgeSeverity` | `success` `info` `warn` `danger` `secondary` `contrast`                    |
+
+| Union           | Values                                                                     |
+| --------------- | -------------------------------------------------------------------------- |
+| `OrderStatus`   | `pending` `paid` `processing` `shipped` `delivered` `cancelled` `returned` |
+| `TicketStatus`  | `open` `pending` `closed`                                                  |
+| `CommentStatus` | `pending` `approved` `rejected`                                            |
+| `BadgeSeverity` | `success` `info` `warn` `danger` `secondary` `contrast`                    |
+
+```ts
+ORDER_STATUS_META['shipped']; // { label: 'ارسال‌شده', severity: 'success' }
+```
+
+---
+
+## منطق پشت طراحی / Logic
+
+### چرا پوشش (envelope) نوع خودش را دارد و نه یک generic درون‌خطی
+
+`ApiResponse<T>` همان **قرارداد** است و §4 در `ARCHITECTURE.md` مشخصات آن. نام‌گذاری آن یعنی لایهٔ mock، `ApiService` و هر fixture را می‌توان با یک اعلان سنجید. یک `{ data: T }` درون‌خطی در هر سرویس، سه توصیف از یک توافق می‌شد.
+
+### چرا `Page<T>` نوعی جدا از `ApiResponse<T[]>` است
+
+این‌ها واقعاً دو چیز متفاوت‌اند: یکی آن چیزی است که سیم حمل می‌کند، دیگری آن چیزی است که یک کامپوننت به آن bind می‌شود. ادغامشان هر جدول را مجبور می‌کرد جداگانه از `response.data` و `response.meta.total` رد شود، و منطق fallback برای `meta` غایب در هر نقطهٔ فراخوان نوشته می‌شد، نه یک بار در `toPage()`.
+
+### چرا `EntityId` یک alias است و نه صرفاً `string`
+
+این alias یک قصد را مستند می‌کند — idها رشته‌های ObjectId/UUID هستند، هیچ‌وقت عدد — و قرارداد نهایی بک‌اند را در هر نقطهٔ فراخوان بدیهی می‌کند. همچنین اگر روزی idها به branded type تبدیل شوند، یک جا برای تغییر می‌دهد.
+
+### چرا نگاشت‌های وضعیت در `shared` هستند و نه در هر فیچر
+
+`BU-H10` و `BO-N02` هر دو به برچسب‌های وضعیت سفارش نیاز دارند. دو نگاشت یعنی یک سفارش در فهرست «در حال ارسال» نشان داده شود و در صفحهٔ جزئیات جور دیگری نوشته شود — دقیقاً همان دسته‌ای از باگ که در بازبینی کد دیده نمی‌شود و برای کاربر بدیهی است.
+
+نگاشت‌ها **severity** را هم حمل می‌کنند، نه فقط برچسب را، پس رنگ badge در همان جایی تصمیم گرفته می‌شود که نوشتار. رنگی که درون‌خطی انتخاب شود، رنگی است که با صفحهٔ فهرست اختلاف پیدا می‌کند.
+
+### چرا `BadgeSeverity` یک union است
+
+`severity` روی یک badge در PrimeNG در لایهٔ بالادست `string` تایپ شده، پس هر مقداری کامپایل می‌شود و یک غلط تایپی یک badge بی‌استایل رندر می‌کند. این union باعث می‌شود `'warning'` — مقداری که **وجود ندارد**؛ PrimeNG آن را `warn` می‌نویسد — خطای کامپایل شود. برای همین تله در یک API دیگر [ToastService](/docs/core-toastservice--docs) را ببین.
+
+### چه چیزی عمداً اینجا نیست
+
+- **هیچ کلاسی برای entityها نیست.** `Product`، `Order` و بقیه نوع‌های فیچرند و به پوشهٔ فیچر خودشان تعلق دارند. `shared/models` فقط چیزی را نگه می‌دارد که **دو یا چند** فیچر به آن نیاز دارند.
+- **هیچ اعتبارسنجی زمان اجرا نیست.** سرور مرجع شکل است. یک اعتبارسنج سمت فرانت‌اند نسخهٔ دوم و ضعیف‌تری از قرارداد API می‌شد.
+- **هیچ قالب‌بندی تاریخ نیست.** تاریخ‌ها به‌صورت UTC millis سفر می‌کنند و در لبه قالب‌بندی می‌شوند — توسط datepicker جلالی یا توسط یک pipe — هیچ‌وقت در یک model.
+
+### Why the envelope has its own type instead of an inline generic
+
+`ApiResponse<T>` is the **contract**, and `ARCHITECTURE.md` §4 is its specification. Naming
+it means the mock layer, `ApiService` and every fixture can be checked against one
+declaration. An inline `{ data: T }` in each service would be three descriptions of one
+agreement.
+
+### Why `Page<T>` is a separate type from `ApiResponse<T[]>`
+
+They are genuinely different things: one is what the wire carries, the other is what a
+component binds to. Collapsing them would force every table to reach through
+`response.data` and `response.meta.total` separately, and the fallback logic for a missing
+`meta` would be written at each call site instead of once in `toPage()`.
+
+### Why `EntityId` is an alias and not just `string`
+
+The alias documents an intent — ids are ObjectId/UUID strings, never numbers — and it
+makes the eventual backend contract obvious at every call site. It also gives one place to
+change if ids ever become branded types.
+
+### Why the status maps live in `shared` and not in each feature
+
+`BU-H10` and `BO-N02` both need the order status labels. Two maps would mean an order
+shown as «در حال ارسال» in the list and worded differently in the detail page — the exact
+class of bug that is invisible in code review and obvious to a user.
+
+The maps also carry the **severity**, not just the label, so the badge colour is decided
+in the same place as the wording. A colour chosen inline is a colour that will disagree
+with the list page.
+
+### Why `BadgeSeverity` is a union
+
+`severity` on a PrimeNG badge is typed `string` upstream, so any value compiles and a typo
+renders an unstyled badge. The union makes `'warning'` — the value that does **not** exist;
+PrimeNG spells it `warn` — a compile error. See
+[ToastService](/docs/core-toastservice--docs) for the same trap in a different API.
+
+### What is deliberately not here
+
+- **No classes for entities.** `Product`, `Order` and the rest are feature types and belong
+  in their feature folder. `shared/models` holds only what **two or more** features need.
+- **No runtime validation.** The server is the authority on shape. A front-end validator
+  would be a second, weaker copy of the API contract.
+- **No date formatting.** Dates travel as UTC millis and are formatted at the edge — by
+  the Jalali datepicker or by a pipe — never in a model.

@@ -1,0 +1,371 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Conventions/Writing Stories & Docs" />
+
+# Conventions
+
+این صفحه قرارداد هر کسی است که چیزی به این Storybook اضافه می‌کند. سه چیز را پوشش می‌دهد: **چطور اجرایش کنیم**، **چطور یک story بنویسیم**، و **چطور مستنداتی که همراه آن می‌آید را بنویسیم**.
+
+This page is the contract for anyone adding to this Storybook. It covers three things:
+**how to run it**, **how to write a story**, and **how to write the docs that go with
+it**.
+
+---
+
+## کاربرد / Use case
+
+این را قبل از اولین story خودت بخوان. وجود دارد چون راه جایگزین — یعنی هر کس ساختار خودش را از صفر بسازد — کاتالوگی می‌سازد که در آن یک کامپوننت بسته به اینکه چه کسی زودتر به آن رسیده به دو شکل متفاوت مستند شده، و بازبین‌ها دیگر به آن اعتماد نمی‌کنند.
+
+Read this before your first story. It exists because the alternative — everyone
+inventing their own structure — produces a catalogue where the same component is
+documented two different ways depending on who got there first, and reviewers stop
+trusting it.
+
+---
+
+## 1. اجرای Storybook / Running Storybook
+
+```bash
+npm run storybook         # dev server, hot reload
+npm run build-storybook   # static build into storybook-static/
+```
+
+هر دو اسکریپت همان `ng run backoffice:storybook` و `ng run backoffice:build-storybook` هستند.
+
+### منطق — چرا Angular CLI و نه باینری `storybook`
+
+فریم‌ورک Angular در Storybook 11 پیکربندی build را از `.storybook/main.ts` **نمی‌خواند**. آن را از یک **target انگولار** می‌خواند: همان `tsConfig`، همان `styles` سراسری، همان `assets`، همان `fileReplacements`. این‌ها در `angular.json` زندگی می‌کنند.
+
+پس اجرای مستقیم `storybook dev` هیچ targetی برای خواندن ندارد، و فریم‌ورک Angular در Storybook به‌جای حدس زدن، `AngularLegacyBuildOptionsError` را بالا می‌اندازد. همان targetهای `storybook` و `build-storybook` در `angular.json` پل بین این دو هستند — و چون از `browserTarget: "backoffice:build:storybook"` دوباره استفاده می‌کنند، iframe پیش‌نمایش از **همان** خط لوله‌ای کامپایل می‌شود که اپ استفاده می‌کند، از جمله `@tailwindcss/postcss` و فونت‌های `public/`.
+
+یک پیامد که دانستنش می‌ارزد: یک **build configuration** به نام `storybook` در `angular.json` وجود دارد که `allowedCommonJsDependencies` را برای `jalali-ts`، `axe-core`، `semver` و `strip-ansi` اضافه می‌کند. بدون آن، هشدارهای CommonJS bailout تبدیل به خطا می‌شوند و build شکست می‌خورد.
+
+Both scripts are `ng run backoffice:storybook` and `ng run backoffice:build-storybook`.
+
+### Logic — why the Angular CLI and not the `storybook` binary
+
+Storybook 11's Angular framework does **not** read the build configuration from
+`.storybook/main.ts`. It reads it from an **Angular target**: the `tsConfig`, the
+global `styles`, the `assets`, the `fileReplacements`. Those live in `angular.json`.
+
+Running `storybook dev` directly therefore has no target to read, and Storybook's
+Angular framework raises `AngularLegacyBuildOptionsError` rather than guessing. The
+`storybook` and `build-storybook` targets in `angular.json` are what bridge the two —
+and because they reuse `browserTarget: "backoffice:build:storybook"`, the preview
+iframe compiles through the **same** pipeline as the app, including
+`@tailwindcss/postcss` and the `public/` font assets.
+
+One consequence worth knowing: there is a `storybook` **build configuration** in
+`angular.json` that adds `allowedCommonJsDependencies` for `jalali-ts`, `axe-core`,
+`semver` and `strip-ansi`. Without it the CommonJS bailout warnings become errors and
+the build fails.
+
+---
+
+## 2. نوشتن story / Writing a story
+
+storyها **کنار همان چیزی که مستند می‌کنند** زندگی می‌کنند، با نام `<name>.stories.ts`:
+
+```
+src/app/shared/components/stat-card/
+  stat-card.ts
+  stat-card.html
+  stat-card.stories.ts   ← here
+```
+
+### مسیرهای عنوان
+
+`title` یک مسیر است و تعیین می‌کند که ورودی کجای نوار کناری بنشیند. دقیقاً از همین ریشه‌ها استفاده کن — ترتیب نوار کناری در `.storybook/preview.ts` به آن‌ها وابسته است:
+
+| ریشه                 | برای                                       |
+| -------------------- | ------------------------------------------ |
+| `Introduction/…`     | صفحه‌های جهت‌گیری (MDX)                    |
+| `Foundations/…`      | توکن‌های طراحی (MDX)                       |
+| `Conventions/…`      | فرایند (MDX)                               |
+| `Shared/<Component>` | یک کامپوننت در `src/app/shared/components` |
+| `Layout/<Component>` | یک کامپوننت در `src/app/layout`            |
+| `Core/<Thing>`       | یک سرویس، اینترسپتور، توکن یا مدل (MDX)    |
+
+### اسکلت
+
+```ts
+import type { Meta, StoryObj } from '@storybook/angular';
+
+import { StatCard } from './stat-card';
+
+const meta: Meta<StatCard> = {
+  title: 'Shared/StatCard',
+  component: StatCard,
+  tags: ['autodocs'],
+  parameters: {
+    docs: {
+      description: {
+        component: 'One sentence on what this is, then the use case.',
+      },
+    },
+  },
+};
+export default meta;
+type Story = StoryObj<StatCard>;
+
+/** One line saying what this story demonstrates. */
+export const SalesToday: Story = {
+  args: {/* … */},
+};
+```
+
+### قواعد
+
+1. **`tags: ['autodocs']`** — هر story کامپوننتی یک صفحهٔ autodocs می‌گیرد. بدون آن story رندر می‌شود ولی صفحه‌ای نیست، جدول propsی نیست، و جایی برای زندگی کردن توضیحات وجود ندارد.
+2. **یک doc comment روی هر story.** `/** … */` بالای یک export تبدیل به توضیح آن story در صفحهٔ docs می‌شود. یک story مستندنشده برای نفر بعدی یک معماست.
+3. **storyها را بر اساس سناریو نام‌گذاری کن، نه مقادیر.** `SalesToday` و `OrdersWithProgress`، نه `Variant1` و `Variant2`.
+4. **`args` را به `render` ترجیح بده.** `args` در پنل Controls قابل ویرایش‌اند و در جدول props ظاهر می‌شوند؛ یک `render` دست‌نویس مبهم است. فقط وقتی سراغ `render` برو که کامپوننت واقعاً به یک میزبان نیاز دارد — یک Router، یک form control، یک سرویس تزریق‌شده (پایین را ببین).
+5. **هرگز از fixtureهای اپ در یک story import نکن.** اگر یک story به داده نیاز دارد، آن را در فایل story تعریف کن. Storybook نباید به زیرساخت mockی وابسته باشد که از production کامپایل بیرون می‌افتد.
+
+### کامپوننت‌هایی که به میزبان نیاز دارند
+
+دو الگو همهٔ حالت‌های این کاتالوگ را پوشش می‌دهند.
+
+**یک وابستگی سرویس** — با `moduleMetadata` یک stub فراهم کن:
+
+```ts
+const stub = {
+  provide: BreadcrumbService,
+  useValue: { crumbs: signal(SAMPLE_CRUMBS) } as unknown as BreadcrumbService,
+};
+
+const meta: Meta<Breadcrumb> = {
+  // …
+  decorators: [moduleMetadata({ providers: [stub] })],
+};
+```
+
+**یک `FormControl` یا سرویسی که کامپوننت صدا می‌زند** — یک کامپوننت میزبان کوچک در فایل story تعریف کن و آن را رندر کن:
+
+```ts
+@Component({
+  selector: 'app-jalali-datepicker-story',
+  imports: [JalaliDatepicker, ReactiveFormsModule],
+  template: `<div class="max-w-xs"><app-jalali-datepicker [control]="control" /></div>`,
+})
+class JalaliDatepickerStory {
+  readonly control = new FormControl<string | null>('2025-09-23');
+}
+
+export const Default: Story = {
+  render: () => ({
+    template: `<app-jalali-datepicker-story />`,
+    moduleMetadata: { imports: [JalaliDatepickerStory] },
+  }),
+};
+```
+
+> **تلهٔ Storybook 11.** نوع خروجی `render` در Angular همان `StoryFnAngularReturnType` است — `{ props?, moduleMetadata?, applicationConfig?, template?, styles? }`. کلید **`component` وجود ندارد**. برگرداندن `{ component: X }` کامپایل نمی‌شود. به‌جایش از `template` + `moduleMetadata` استفاده کن.
+
+### ارائه‌دهنده‌های سراسری از قبل سیم‌کشی شده‌اند
+
+`.storybook/preview.ts` آینهٔ `app.config.ts` است: `LOCALE_ID: 'fa-IR'`، `provideHttpClient`، `provideRouter([])`، `providePrimeNG` با پریست Digibit، `MessageService` و `ConfirmationService`. یک story هیچ‌وقت لازم نیست آن‌ها را فراهم کند.
+
+هر دو سرویس PrimeNG **صریحاً** ثبت شده‌اند چون هیچ‌کدام `providedIn: 'root'` نیستند — آن‌ها را حذف کن و اولین toast یا confirm یک `NullInjectorError` پرتاب می‌کند.
+
+Stories live **next to the thing they document**, named `<name>.stories.ts`:
+
+### Title paths
+
+The `title` is a path, and it decides where the entry lands in the sidebar. Use
+exactly these roots — the sidebar order in `.storybook/preview.ts` depends on them:
+
+| Root                 | For                                          |
+| -------------------- | -------------------------------------------- |
+| `Introduction/…`     | orientation pages (MDX)                      |
+| `Foundations/…`      | design tokens (MDX)                          |
+| `Conventions/…`      | process (MDX)                                |
+| `Shared/<Component>` | a component in `src/app/shared/components`   |
+| `Layout/<Component>` | a component in `src/app/layout`              |
+| `Core/<Thing>`       | a service, interceptor, token or model (MDX) |
+
+### The skeleton
+
+### Rules
+
+1. **`tags: ['autodocs']`** — every component story gets an autodocs page. Without
+   it the story renders but there is no page, no props table, and nowhere for the
+   description to live.
+2. **A doc comment on every story.** `/** … */` above an export becomes the story's
+   description in the docs page. An undocumented story is a mystery to the next person.
+3. **Name stories for the scenario, not the values.** `SalesToday` and
+   `OrdersWithProgress`, not `Variant1` and `Variant2`.
+4. **Prefer `args` over `render`.** `args` are editable in the Controls panel and
+   appear in the props table; a hand-written `render` is opaque. Only reach for
+   `render` when the component genuinely needs a host — a router, a form control, an
+   injected service (see below).
+5. **Never import from the app's fixtures in a story.** If a story needs data, define
+   it in the story file. Storybook must not depend on mock infrastructure that is
+   compiled out of production.
+
+### Components that need a host
+
+Two patterns cover every case in this catalogue.
+
+**A service dependency** — provide a stub with `moduleMetadata`:
+
+**A `FormControl` or an injected service the component calls** — declare a tiny host
+component in the story file and render it:
+
+> **Storybook 11 gotcha.** The Angular `render` return type is
+> `StoryFnAngularReturnType` — `{ props?, moduleMetadata?, applicationConfig?, template?, styles? }`.
+> There is **no `component` key**. Returning `{ component: X }` fails to compile.
+> Use `template` + `moduleMetadata` instead.
+
+### Global providers are already wired
+
+`.storybook/preview.ts` mirrors `app.config.ts`: `LOCALE_ID: 'fa-IR'`,
+`provideHttpClient`, `provideRouter([])`, `providePrimeNG` with the Digibit preset,
+`MessageService` and `ConfirmationService`. A story never has to provide those.
+
+Both PrimeNG services are registered **explicitly** because neither is
+`providedIn: 'root'` — omit them and the first toast or confirm throws a
+`NullInjectorError`.
+
+---
+
+## 3. نوشتن مستندات / Writing the docs
+
+هر صفحه — MDX یا توضیح autodocs — به سه سؤال **به همین ترتیب** جواب می‌دهد.
+
+### کاربرد
+
+_کِی سراغش می‌روم؟ کِی نمی‌روم؟_
+
+سناریو را بنویس، نه قابلیت را. «یک کاشی KPI برای داشبورد» یک قابلیت است. «وقتی یک عدد به برچسب، روند و واحد در یک بلوک قابل‌اسکن نیاز دارد سراغش برو؛ برای سلول جدول از آن استفاده نکن» یک کاربرد است. منفی را هم بنویس — کامپوننتی که کسی اشتباهی سراغش می‌رود همان چیزی است که باگ را می‌سازد.
+
+### نحوهٔ استفاده
+
+_سطح عمومی، با چیزی که بتوانم کپی کنم و بچسبانم._
+
+- جدول کامل ورودی/خروجی، با مقادیر پیش‌فرض و نوع‌ها.
+- حداقل یک مثال واقعی، به فارسی، با واژگان خود اپ.
+- برای سرویس‌ها: امضای متدها و یک محل فراخوانی.
+
+### منطق
+
+_چرا این‌طور ساخته شده، و از چه چیزی محافظتم می‌کند؟_
+
+این همان بخشی است که معمولاً جا می‌افتد و همانی که بیشترین وقت را نجات می‌دهد. پوشش می‌دهد:
+
+- **تصمیم** — چرا یک `Promise` و نه callback؛ چرا یک سرویس و نه یک signal روی والد؛ چرا `input()` و نه `@Input()`.
+- **تله‌ای که از آن پرهیز می‌کند** — باگ مشخصی که یک پیاده‌سازی ساده‌لوحانه تولید می‌کند. کامنت‌های موجود در سورس پر از این‌هایند و الگوی پیروی‌اند: _"`0` یعنی هرگز نیست"_، _"PrimeNG هشدار را `warn` می‌نویسد"_، _"فیلتر کردن درجا دسترسی یک کاربر را به رندر بعدی نشت می‌دهد"_.
+- **آنچه عمداً اینجا نیست** — مرز دامنه. گفتن اینکه یک چیز چه کاری انجام _نمی‌دهد_ همان راهی است که جلوی رشدش را می‌گیری.
+
+### ضدالگوهایی که در مستندات باید از آن‌ها پرهیز کرد
+
+| نکن                                          | بکن                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| کد را بازگو کن (`// increments the counter`) | بگو چرا (`// the signal is already true, so a double tap does not restart the transition`) |
+| «فقط کافیست صدا بزنی…»                       | پیش‌شرطی که باید اول برقرار باشد را نام ببر                                                |
+| فقط مسیر خوش‌بینانه را مستند کن              | حالت‌های خالی، خطا و بارگذاری را مستند کن — کامپوننت‌ها همان‌جا می‌شکنند                   |
+| «TODO»                                       | یا بنویسش یا heading را حذف کن                                                             |
+
+Every page — MDX or autodocs description — answers three questions **in this order**.
+
+### Use case
+
+_When do I reach for this? When do I not?_
+
+Write the scenario, not the capability. "A KPI tile for the dashboard" is a capability.
+"Reach for this when a number needs a label, a trend and a unit in one scannable
+block; do not use it for a table cell" is a use case. Include the negative — the
+component someone reaches for by mistake is the one that causes the bug.
+
+### How to use
+
+_The public surface, with something I can paste._
+
+- The full input/output table, with defaults and types.
+- At least one realistic example, in Persian, using the app's own vocabulary.
+- For services: the method signatures and a call site.
+
+### Logic
+
+_Why is it built this way, and what does that protect me from?_
+
+This is the section that is usually missing and the one that saves the most time. It
+covers:
+
+- **The decision** — why a `Promise` and not callbacks; why a service and not a signal
+  on the parent; why `input()` and not `@Input()`.
+- **The trap it avoids** — the specific bug that a naive implementation produces. The
+  existing source comments are full of these and are the model to follow: _"`0` does
+  NOT mean forever"_, _"PrimeNG spells warning `warn`"_, _"filtering in place would leak
+  one user's access into the next render"_.
+- **What is deliberately not here** — the scope boundary. Saying what a thing does
+  _not_ do is how you stop it growing.
+
+### Anti-patterns to avoid in docs
+
+| Don't                                          | Do                                                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Restate the code (`// increments the counter`) | Say why (`// the signal is already true, so a double tap does not restart the transition`) |
+| "Simply call…"                                 | Name the precondition that has to hold first                                               |
+| Document the happy path only                   | Document the empty, error and loading states — that is where components break              |
+| "TODO"                                         | Either write it or delete the heading                                                      |
+
+---
+
+## 4. قبل از commit / Before you commit
+
+```bash
+npm run lint          # eslint — ts and html
+npm run format:check  # prettier
+npm run build-storybook
+```
+
+سه چیز که گاز می‌گیرند:
+
+- **`import-x/order` اعمال می‌شود.** گروه‌ها `builtin → external → internal → parent → sibling → index` هستند، الفبایی، با یک خط خالی بین گروه‌ها. هر import با `@scope/…` **external** حساب می‌شود، پس `@angular/core`، `@core/…`، `@shared/…` و `@storybook/angular` همه در یک ردیف الفبایی مرتب می‌شوند. `npm run lint:fix` درستش می‌کند.
+- **مخزن فقط LF است.** `.gitattributes` مقدار `text=auto eol=lf` را ست می‌کند و Prettier از `endOfLine: lf` استفاده می‌کند. `prettier --write` خطوط CRLF را **تبدیل نمی‌کند**، پس فایلی که روی Windows نوشته شده باید جداگانه line endingهایش نرمال شود.
+- **Conventional Commits توسط یک hook اعمال می‌شوند.** `type(scope): subject`، حروف کوچک، ≤۷۲ کاراکتر. اسکوپ‌های معتبر برای این کار: `docs`، `build`، `tooling`، `shared`، `layout`، `core`.
+
+Three things that bite:
+
+- **`import-x/order` is enforced.** Groups are
+  `builtin → external → internal → parent → sibling → index`, alphabetised,
+  blank line between groups. Every `@scope/…` import counts as **external**, so
+  `@angular/core`, `@core/…`, `@shared/…` and `@storybook/angular` all sort into one
+  alphabetical run. `npm run lint:fix` fixes it.
+- **The repo is LF-only.** `.gitattributes` sets `text=auto eol=lf` and Prettier uses
+  `endOfLine: lf`. `prettier --write` will **not** convert CRLF, so a file authored on
+  Windows needs its line endings normalised separately.
+- **Conventional Commits are enforced by a hook.** `type(scope): subject`, lowercase,
+  ≤72 characters. Valid scopes for this work: `docs`, `build`, `tooling`, `shared`,
+  `layout`, `core`.
+
+---
+
+## 5. پیشنهادها — این setup کجا می‌تواند بهتر شود / Recommendations — where this setup could go further
+
+مطرح می‌شود چون استاندارد از وضعیت فعلی مهم‌تر است:
+
+1. **`a11y.test` را از `todo` به `error` ببر** وقتی صفحه‌های فیچر وجود دارند. امروز `todo` است چون تخلف‌ها گزارش می‌شوند ولی build را fail نمی‌کنند — تنظیم درست وقتی صفحه‌ها هنوز در حال نوشته شدن‌اند، و تنظیم غلط برای یک پنل تمام‌شده.
+2. **`@storybook/addon-themes` را اضافه کن** اگر روزی حالت تم سومی (مثلاً «کنتراست بالا») معرفی شد. امروز سوییچ Theme در toolbar دستی در `preview.ts` نوشته شده و برای دو مقدار نیازی به addon ندارد.
+3. **`play` functionها را در نظر بگیر** (`@storybook/test`) برای کامپوننت‌های تعاملی — `ConfirmDialog` و `ToastHost` الان از یک انسان می‌خواهند کلیک کند. یک `play` function تأیید می‌کند که Promise روی Escape resolve می‌شود، که دقیقاً همان باگی است که طراحی `settle()`-روی-`onHide` برای جلوگیری از آن وجود دارد.
+4. **یک سرویس visual regression اضافه کن** (Chromatic، یا `storybook/test-runner` با snapshotها) قبل از اینکه صفحه‌های فیچر بیایند. الان هیچ‌چیز کامپوننتی را که _غلط_ رندر می‌شود و نه _شکسته_ نمی‌گیرد.
+5. **build استاتیک را publish کن** تا طراح‌ها بتوانند بدون checkout مرورش کنند. خروجی `storybook-static/` یک پوشهٔ ساده است و هر جا deploy می‌شود.
+
+Raised because the standard matters more than the current state:
+
+1. **Raise `a11y.test` from `todo` to `error`** once the feature pages exist. It is
+   `todo` today because violations are reported but do not fail the build — the right
+   setting while pages are still being written, the wrong one for a finished panel.
+2. **Add `@storybook/addon-themes`** if a third theme mode (e.g. "high contrast")
+   is ever introduced. Today the Theme toolbar switch is hand-rolled in
+   `preview.ts` and needs no addon for two values.
+3. **Consider `play` functions** (`@storybook/test`) for the interactive components —
+   `ConfirmDialog` and `ToastHost` currently ask a human to click. A `play` function
+   would assert the Promise resolves on Escape, which is exactly the bug that the
+   `settle()`-on-`onHide` design exists to prevent.
+4. **Add a visual regression service** (Chromatic, or `storybook/test-runner` with
+   snapshots) before the feature pages land. Right now nothing catches a component
+   that renders _wrong_ rather than _broken_.
+5. **Publish the static build** so designers can browse it without a checkout. The
+   `storybook-static/` output is a plain folder and deploys anywhere.

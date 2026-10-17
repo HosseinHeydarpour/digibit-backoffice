@@ -1,0 +1,314 @@
+import { ColorItem, ColorPalette, Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Foundations/Design Tokens" />
+
+# Foundations
+
+هر چیز بصری در این پنل به یکی از توکن‌های زیر برمی‌گردد. آن‌ها **یک بار** در `src/styles/tailwind.css` زیر `@theme` تعریف شده‌اند، و همان مقادیر در پریست PrimeNG در `src/app/app.config.ts` و در chrome مربوط به Storybook در `.storybook/theme.ts` آینه شده‌اند.
+
+> **قاعده:** هرگز یک کد hex را داخل یک کامپوننت تایپ نکن. اگر رنگی جا افتاده، یک توکن اضافه کن. سه نسخه از `#ff8229` همان چیزی است که برند را از مسیر خارج می‌کند.
+
+Everything visual in this panel resolves to one of the tokens below. They are
+declared **once** in `src/styles/tailwind.css` under `@theme`, and the same values
+are mirrored into the PrimeNG preset in `src/app/app.config.ts` and into the
+Storybook chrome in `.storybook/theme.ts`.
+
+> **Rule:** never type a hex code into a component. If a colour is missing, add a
+> token. Three copies of `#ff8229` is how a brand drifts.
+
+---
+
+## کاربرد / Use case
+
+این صفحه را قبل از اینکه هر markupی بنویسی بخوان. جواب می‌دهد به آن دو سؤالی که در غیر این صورت با حدس زدن جواب داده می‌شوند:
+
+- _کدام توکن اینجا درست است؟_ — پالت زیر تمام واژگان است.
+- _چرا کامپوننت من در حالت تاریک غلط به نظر می‌رسد؟_ — تقریباً همیشه چون رنگی hardcode شده، یا یک variant `dark:` فراموش شده.
+
+Read this page before you write any markup. It answers the two questions that
+otherwise get answered by guessing:
+
+- _Which token is the right one here?_ — the palette below is the whole vocabulary.
+- _Why does my component look wrong in dark mode?_ — almost always because a colour
+  was hardcoded, or a `dark:` variant was forgotten.
+
+---
+
+## رنگ / Colour
+
+### برند
+
+نارنجی Digibit. `--color-primary` به‌حکم ساخت **همان** `--color-primary-500` است — build خود قالب مرجع برای `primary-500`اش `#ff8229` را بیرون می‌دهد، و این پروژه همان مقدار را استخراج کرده. پس `text-primary` و `text-primary-500` یک رنگ‌اند، و باید شکل کوتاه را ترجیح بدهی.
+
+<ColorPalette>
+  <ColorItem
+    title="primary"
+    subtitle="tailwind: text-primary / bg-primary · PrimeNG: --p-primary-500"
+    colors={['#ff8229']}
+  />
+  <ColorItem title="primary-dark" subtitle="hover and pressed states" colors={['#b76122']} />
+  <ColorItem
+    title="primary scale"
+    subtitle="the steps the UI actually paints — 100, 400, 500, 600, 900"
+    colors={['#ffe1cc', '#ff9a52', '#ff8229', '#ff6a00', '#572400']}
+  />
+</ColorPalette>
+
+### وضعیت
+
+چهار رنگ معنایی، هر کدام با یک جفت `-dark` که فقط زیر `.app-dark` استفاده می‌شود. `warning` کهربایی است — و به تلهٔ املایی که در PrimeNG می‌سازد دقت کن، مستندشده در [ToastService](/docs/core-toastservice--docs).
+
+<ColorPalette>
+  <ColorItem
+    title="success"
+    subtitle="--color-success / --color-success-dark"
+    colors={['#10b981', '#34d399']}
+  />
+  <ColorItem
+    title="danger"
+    subtitle="--color-danger / --color-danger-dark"
+    colors={['#ef4444', '#f87171']}
+  />
+  <ColorItem
+    title="warning"
+    subtitle="--color-warning / --color-warning-dark"
+    colors={['#f59e0b', '#fbbf24']}
+  />
+</ColorPalette>
+
+### سطوح
+
+جفت‌های سطح روشن/تاریک. `card-dark` (`#1e293b`) همان مقدار `--color-dark` است، و همین است که باعث می‌شود `text-dark` روی یک صفحهٔ روشن درست خوانده شود و `bg-card-dark` روی یک صفحهٔ تاریک.
+
+<ColorPalette>
+  <ColorItem
+    title="light surfaces"
+    subtitle="--color-light (page) · --color-card-light (card)"
+    colors={['#f8fafc', '#ffffff']}
+  />
+  <ColorItem
+    title="dark surfaces"
+    subtitle="--color-background-dark (page) · --color-card-dark (card)"
+    colors={['#0f172a', '#1e293b']}
+  />
+  <ColorItem
+    title="text"
+    subtitle="--color-text-primary-light · --color-text-primary-dark"
+    colors={['#1e293b', '#f8fafc']}
+  />
+</ColorPalette>
+
+### Brand
+
+The Digibit orange. `--color-primary` **is** `--color-primary-500` by construction —
+the reference template's own build emits `#ff8229` for its `primary-500`, and this
+project extracted that value. So `text-primary` and `text-primary-500` are the same
+colour, and you should prefer the short form.
+
+### Status
+
+Four semantic colours, each with a `-dark` partner used only under `.app-dark`.
+`warning` is amber — and note the spelling trap it creates in PrimeNG, documented in
+[ToastService](/docs/core-toastservice--docs).
+
+### Surfaces
+
+The light/dark surface pairs. `card-dark` (`#1e293b`) is the same value as
+`--color-dark`, which is why `text-dark` reads correctly on a light page and
+`bg-card-dark` reads correctly on a dark one.
+
+---
+
+## تایپوگرافی / Typography
+
+یک خانواده، سه وزن. **Payda** یک فونت فارسی (FaNum) است، پس هر رقمی که رندر می‌کند از قبل شکل فارسی دارد — و همین است که باعث می‌شود کامپوننت‌هایی مثل `StatCard` یک رشتهٔ از پیش فرمت‌شده بگیرند به‌جای اینکه خودشان عددها را فرمت کنند.
+
+| توکن          | مقدار                            | استفاده برای                      |
+| ------------- | -------------------------------- | --------------------------------- |
+| `--font-sans` | `'Payda', system-ui, sans-serif` | همه‌چیز                           |
+| Payda Medium  | وزن ۵۰۰                          | متن بدنه، برچسب‌ها، سلول‌های جدول |
+| Payda Bold    | وزن ۷۰۰                          | عنوان‌ها، دکمه‌ها، مقادیر KPI     |
+| Payda Black   | وزن ۹۰۰                          | فقط wordmark پنل                  |
+
+`'Yekan Bakh'` به‌عنوان یک فونت ثانویه برای chrome مدیر Storybook لود می‌شود. خود اپ از آن استفاده نمی‌کند.
+
+فونت‌ها از `public/fonts/` سرو می‌شوند و با `/fonts/…` ارجاع داده می‌شوند، پس همان مسیر مطلق هم در اپ و هم در Storybook کار می‌کند (`staticDirs` فایل‌های `public/` را سرو می‌کند).
+
+One family, three weights. **Payda** is a Persian (FaNum) face, so every digit it
+renders is already the Persian form — which is why components such as `StatCard`
+take a pre-formatted string instead of formatting numbers themselves.
+
+| Token         | Value                            | Used for                       |
+| ------------- | -------------------------------- | ------------------------------ |
+| `--font-sans` | `'Payda', system-ui, sans-serif` | everything                     |
+| Payda Medium  | weight 500                       | body copy, labels, table cells |
+| Payda Bold    | weight 700                       | headings, buttons, KPI values  |
+| Payda Black   | weight 900                       | the panel wordmark only        |
+
+`'Yekan Bakh'` is loaded as a secondary face for the Storybook manager chrome. The
+app itself does not use it.
+
+Fonts are served from `public/fonts/` and referenced as `/fonts/…`, so the same
+absolute path works in the app and in Storybook (`staticDirs` serves `public/`).
+
+---
+
+## حالت تاریک / Dark mode — the one mechanism
+
+حالت تاریک یک **کلاس واحد روی `<html>`** است: `.app-dark`.
+
+- PrimeNG آن را از طریق `darkModeSelector: '.app-dark'` در پریست می‌خواند.
+- Tailwind آن را از طریق `@custom-variant dark (&:where(.app-dark, .app-dark *))` می‌خواند.
+
+هر دو عمداً به همان کلاس سیم‌کشی شده‌اند، پس هیچ‌وقت حالتی وجود ندارد که کامپوننت‌های PrimeNG تاریک شده باشند ولی utilityهای Tailwind نه.
+
+```html
+<!-- Light -->
+<div class="bg-white text-dark dark:bg-card-dark dark:text-light">
+  <!-- The class PrimeNG and Tailwind both watch for -->
+  <html class="app-dark"></html>
+</div>
+```
+
+کلاس توسط `ThemeService` (`src/app/core/services/theme.ts`) اعمال می‌شود — [ThemeService](/docs/core-themeservice--docs) را ببین. برای پیش‌نمایش هر دو حالت اینجا، از سوییچ **Theme** در toolbar مربوط به Storybook استفاده کن.
+
+### جلوگیری از FOUC — فلش محتوای بی‌استایل
+
+`index.html` یک اسکریپت inline کوچک دارد که `localStorage['digibit.theme']` را می‌خواند و `.app-dark` را **قبل از اولین paint** ست می‌کند. اگر آن کلید را rename کنی، در هر دو جا عوضش کن وگرنه پنل در هر بار لود حالت تاریک یک فلش سفید می‌زند.
+
+Dark mode is a **single class on `<html>`**: `.app-dark`.
+
+- PrimeNG reads it via `darkModeSelector: '.app-dark'` in the preset.
+- Tailwind reads it via `@custom-variant dark (&:where(.app-dark, .app-dark *))`.
+
+Both are wired to the same class on purpose, so there is never a state where the
+PrimeNG components have gone dark but the Tailwind utilities have not.
+
+The class is applied by `ThemeService` (`src/app/core/services/theme.ts`) — see
+[ThemeService](/docs/core-themeservice--docs). To preview both states here, use the
+**Theme** switch in the Storybook toolbar.
+
+### Anti-FOUC
+
+`index.html` contains a small inline script that reads `localStorage['digibit.theme']`
+and sets `.app-dark` **before first paint**. If you rename that key, change it in
+both places or the panel will flash white on every dark-mode load.
+
+---
+
+## راست‌به‌چپ و ویژگی‌های منطقی / RTL and logical properties
+
+این پنل RTL فارسی است. «LTR با `direction: rtl`» نیست — چیدمان در سراسر از **ویژگی‌های منطقی** استفاده می‌کند، پس همان markup درست آینه می‌شود.
+
+| فیزیکی (پرهیز کن) | منطقی (استفاده کن)      | Tailwind   |
+| ----------------- | ----------------------- | ---------- |
+| `margin-left`     | `margin-inline-start`   | `ms-*`     |
+| `margin-right`    | `margin-inline-end`     | `me-*`     |
+| `padding-left`    | `padding-inline-start`  | `ps-*`     |
+| `border-right`    | `border-inline-end`     | `border-e` |
+| `left: 0`         | `inset-inline-start: 0` | `start-0`  |
+
+از سوییچ **Direction** در toolbar استفاده کن تا یک اشتباه ویژگی فیزیکی را پیدا کنی: کامپوننتی که در LTR می‌شکند یکی دارد.
+
+### استثناها کجا هستند، و چرا
+
+دو جا عمداً از مقادیر فیزیکی استفاده می‌کنند، هر دو در سورس خودشان مستند شده‌اند:
+
+- **`Sidebar`** از `border-e` استفاده می‌کند — درست است، منطقی است.
+- **`ToastHost`** در breakpoint موبایلش از `left`/`right` استفاده می‌کند، چون قاعده‌ای که override می‌کند فیزیکی است (`PrimeNG writes right: 20px inline`). قاطی کردن دو سیستم یک لبه را تنظیم‌نشده رها می‌کند.
+- **`StatCard`** کل لیست‌های کلاس Tailwind را bind می‌کند به‌جای `[class.x]`، چون کلاسی که `:` دارد (یک variant `dark:`) یا `/` (یک پلهٔ شفافیت) از طریق `[class.x]` قابل bind نیست.
+
+The panel is RTL Persian. It is not "LTR with `direction: rtl`" — the layout uses
+**logical properties** throughout, so the same markup mirrors correctly.
+
+| Physical (avoid) | Logical (use)           | Tailwind   |
+| ---------------- | ----------------------- | ---------- |
+| `margin-left`    | `margin-inline-start`   | `ms-*`     |
+| `margin-right`   | `margin-inline-end`     | `me-*`     |
+| `padding-left`   | `padding-inline-start`  | `ps-*`     |
+| `border-right`   | `border-inline-end`     | `border-e` |
+| `left: 0`        | `inset-inline-start: 0` | `start-0`  |
+
+Use the **Direction** switch in the toolbar to check for a physical-property
+mistake: a component that breaks in LTR has one.
+
+### Where the exceptions are, and why
+
+Two places deliberately use physical values, both documented at their source:
+
+- **`Sidebar`** uses `border-e` — correct, it is logical.
+- **`ToastHost`** uses `left`/`right` in its mobile breakpoint, because the rule it
+  overrides is physical (`PrimeNG writes right: 20px inline`). Mixing the two systems
+  would leave one edge unset.
+- **`StatCard`** binds whole Tailwind class lists rather than `[class.x]`, because a
+  class containing `:` (a `dark:` variant) or `/` (an opacity step) cannot be bound
+  through `[class.x]`.
+
+---
+
+## نقاط شکست / Breakpoints
+
+مقدار پیش‌فرض `lg` در Tailwind override شده:
+
+```css
+--breakpoint-lg: 992px;
+```
+
+این یک انتخاب سلیقه‌ای نیست. جایگزینی sidebar/topbar باید دقیقاً در همان عرضی اتفاق بیفتد که hamburger ظاهر می‌شود، وگرنه یک viewport بین 992px و 1023px **نه** یک sidebar پایدار خواهد داشت و **نه** یک hamburger — یک بن‌بست. `992px` همان عرضی است که spec مربوط به BO-B05 پین می‌کند.
+
+Tailwind's default `lg` is overridden:
+
+This is not a style choice. The sidebar/topbar swap has to happen at exactly the same
+width as the hamburger appearing, or a viewport between 992px and 1023px would have
+**neither** a persistent sidebar nor a hamburger — a dead end. `992px` is the width
+the BO-B05 spec pins.
+
+---
+
+## فاصله، شعاع و ارتفاع / Spacing, radius and elevation
+
+هیچ توکن فاصله‌ای سفارشی وجود ندارد؛ مقیاس پیش‌فرض Tailwind همان‌طور که هست استفاده می‌شود. دو قرارداد ارزش دانستن دارند چون به‌طور پیوسته اعمال می‌شوند و انحراف از آن‌ها فوراً دیده می‌شود:
+
+| موضوع      | قرارداد                                                                           |
+| ---------- | --------------------------------------------------------------------------------- |
+| Card       | `rounded-xl border bg-white p-6 shadow-md dark:border-gray-700 dark:bg-card-dark` |
+| شعاع پنل   | `rounded-xl` (12px) — مطابق `appBorderRadius: 12` در تم Storybook                 |
+| شعاع کنترل | `rounded-lg` (8px)                                                                |
+| خط مویی    | `border-gray-200` روشن / `dark:border-gray-700`                                   |
+| حباب آیکون | `h-12 w-12 rounded-xl`، تینت ۱۰۰ با یک گلیف پلهٔ ۶۰۰                              |
+
+There are no custom spacing tokens; Tailwind's default scale is used as-is. Two
+conventions are worth knowing because they are applied consistently and a deviation
+is visible immediately:
+
+| Concern        | Convention                                                                        |
+| -------------- | --------------------------------------------------------------------------------- |
+| Card           | `rounded-xl border bg-white p-6 shadow-md dark:border-gray-700 dark:bg-card-dark` |
+| Panel radius   | `rounded-xl` (12px) — matches `appBorderRadius: 12` in the Storybook theme        |
+| Control radius | `rounded-lg` (8px)                                                                |
+| Hairline       | `border-gray-200` light / `dark:border-gray-700`                                  |
+| Icon bubble    | `h-12 w-12 rounded-xl`, tinted 100 with a 600-step glyph                          |
+
+---
+
+## منطق پشت طراحی / Logic — why tokens and not values
+
+سه مصرف‌کنندهٔ پالت نمی‌توانند از همدیگر import کنند:
+
+- `tailwind.css` یک ماژول JS نیست — توسط PostCSS کامپایل می‌شود.
+- پریست PrimeNG در زمان اجرا داخل bundle اپ ساخته می‌شود.
+- chrome مربوط به Storybook یک فایل config سمت Node است، بیرون از کامپایل اپ.
+
+پس مقادیر ناچاراً در **سه جا آینه** می‌شوند، و دفاع صادقانه این نیست که خلافش را ادعا کنیم بلکه این است که آینه بودن را واضح کنیم: هر نسخه دو نسخهٔ دیگر را در یک کامنت نام می‌برد، و این صفحه فهرست است. وقتی رنگ برند عوض می‌شود، در `tailwind.css`، در `app.config.ts` و در `.storybook/theme.ts` عوض می‌شود — سه ویرایش، همه از اینجا قابل پیدا کردن.
+
+The three consumers of the palette cannot import from each other:
+
+- `tailwind.css` is not a JS module — it is compiled by PostCSS.
+- The PrimeNG preset is built inside the app bundle at runtime.
+- The Storybook chrome is a Node-side config file, outside the app's compilation.
+
+So the values are necessarily **mirrored in three places**, and the honest defence is
+not to pretend otherwise but to make the mirroring obvious: each copy names the other
+two in a comment, and this page is the index. When the brand colour changes, it changes
+in `tailwind.css`, in `app.config.ts`, and in `.storybook/theme.ts` — three edits, all
+findable from here.

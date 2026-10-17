@@ -1,0 +1,142 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Introduction/Getting Started" />
+
+# دیجی‌بیت مارکت — Storybook
+
+این Storybook **کاتالوگ زندهٔ** بک‌آفیس است: هر کامپوننت مشترک، هر تکه از layout، و هر
+بلوک سازندهٔ غیربصری (سرویس‌ها، اینترسپتورها، tokenها، مدل‌ها) در یک جا مستند شده‌اند،
+کنار یک نمونهٔ کارکننده.
+
+این یک showcase سیستم‌طراحی نیست که از بیرون به پروژه چسبانده شده باشد. از همان هدف بیلد
+`angular.json` ساخته می‌شود که خودِ برنامه استفاده می‌کند، پس استایل‌ها، فونت‌ها، آیکون‌ها
+و presetی از PrimeNG که اینجا می‌بینی همان‌هایی هستند که عرضه می‌شوند.
+
+This Storybook is the **living catalogue** of the back office: every shared component,
+every layout piece, and every non-visual building block (services, interceptors,
+tokens, models) documented in one place, next to a working example.
+
+It is not a design-system showcase bolted on from outside. It is built from the same
+`angular.json` build target the app itself uses, so the styles, fonts, icons and
+PrimeNG preset you see here are the ones that ship.
+
+---
+
+## کاربرد / Use case — when to open Storybook
+
+| می‌خواهی…                                                          | Storybook را باز کن | به‌جایش برنامه را باز کن |
+| ------------------------------------------------------------------ | ------------------- | ------------------------ |
+| بدون route، fixture یا session لاگین‌شده یک کامپوننت جدید بسازی    | ✅                  |                          |
+| ببینی یک کامپوننت در **حالت تاریک** و در **LTR** چطور رفتار می‌کند | ✅                  |                          |
+| یک کامپوننت را جداگانه به یک طراح یا بازبین نشان بدهی              | ✅                  |                          |
+| قبل از صدا زدن `ToastService` قراردادش را بخوانی                   | ✅                  |                          |
+| بررسی کنی یک تغییر هیچ کامپوننتی را نشکسته (پاس بصری + a11y)       | ✅                  |                          |
+| یک جریان واقعی چندصفحه‌ای را روی API mock کلیک کنی                 |                     | ✅                       |
+
+قاعدهٔ سرانگشتی: **Storybook برای یک چیز در یک زمان است؛ برنامه برای چیزهایی که با هم
+حرف می‌زنند.**
+
+| You want to…                                                             | Open Storybook | Open the app instead |
+| ------------------------------------------------------------------------ | -------------- | -------------------- |
+| Build a new component without a route, a fixture, or a logged-in session | ✅             |                      |
+| Check how a component behaves in **dark mode** and in **LTR**            | ✅             |                      |
+| Show a designer or reviewer one component in isolation                   | ✅             |                      |
+| Read the contract of `ToastService` before calling it                    | ✅             |                      |
+| Check that a change did not break any component (visual + a11y pass)     | ✅             |                      |
+| Click through a real multi-page flow against the mock API                |                | ✅                   |
+
+The rule of thumb: **Storybook is for one thing at a time; the app is for things
+that talk to each other.**
+
+---
+
+## نحوهٔ استفاده / How to use it
+
+```bash
+# Development — hot reload, full controls panel
+npm run storybook
+
+# Static build — what CI and any static host serves
+npm run build-storybook
+```
+
+هر دو script از Angular CLI می‌گذرند (`ng run backoffice:storybook`). اجرای باینری سادهٔ
+`storybook` در این پروژه **کار نمی‌کند** — دلیلش را در
+[Conventions](/docs/conventions-writing-stories-docs--docs) ببین، و §11 در `ARCHITECTURE.md`
+برای setup کامل.
+
+Both scripts go through the Angular CLI (`ng run backoffice:storybook`). Running the
+plain `storybook` binary will **not** work in this project — see
+[Conventions](/docs/conventions-writing-stories-docs--docs) for why, and
+`ARCHITECTURE.md` §11 for the full setup.
+
+---
+
+## ساختار کاتالوگ / How the catalogue is organised
+
+| بخش              | چه چیزی آنجاست                                                                                  |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| **Introduction** | اینجایی. جهت‌گیری، ابزار، و استاندارد مستندسازی.                                                |
+| **Foundations**  | توکن‌های طراحی — رنگ، تایپ، فاصله، RTL، حالت تاریک. قبل از استایل کردن هر چیزی این را بخوان.    |
+| **Conventions**  | چطور یک story بنویسی و چطور مستندات همراه‌اش را بنویسی.                                         |
+| **Shared**       | هفت کامپوننت قابل‌استفادهٔ مجدد در `src/app/shared/components`.                                 |
+| **Layout**       | پوستهٔ برنامه — `MainLayout`، `Sidebar`، `SidebarDrawer`، `Topbar`.                             |
+| **Core**         | هر چیزی که کامپوننت نیست: `ApiService`، سرویس‌ها، زنجیرهٔ اینترسپتور، توکن مجوز، مدل‌های مشترک. |
+
+| Section          | What lives there                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Introduction** | You are here. Orientation, tooling, and the doc standard.                                                                       |
+| **Foundations**  | The design tokens — colour, type, spacing, RTL, dark mode. Read this before styling anything.                                   |
+| **Conventions**  | How to write a story and how to write the docs that go with it.                                                                 |
+| **Shared**       | The seven reusable components in `src/app/shared/components`.                                                                   |
+| **Layout**       | The application shell — `MainLayout`, `Sidebar`, `SidebarDrawer`, `Topbar`.                                                     |
+| **Core**         | Everything that is not a component: `ApiService`, the services, the interceptor chain, the permission token, the shared models. |
+
+---
+
+## استاندارد مستندسازی / The documentation standard
+
+هر ورودی در این Storybook به همان سه سؤال، به همان ترتیب، جواب می‌دهد. این عمدی است:
+صفحه‌ای که فقط API را نشان می‌دهد به تو می‌گوید کد _چه‌کار می‌کند_، هرگز نمی‌گوید _آیا
+ابزار درستی است یا نه_.
+
+1. **Use case** — کِی سراغش می‌روی، و — به همان اندازه مهم — کِی نمی‌روی.
+2. **How to use** — رابط عمومی، با یک نمونهٔ آماده برای کپی-پیست.
+3. **Logic** — چرا این‌طور ساخته شده و از چه چیزی محافظتت می‌کند.
+
+دلیل این استاندارد، و چک‌لیست اعمالش روی یک ورودی جدید، در
+[Conventions](/docs/conventions-writing-stories-docs--docs) آمده است.
+
+Every entry in this Storybook answers the same three questions, in the same order.
+This is deliberate: a page that only shows the API tells you _what_ the code does,
+never _whether it is the right tool_.
+
+1. **Use case** — when you reach for this, and — just as importantly — when you don't.
+2. **How to use** — the public surface, with a copy-pasteable example.
+3. **Logic** — why it is built the way it is, and what it protects you from.
+
+The rationale for the standard, and the checklist for applying it to a new entry,
+lives in [Conventions](/docs/conventions-writing-stories-docs--docs).
+
+---
+
+## چه چیزهایی پوشش داده نمی‌شود / What this Storybook does _not_ cover
+
+- **صفحه‌های فیچر** (`src/app/features/**`). عمداً خالی‌اند — پروژه UI-first ساخته می‌شود
+  و بعداً API را وصل می‌کند. هر فیچر که می‌رسد، storyهای سطح صفحه‌اش اینجا اضافه می‌شوند.
+- **Pipeها و directiveها.** `src/app/shared/pipes` و `src/app/shared/directives` در حال
+  حاضر هیچ پیاده‌سازی‌ای ندارند. وقتی اولین‌شان نوشته شود، مثل یک کامپوننت یک فایل story
+  می‌گیرد.
+- **Guardها.** `src/app/core/guards` خالی است؛ محافظت از route یک تسک بعدی است (BO-D07).
+  تا وقتی نرسد، منوی sidebar یک _راحتی ناوبری_ است، نه کنترل دسترسی —
+  [Permissions](/docs/core-permissions--docs) را ببین.
+
+- **Feature pages** (`src/app/features/**`). They are empty by design — the project
+  builds UI-first and plugs the API in later. As each feature lands, its page-level
+  stories are added here.
+- **Pipes and directives.** `src/app/shared/pipes` and `src/app/shared/directives`
+  currently contain no implementations. When the first one is written, it gets a
+  story file the same way a component does.
+- **Guards.** `src/app/core/guards` is empty; route protection is a later task
+  (BO-D07). Until it lands, the sidebar menu is a _navigation convenience_, not
+  access control — see [Permissions](/docs/core-permissions--docs).

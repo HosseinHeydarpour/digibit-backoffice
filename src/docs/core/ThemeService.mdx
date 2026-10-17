@@ -1,0 +1,229 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Core/ThemeService" />
+
+# ThemeService
+
+`src/app/core/services/theme.ts` · consumed by
+[Topbar](/docs/layout-topbar--docs)
+
+مالک حالت روشن/تاریک پنل است، و همان یک کلاسی که آن را عوض می‌کند.
+
+Owns the light/dark mode of the panel and the one class that switches it.
+
+---
+
+## کاربرد / Use case
+
+**کِی سراغش برو:** وقتی باید بدانی کدام حالت فعال است، یا باید عوضش کنی. یعنی دکمهٔ
+toggle هدر، و — بعداً — بخش ظاهر در Settings.
+
+**کِی سراغش نرو:** وقتی داری یک کامپوننت را استایل می‌کنی. کامپوننت `isDark()` را
+نمی‌خواند تا رنگ انتخاب کند. یک variant به نام `dark:` در Tailwind می‌نویسد که به همان
+کلاس `.app-dark` بسته شده است و استایل خودکار دنبالش می‌آید. خواندن `isDark()` در یک
+template برای شاخه‌بندی روی رنگ نشانهٔ آن است که variant `dark:` جا افتاده.
+
+استثنای مشروع یک **glyph** است: آیکون خورشید/ماه در topbar واقعاً باید عوض شود، و آیکون
+محتواست، نه رنگ.
+
+**Reach for it when** you need to know which mode is active, or you need to change it.
+That is the header's toggle button, and — later — the appearance section of Settings.
+
+**Do not reach for it when** you are styling a component. A component does not read
+`isDark()` to choose a colour. It writes a Tailwind `dark:` variant, which is bound to
+the same `.app-dark` class, and the styling follows automatically. Reaching for
+`isDark()` in a template to branch on colour is a sign the `dark:` variant is missing.
+
+The legitimate exception is a **glyph**: the sun/moon icon in the topbar genuinely has to
+swap, and an icon is content, not colour.
+
+---
+
+## نحوهٔ استفاده / How to use
+
+```ts
+import { inject } from '@angular/core';
+import { ThemeService } from '@core/services/theme';
+
+private readonly theme = inject(ThemeService);
+
+// Read
+this.theme.mode();    // 'light' | 'dark'
+this.theme.isDark();  // boolean
+
+// Write
+this.theme.toggle();        // flip, and remember the choice
+this.theme.set('dark');     // force a mode, and remember the choice
+```
+
+استفادهٔ خود topbar کوتاه‌ترین نمونه است:
+
+```html
+<button
+  type="button"
+  (click)="theme.toggle()"
+  [attr.aria-label]="theme.isDark() ? 'حالت روشن' : 'حالت تاریک'"
+>
+  <i [class]="theme.isDark() ? 'pi pi-sun' : 'pi pi-moon'"></i>
+</button>
+```
+
+### سطح عمومی
+
+| عضو         | نوع                 | معنی                                |
+| ----------- | ------------------- | ----------------------------------- |
+| `mode`      | `Signal<ThemeMode>` | `'light'` یا `'dark'`، فقط‌خواندنی. |
+| `isDark`    | `Signal<boolean>`   | `mode() === 'dark'`، مشتق‌شده.      |
+| `toggle()`  | `void`              | برمی‌گرداند، بعد ذخیره می‌کند.      |
+| `set(mode)` | `void`              | صریح ست می‌کند، بعد ذخیره می‌کند.   |
+
+`ThemeMode` همان `'light' | 'dark'` است — یک union بسته، پس هر تایپی خطای کامپایل
+می‌شود.
+
+The topbar's own usage is the shortest example:
+
+### The public surface
+
+| Member      | Type                | Meaning                           |
+| ----------- | ------------------- | --------------------------------- |
+| `mode`      | `Signal<ThemeMode>` | `'light'` or `'dark'`, read-only. |
+| `isDark`    | `Signal<boolean>`   | `mode() === 'dark'`, derived.     |
+| `toggle()`  | `void`              | Flip, then persist.               |
+| `set(mode)` | `void`              | Set explicitly, then persist.     |
+
+`ThemeMode` is `'light' | 'dark'` — a closed union, so a typo is a compile error.
+
+---
+
+## منطق پشت طراحی / Logic
+
+### یک کلاس، دو مصرف‌کننده
+
+حالت تاریک یک کلاس روی `<html>` است: **`.app-dark`**.
+
+- PrimeNG آن را می‌پاید: `darkModeSelector: '.app-dark'` در preset.
+- Tailwind آن را می‌پاید: `@custom-variant dark (&:where(.app-dark, .app-dark *))`.
+
+هر دو عمداً به یک کلاس اشاره می‌کنند. جایگزین — PrimeNG روی کلاس `.dark` و Tailwind روی
+`prefers-color-scheme` — بدترین حالت ممکن را می‌سازد: کامپوننت‌های PrimeNG تاریک شده و
+utilityهای Tailwind همچنان روشن، در یک صفحه.
+
+تنها کار DOMی `ThemeService` همان
+`document.documentElement.classList.toggle('app-dark', isDark())` است.
+
+### چرا `effect` ذخیره نمی‌کند
+
+effect سازنده کلاس را اعمال می‌کند و **عمداً در `localStorage` نمی‌نویسد**. این نکته ظریف
+است و ارزش توضیح دارد:
+
+یک effect روی اولین change detection اجرا می‌شود، یعنی **قبل از آنکه کاربر چیزی انتخاب
+کرده باشد**. اگر همان‌جا ذخیره می‌کرد، حالتی که برنامه تصادفاً با آن باز شده — مشتق‌شده از
+`prefers-color-scheme` — در اولین بازدید در storage نوشته می‌شد. از آن به بعد همیشه مقدار
+ذخیره‌شده برنده می‌شد و یک تغییر روشن↔تاریک سیستمی بعدی **برای همیشه نادیده** می‌ماند.
+
+ذخیره فقط در `toggle()` و `set()` رخ می‌دهد — همان دو جایی که یک انسان قصدش را بیان کرده
+است. نتیجهٔ دیدنی، که همان نتیجهٔ درست است: **کلید غایب `digibit.theme` واقعاً یعنی «هنوز
+دارد سیستم را دنبال می‌کند».** مرجع طراحی هم همین‌طور رفتار می‌کند و `localStorage` را فقط
+از click handler خودش می‌نویسد.
+
+### خواندن حالت اولیه
+
+`readInitial()` قبل از اولین render اجرا می‌شود و به این ترتیب حل می‌کند:
+
+1. `localStorage['digibit.theme']` — اگر دقیقاً `'dark'` یا `'light'` باشد، همان را
+   استفاده کن.
+2. `window.matchMedia('(prefers-color-scheme: dark)')` — ترجیح سیستم‌عامل.
+3. `'light'`.
+
+هر دو دسترسی `localStorage` در `try`/`catch` پیچیده شده‌اند، چون `localStorage` در حالت
+private و در iframeهای sandboxشده **throw می‌کند**. در صورت شکست، سرویس به signal
+درون‌حافظه برمی‌گردد که همچنان برای همان session کار می‌کند — پنل قابل استفاده است، فقط
+به یاد نمی‌سپارد.
+
+### چرا کلید storage ثابتی نیست که آزادانه تغییر نام بدهی
+
+`STORAGE_KEY = 'digibit.theme'` را **دو** جا می‌خوانند: همین سرویس، و **اسکریپت inline
+ضد FOUC** در `index.html` که `.app-dark` را قبل از اولین paint ست می‌کند. تغییر نام یکی
+بدون دیگری باعث یک flash سفید در هر بار بارگذاری حالت تاریک می‌شود. این کلید در سند تسک هم
+به‌عنوان بخشی از معیارهای پذیرش تثبیت شده است.
+
+### چرا effect در سازنده است و نه در `ngOnInit`
+
+یک سرویس lifecycle hook ندارد. سازنده تنها جایی است که تضمین‌شده قبل از اولین render قالب
+اجرا می‌شود، و این دقیقاً همان نیاز است: کلاس باید قبل از هر چیزی که paint می‌شود وجود
+داشته باشد.
+
+### چه چیزی عمداً اینجا نیست
+
+- **هیچ حالت `'system'` در union نیست.** union دو مقدار دارد چون رابط کاربری دو حالت
+  دارد. «دنبال کردن سیستم» _نبودِ_ یک ترجیح ذخیره‌شده است، نه یک حالت سوم — مدل‌سازی آن
+  به‌عنوان یک مقدار یعنی مشتق کردن دوبارهٔ حالت مؤثر در هر خواندن، و برای درست ماندن به
+  یک listener روی `matchMedia` نیاز داشت. Settings می‌تواند بعداً با صدا زدن
+  `set(systemMode)` و پاک کردن کلید ذخیره‌شده آن را اضافه کند.
+- **هیچ transition روی toggle نیست.** یک cross-fade روی تغییر رنگ کل صفحه حواس‌پرتی است
+  و بررسی FOUC را بی‌معنی می‌کند.
+
+### One class, two consumers
+
+Dark mode is a single class on `<html>`: **`.app-dark`**.
+
+- PrimeNG watches it: `darkModeSelector: '.app-dark'` in the preset.
+- Tailwind watches it: `@custom-variant dark (&:where(.app-dark, .app-dark *))`.
+
+Both are pointed at the same class on purpose. The alternative — PrimeNG on a
+`.dark` class and Tailwind on `prefers-color-scheme` — produces the worst possible
+state: PrimeNG components gone dark, Tailwind utilities still light, on the same screen.
+
+`ThemeService`'s only DOM job is `document.documentElement.classList.toggle('app-dark', isDark())`.
+
+### Why the `effect` does not persist
+
+The constructor effect applies the class and **deliberately does not write to
+`localStorage`**. This is subtle and worth spelling out:
+
+An effect runs on the first change detection, i.e. **before the user has chosen
+anything**. If it persisted there, the mode the app happened to open in — derived from
+`prefers-color-scheme` — would be written to storage on visit one. From then on the
+saved value would always win, and a later system light↔dark switch would be **ignored
+forever**.
+
+Persistence happens only in `toggle()` and `set()` — the two places a human expressed an
+intent. The visible consequence, which is the correct one: **an absent
+`digibit.theme` key genuinely means "still following the system".** The design reference
+behaves the same way, writing `localStorage` only from its click handler.
+
+### Reading the initial mode
+
+`readInitial()` runs before the first render and resolves in this order:
+
+1. `localStorage['digibit.theme']` — if it is exactly `'dark'` or `'light'`, use it.
+2. `window.matchMedia('(prefers-color-scheme: dark)')` — the OS preference.
+3. `'light'`.
+
+Both `localStorage` accesses are wrapped in `try`/`catch`, because `localStorage` **throws**
+in private mode and in sandboxed iframes. On failure the service falls back to the
+in-memory signal, which still works for the session — the panel is usable, it just does
+not remember.
+
+### Why the storage key is not a constant you can rename freely
+
+`STORAGE_KEY = 'digibit.theme'` is read by **two** places: this service, and the
+**anti-FOUC inline script** in `index.html` that sets `.app-dark` before first paint.
+Renaming one without the other causes a white flash on every dark-mode load. The key is
+also pinned by the task document as part of the acceptance criteria.
+
+### Why the effect is in the constructor and not an `ngOnInit`
+
+A service has no lifecycle hook. The constructor is the only place guaranteed to run
+before the first template render, which is exactly the requirement: the class must be
+present before anything paints.
+
+### What is deliberately not here
+
+- **No `'system'` mode in the union.** The union has two values because the UI has two
+  states. "Follow the system" is the _absence_ of a stored preference, not a third mode
+  — modelling it as a value would mean re-deriving the effective mode on every read, and
+  would need a listener on `matchMedia` to stay correct. Settings can add it later by
+  calling `set(systemMode)` and clearing the stored key.
+- **No transition on the toggle.** A cross-fade on a full-page colour change is a
+  distraction, and it makes the FOUC check meaningless.

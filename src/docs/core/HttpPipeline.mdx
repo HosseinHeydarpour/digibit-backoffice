@@ -1,0 +1,242 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Core/Http Pipeline" />
+
+# The HTTP pipeline
+
+`src/app/core/interceptors/error-interceptor.ts` ·
+`src/app/core/mock/mock-interceptor.ts` · `src/app/core/mock/mock-headers.ts`
+
+یک درخواست چطور از برنامه بیرون می‌رود، و یک شکست چطور به شکل چیزی برمی‌گردد که کاربر
+بفهمد.
+
+How a request leaves the app, and how a failure comes back as something a user can
+understand.
+
+---
+
+## کاربرد / Use case
+
+**کِی این را بخوان:** وقتی شکستی گزارش نمی‌شود، دو بار گزارش می‌شود، یا می‌خواهی بدون
+بک‌اند یک حالت خطا را در توسعه ببینی.
+
+**برای نوشتن درخواست این را نخوان.** درخواست‌ها را با
+[ApiService](/docs/core-apiservice--docs) می‌نویسی. هیچ‌چیز در این صفحه از کد فیچر صدا
+زده نمی‌شود.
+
+**Read this when** a failure is not being reported, is being reported twice, or you need
+to see an error state in development without a backend.
+
+**Do not read this to write a request.** You write requests with
+[ApiService](/docs/core-apiservice--docs). Nothing in this page is called from feature
+code.
+
+---
+
+## نحوهٔ استفاده / How to use
+
+### زنجیرهٔ اینترسپتورها
+
+```ts
+// src/app/app.config.ts
+provideHttpClient(
+  withFetch(),
+  withInterceptors([
+    errorInterceptor,                                    // outermost
+    ...(environment.useMockApi ? [mockInterceptor] : []), // innermost, dev only
+  ]),
+),
+```
+
+ترتیب تعیین‌کننده است. اینترسپتور خطا **اول** ثبت می‌شود و همین آن را **بیرونی‌ترین**
+handler می‌کند — پس چه شکست از لایهٔ mock آمده باشد، چه از شبکه، چه از بدنی که پوشش درست
+نیست، در راه برگشت به فراخوان از آن عبور می‌کند.
+
+### دیدن یک حالت خطا در توسعه
+
+لایهٔ mock یک راه فرار مخصوص تست را رعایت می‌کند. `__mockStatus` را به هر درخواستی اضافه
+کن:
+
+```ts
+// Forces a 500 on the next call, whatever the endpoint is
+this.api.get<Product[]>('/products', { __mockStatus: 500 });
+```
+
+بدنهٔ پاسخ `{ error: { code: 'MOCK_ERROR', message: 'خطای شبیه‌سازی‌شده 500' } }` است که
+مسیر واقعی را طی می‌کند: mock interceptor → error interceptor → toast → فراخوان.
+
+### روشن و خاموش کردن لایهٔ mock
+
+`environment.useMockApi` تنها کلید است. `ApiService` تا وقتی این پرچم درست است روی هر
+درخواست `X-Mock: 1` می‌گذارد، و `mockHeaders()` همان چیزی است که این هدر را روی آن سوار
+می‌کند — پس **هیچ سرویس فیچری نمی‌داند بک‌اند وجود دارد یا نه**.
+
+خود اینترسپتور و fixture‌ها از طریق ورودی `fileReplacements` در `angular.json` از بیلد
+production بیرون انداخته می‌شوند. اما `mock-headers.ts` این‌طور نیست — چون `ApiService`
+آن را بی‌قیدوشرط import می‌کند و باید در هر بیلدی وجود داشته باشد. به همین دلیل یک شاخهٔ
+**runtime** روی پرچم محیط است، نه یک جایگزینی در زمان بیلد.
+
+### The chain
+
+Order is load-bearing. The error interceptor is registered **first**, which makes it the
+**outermost** handler — so whether a failure came from the mock layer, from the network,
+or from a body that is not the envelope it should be, it passes through on the way back
+to the caller.
+
+### Seeing an error state in development
+
+The mock layer honours a test-only escape hatch. Append `__mockStatus` to any request:
+
+The response body is `{ error: { code: 'MOCK_ERROR', message: 'خطای شبیه‌سازی‌شده 500' } }`,
+which travels the real path: mock interceptor → error interceptor → toast → caller.
+
+### Turning the mock layer on and off
+
+`environment.useMockApi` is the single switch. `ApiService` sets `X-Mock: 1` on every
+request while it is true, and `mockHeaders()` is what layers that header on — so **no
+feature service knows whether a backend exists**.
+
+The interceptor itself and the fixtures are compiled out of a production build through
+the `fileReplacements` entry in `angular.json`. `mock-headers.ts` is _not_ — it has to
+exist in every build because `ApiService` imports it unconditionally. That is why it is a
+**runtime** branch on the environment flag rather than a build-time replacement.
+
+---
+
+## منطق پشت طراحی / Logic
+
+### چرا خطا در مرز گزارش می‌شود
+
+سرویس فیچری که شاخهٔ `error`اش را فراموش کند **بی‌صدا** شکست می‌خورد: دکمه طوری به نظر
+می‌رسد که انگار هیچ کاری نکرده و کاربر دوباره رویش کلیک می‌کند. گزارش دادن در مرز یعنی
+شکست همیشه دیده می‌شود و فیچر فقط رسیدگی مخصوص خودش را می‌نویسد — باز نگه داشتن یک
+دیالوگ، قرمز کردن یک فیلد.
+
+### چرا اینترسپتور از `toApiError` دوباره استفاده می‌کند
+
+آنچه toast می‌گوید باید **دقیقاً** همان چیزی باشد که فراخوان می‌گیرد. اگر گوشهٔ صفحه و
+خطای درون‌خطی دربارهٔ یک شکست واحد با هم اختلاف داشتند، دو قانون نرمال‌سازی برای هماهنگ
+نگه داشتن وجود داشت که از هم واگرا می‌شدند. هر دو از یک تابع می‌گذرند که دقیقاً به همین
+دلیل از `api.ts` صادر شده است.
+
+### چرا خطای اعتبارسنجی toast نمی‌شود
+
+یک `400` همراه با `fields` پیامی **برای فرم** است. هر فیلد در همان لحظه خطای خودش را
+درست کنار ورودی‌ای که باید اصلاح شود نشان می‌دهد. toast کردن آن هم همان شکست را دو بار
+گزارش می‌کند و نسخهٔ دوم بی‌فایده است — یک toast نمی‌تواند به یک فیلد اشاره کند.
+
+`ApiError.isValidation` دقیقاً همین تمایز است (`code === 'VALIDATION' || !!fields`) و به
+همین دلیل اینترسپتور آن را چک می‌کند، نه مقایسهٔ کدهای وضعیت. یک `400` که شکل اعتبارسنجی
+ندارد همچنان toast می‌شود، چون در آن حالت فیلدی نیست که پیام به آن بچسبد.
+
+### چرا اینترسپتور گزارش می‌دهد ولی تصمیم نمی‌گیرد
+
+`throwError(() => apiError)` را صدا می‌زند — خطای نرمال‌شده بدون تغییر جلو می‌رود.
+`catchError` خودِ `ApiService` بعد یک `ApiError` می‌بیند و مستقیم ردش می‌کند، پس فراخوان
+دقیقاً همان چیزی را می‌گیرد که همیشه می‌گرفت. اینترسپتوری که خطا را ببلعد یا با یک
+fallback جایگزینش کند، استدلال دربارهٔ pipeline را غیرممکن می‌کند.
+
+### چرا لایهٔ mock برای یک URL ناشناخته `null` برمی‌گرداند
+
+`resolve()` وقتی ماژول را نمی‌شناسد `null` برمی‌گرداند و اینترسپتور بعد `next(req)` را
+صدا می‌زند — درخواست دست‌نخورده به بک‌اند واقعی می‌رسد. همین است که یک برنامهٔ
+نیمه‌mock‌شده را کار می‌اندازد: endpointهایی که fixture دارند محلی جواب می‌گیرند و هر چیز
+دیگری همچنان به شبکه می‌خورد.
+
+### چرا `paginate()` از API واقعی کپی شده است
+
+صفحه‌بندی fixture به `page`/`pageSize` احترام می‌گذارد و همان شکل پوشش `ARCHITECTURE.md`
+§4 را برمی‌گرداند — `{ data, meta: { page, pageSize, total }, message }`. بازتولید قرارداد
+واقعی به‌صورت محلی همان چیزی است که جایگزینی با بک‌اند واقعی را به تغییر یک پرچم تبدیل
+می‌کند. mockی که کل آرایه را برمی‌گرداند، باگ‌های صفحه‌بندی را تا روزی که API برسد پنهان
+می‌کند.
+
+`num()` یک پارامتر غیرعددی یا نامثبت را غایب در نظر می‌گیرد و به پیش‌فرض برمی‌گردد، پس
+`?page=abc` باعث slicing با `NaN` نمی‌شود.
+
+### تأخیر mock
+
+`environment.mockDelayMs` هر پاسخ mock‌شده را تأخیر می‌اندازد. این تزیین نیست: بدون آن
+هیچ spinnerی ظاهر نمی‌شود و هر حالت loading در رابط کاربری تا رسیدن بک‌اند واقعی
+تست‌نشده می‌ماند.
+
+### Why the error is reported at the boundary
+
+A feature service that forgets its `error` branch fails **silently**: the button looks
+like it did nothing, and the user clicks it again. Reporting at the boundary means a
+failure is always visible, and a feature only writes the handling that is specific to it
+— keeping a dialog open, marking a field red.
+
+### Why the interceptor re-uses `toApiError`
+
+What the toast says must be **exactly** what the caller receives. If the corner of the
+screen and the inline error disagreed about the same failure, there would be two
+normalisation rules to keep in sync and they would drift. Both go through one function,
+exported from `api.ts` for precisely this reason.
+
+### Why a validation error is not toasted
+
+A `400` with `fields` is a message **for the form**. Each field is about to show its own
+error, right next to the input that has to be corrected. Toasting it as well reports the
+same failure twice, and the second copy is the useless one — a toast cannot point at a
+field.
+
+`ApiError.isValidation` is exactly that distinction (`code === 'VALIDATION' || !!fields`),
+which is why the interceptor checks it rather than comparing status codes. A `400` that
+is _not_ validation-shaped is still toasted, because in that case there is no field to
+attach the message to.
+
+### Why the interceptor reports but does not decide
+
+It calls `throwError(() => apiError)` — the normalised error travels on unchanged.
+`ApiService`'s own `catchError` then sees an `ApiError` and passes it straight through, so
+a caller receives exactly what it always received. An interceptor that swallowed the error
+or replaced it with a fallback would make the pipeline impossible to reason about.
+
+### Why the mock layer returns `null` for an unknown URL
+
+`resolve()` returns `null` when it does not recognise the module, and the interceptor then
+calls `next(req)` — the request passes through to the real backend untouched. That is what
+lets a partially-mocked app work: the endpoints with fixtures are answered locally, and
+anything else still hits the network.
+
+### Why `paginate()` is duplicated from the real API
+
+The fixture pagination honours `page`/`pageSize` and returns the same envelope shape as
+`ARCHITECTURE.md` §4 — `{ data, meta: { page, pageSize, total }, message }`. Reproducing
+the real contract locally is what makes the swap to a real backend a one-flag change. A
+mock that returned the whole array would hide pagination bugs until the day the API
+arrived.
+
+`num()` treats a non-numeric or non-positive parameter as absent and falls back to the
+default, so `?page=abc` does not produce `NaN` slicing.
+
+### The mock delay
+
+`environment.mockDelayMs` delays every mocked response. This is not decoration: without
+it, a spinner never appears and every loading state in the UI is untested until the real
+backend arrives.
+
+---
+
+## دو تلهٔ اینترسپتور که باید بدانی / Two interceptor traps worth knowing
+
+**۱. ترتیب اینترسپتورها همان ترتیب ثبت است، بیرونی‌ترین اول.** اگر `mockInterceptor` را
+قبل از `errorInterceptor` ثبت کنی، یک خطای mock‌شده هرگز به error handler نمی‌رسد، چون
+لایهٔ mock بالادست آن است.
+
+**۲. جایگزینی `fileReplacements` تابعی را که کد برنامه import می‌کند پوشش نمی‌دهد.**
+`mock-headers.ts` را `ApiService` import می‌کند که در production عرضه می‌شود. پس نمی‌توان
+آن را جایگزین و حذف کرد — باید طوری نوشته شود که رفتار productionاش (برگرداندن هدرها
+دست‌نخورده) درست باشد. این یک قاعدهٔ کلی است: **فقط ماژول‌هایی را جایگزین کن که هیچ‌چیز در
+گراف production آن‌ها را import نمی‌کند.**
+
+**1. Interceptor order is registration order, outermost first.** Registering
+`mockInterceptor` before `errorInterceptor` would mean a mocked error never reached the
+error handler, because the mock layer is upstream of it.
+
+**2. A `fileReplacements` swap does not cover a function imported by app code.**
+`mock-headers.ts` is imported by `ApiService`, which ships in production. It therefore
+cannot be replaced away — it must be written so that its production behaviour (return the
+headers untouched) is correct. This is a general rule: **only swap out modules nothing in
+the production graph imports.**

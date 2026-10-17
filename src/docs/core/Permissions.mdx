@@ -1,0 +1,235 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Core/Permissions" />
+
+# Permissions & the menu
+
+`src/app/core/auth/permissions.token.ts` · `src/app/layout/sidebar/menu.model.ts` ·
+`src/app/layout/sidebar/menu.ts` · `src/app/layout/sidebar/menu-filter.ts`
+
+سایدبار چطور تصمیم می‌گیرد که یک کاربر واردشده اجازهٔ دیدن کدام آیتم‌ها را دارد.
+
+How the sidebar decides which items a signed-in user is allowed to see.
+
+---
+
+## کاربرد / Use case
+
+**این را بخوان وقتی** داری یک آیتم منو اضافه می‌کنی، یک permission اضافه می‌کنی، یا می‌خواهی بفهمی چرا یک آیتم برای یک حساب غایب است و برای حسابی دیگر حاضر.
+
+**این را به‌عنوان کنترل دسترسی نخوان.** نیست. هشدار پایین را ببین.
+
+> ### ⚠️ پنهان‌کردن یک آیتم منو امنیت نیست
+>
+> `filterMenu()` فقط تصمیم می‌گیرد چه چیزی **رندر** شود. تا وقتی route guard (BO-D07) نرسیده، یک route پنهان همچنان با تایپ URL آن قابل دسترسی است، و API هیچ ایده‌ای ندارد که منو فیلتر شده. **مرز واقعی، اعتبارسنجی سمت سرور است** — §6 در `ARCHITECTURE.md` در این مورد صریح است. هیچ‌وقت یک منوی فیلترشده را کنترل دسترسی ندان، و هیچ‌وقت یک بررسی را از سرور به منو منتقل نکن به این بهانه که «لینک هر حالا پنهان است».
+
+**Read this when** you are adding a menu entry, adding a permission, or trying to
+understand why an item is missing for one account and present for another.
+
+**Do not read this as access control.** It is not. See the warning below.
+
+> ### ⚠️ Hiding a menu item is not security
+>
+> `filterMenu()` only decides what is **rendered**. Until the route guard (BO-D07) lands,
+> a hidden route is still reachable by typing its URL, and the API has no idea the menu
+> was filtered. **The real boundary is server-side validation** — `ARCHITECTURE.md` §6 is
+> explicit about this. Never treat a filtered menu as access control, and never move a
+> check from the server into the menu because "the link is hidden anyway".
+
+---
+
+## نحوهٔ استفاده / How to use
+
+### افزودن یک آیتم منو / Adding a menu entry
+
+```ts
+// src/app/layout/sidebar/menu.ts
+{
+  label: 'محصولات',
+  icon: 'pi pi-box',
+  routerLink: '/products',
+  permission: 'products.view',   // omit ⇒ visible to every signed-in user
+}
+```
+
+### افزودن یک permission / Adding a permission
+
+1. literal را به union `Permission` در `menu.model.ts` اضافه کن.
+2. در `MENU` از آن استفاده کن.
+3. آن را در seed مربوط به mock اعطا کن تا توسعهٔ محلی همچنان آیتم را نشان دهد.
+
+```ts
+export type Permission =
+  | 'products.view'
+  | 'orders.view'
+  | 'customers.view'
+  | 'content.view'
+  | 'comments.view'
+  | 'tickets.view'
+  | 'settings.write';
+```
+
+1. Add the literal to the `Permission` union in `menu.model.ts`.
+2. Use it in `MENU`.
+3. Grant it in the mock seed so local development still shows the item.
+
+### تأمین فهرست / Providing the list
+
+این token یک پیش‌فرض **fail-closed** از `signal<readonly string[]>([])` دارد. برای تأمین یک فهرست واقعی — این همان تک‌خطی است که BO-D08 تغییرش می‌دهد:
+
+```ts
+// src/app/app.config.ts
+{
+  provide: PERMISSIONS,
+  useValue: signal<readonly string[]>(await fetchMyPermissions()),
+}
+```
+
+سایدبار به هیچ تغییری نیاز ندارد: token را inject می‌کند و هر بار signal عوض شود دوباره محاسبه می‌کند.
+
+The token has a **fail-closed** default of `signal<readonly string[]>([])`. To supply a
+real list — this is the one line BO-D08 will change:
+
+The sidebar needs no change: it injects the token and recomputes whenever the signal
+changes.
+
+### خواندن آن / Reading it
+
+```ts
+// src/app/layout/sidebar/sidebar.ts
+private readonly permissions = inject(PERMISSIONS);
+protected readonly menu = computed(() => filterMenu(MENU, this.permissions()));
+```
+
+| خروجی                             | از                     | کاربرد                                                  |
+| --------------------------------- | ---------------------- | ------------------------------------------------------- |
+| `PERMISSIONS`                     | `permissions.token.ts` | `InjectionToken<Signal<readonly string[]>>`             |
+| `Permission`                      | `menu.model.ts`        | union بستهٔ هر permissionی که منو استفاده می‌کند        |
+| `MenuItem`                        | `menu.model.ts`        | `{ label, icon, routerLink, permission? }`              |
+| `MenuGroup`                       | `menu.model.ts`        | `{ label, items }`                                      |
+| `MENU`                            | `menu.ts`              | منوی کامل، فیلترنشده                                    |
+| `MENU_PERMISSIONS`                | `menu.ts`              | هر permissionی که `MENU` ارجاع می‌دهد — برای تست و seed |
+| `filterMenu(groups, permissions)` | `menu-filter.ts`       | خالص. منوی قابل‌دیدن را برمی‌گرداند.                    |
+
+| Export                            | From                   | Purpose                                                    |
+| --------------------------------- | ---------------------- | ---------------------------------------------------------- |
+| `PERMISSIONS`                     | `permissions.token.ts` | `InjectionToken<Signal<readonly string[]>>`                |
+| `Permission`                      | `menu.model.ts`        | The closed union of every permission the menu uses         |
+| `MenuItem`                        | `menu.model.ts`        | `{ label, icon, routerLink, permission? }`                 |
+| `MenuGroup`                       | `menu.model.ts`        | `{ label, items }`                                         |
+| `MENU`                            | `menu.ts`              | The complete menu, unfiltered                              |
+| `MENU_PERMISSIONS`                | `menu.ts`              | Every permission `MENU` references — for tests and seeding |
+| `filterMenu(groups, permissions)` | `menu-filter.ts`       | Pure. Returns the visible menu.                            |
+
+---
+
+## منطق پشت طراحی / Logic
+
+### چرا `Permission` یک union است و نه `string`
+
+این مهم‌ترین تصمیم این صفحه است، و یک تصمیم **امنیتی** است نه یک سلیقهٔ تایپ.
+
+یک permission غایب یعنی **عمومی** — همین‌طور است که «پیشخوان» برای نقشی بدون هیچ دسترسی‌ای قابل‌دسترس می‌ماند. پس یک permission غلط‌تایپی یک اشتباه بی‌ضرر نیست: `'prodcuts.view'` هیچ‌وقت با یک دسترسی واقعی جور نمی‌شود، آیتم به شاخهٔ «هیچ permissionای اعلام نشده» می‌افتد، و **برای همه** رندر می‌شود. یک ارتقای سطح دسترسی خاموش که کامپایل می‌شود، در بازبینی درست خوانده می‌شود، و فقط به‌صورت یک یافتهٔ امنیتی سر بیرون می‌آورد.
+
+تایپ کردن فیلد به‌صورت union آن را به خطای کامپایل تبدیل می‌کند. یک تست وجود دارد که فهرست عمومی را دقیقاً روی `['پیشخوان']` میخکوب می‌کند، پس این ناوردا از دو طرف بررسی می‌شود.
+
+### چرا پیش‌فرض token خالی است و نه «اعطای همه‌چیز»
+
+یک provider غایب هیچ‌وقت نباید دسترسی را **گشادتر** کند. شکست بسته تنها جهت ایمن است، پس factory یک فهرست خالی برمی‌گرداند. پیامد قابل‌مشاهده — یک سایدبار خالی — دلیل آن است که `app.config.ts` token را **فقط در حالت mock** بازنویسی می‌کند، تا توسعهٔ محلی به‌طرز مرموزی خالی نباشد در حالی که production تا رسیدن BO-D08 چیزی نمی‌گیرد.
+
+این الگوی عمومی هر چیزی است که به یک سرویس هنوزساخته‌نشده گره خورده: **injection token را با یک پیش‌فرض fail-closed تعریف کن و بگذار مصرف‌کننده به شکل داده وابسته باشد، نه به سرویس.** عوض کردن provider بعداً یک خط است، و مصرف‌کننده هرگز تفاوت را نمی‌فهمد.
+
+### چرا token با `Signal<readonly string[]>` تایپ شده و نه `Signal<Permission[]>`
+
+مقدار در زمان اجرا از سرور می‌رسد، پس نمی‌توان آن را با یک union زمان کامپایل محدود کرد. `filterMenu()` هر چیزی را که نشناسد نادیده می‌گیرد، که رفتار درست است: یک permission ناشناخته هیچ چیزی اعطا نمی‌کند.
+
+### چرا `filterMenu` خالص است و آرایه‌های جدید برمی‌گرداند
+
+`MENU` یک **ثابت سطح ماژول** است که کل برنامه آن را به اشتراک می‌گذارد. فیلتر کردن درجای آن، همان یک نسخه‌ای را که هر کاربر می‌خواند تغییر می‌داد — و نشانهٔ کلاسیکش منویی است که فقط بعد از عوض کردن حساب خراب می‌شود: نمای محدود کاربر A به نشست کاربر B ادامه پیدا می‌کند. پس این تابع به آرایه‌های جدید map و filter می‌کند و هیچ‌وقت به ورودی دست نمی‌زند.
+
+دو قاعده:
+
+- آیتمی که **هیچ `permission`ای ندارد** برای هر کاربر واردشده عمومی است.
+- گروهی که آیتم‌هایش **همه** ناپدید می‌شوند هم حذف می‌شود، تا هیچ سرصفحه‌ای بالای یک فهرست خالی رندر نشود.
+
+### چرا یک سرویس و نه یک signal روی `Sidebar`
+
+فهرست permission از سایدبار عمر بیشتری دارد. باید از یک ورود مجدد جان سالم به در ببرد، که در آن نقطه سایدبار دوباره محاسبه می‌شود (`computed` سیگنال را می‌خواند، پس یک فهرست جدید منو را بازمی‌سازد)، و بعدها توسط route guard و توسط کامپوننت‌های فیچر که تصمیم می‌گیرند یک دکمهٔ عملیات را رندر کنند یا نه، خوانده خواهد شد. یک signal که مالکش `Sidebar` باشد از دسترس همهٔ این‌ها بیرون می‌بود.
+
+### چرا `MENU_PERMISSIONS` وجود دارد
+
+این `MENU` تخت‌شده و بدون تکراری است. تست‌ها تضمین می‌کنند که منو به هیچ permissionی بیرون از union `Permission` ارجاع نمی‌دهد، و seed مربوط به mock از آن برای اعطای همه‌چیز استفاده می‌کند — هر دو به همان فهرست مشتق‌شده نیاز دارند، و مشتق کردن دوبارهٔ آن همان جایی است که آن دو از هم فاصله می‌گیرند.
+
+### چه چیزی عمداً اینجا نیست
+
+- **هیچ مدل نقش (role) نیست.** نقش‌ها یک مفهوم سمت سرورند که روی permissionها نگاشت می‌شوند. مدل‌سازی `SuperAdmin`/`ProductManager`/… در فرانت‌اند آن نگاشت را تکرار می‌کرد و جای دومی برای فاصله گرفتن به آن می‌داد.
+- **هیچ route guardی نیست.** BO-D07. هشدار بالای این صفحه را ببین.
+- **هیچ کشی برای `filterMenu` نیست.** فیلتری روی حدود یک دوجین آبجکت است که فقط وقتی signal مربوط به permission عوض شود دوباره محاسبه می‌شود.
+
+### Why `Permission` is a union and not `string`
+
+This is the single most important decision on this page, and it is a **security**
+decision rather than a typing preference.
+
+A missing permission means **public** — that is how «پیشخوان» stays reachable for a role
+with no grants at all. So a misspelled permission is not a harmless typo: `'prodcuts.view'`
+never matches a real grant, the item falls into the "no permission declared" branch, and
+it renders **for everyone**. A silent privilege escalation that compiles, reads correctly
+in review, and only shows up as a security finding.
+
+Typing the field as the union turns that into a compile error. There is a test that pins
+the public list to exactly `['پیشخوان']`, so the invariant is checked from both ends.
+
+### Why the token's default is empty and not "grant everything"
+
+A missing provider must never **widen** access. Failing closed is the only safe direction,
+so the factory returns an empty list. The visible consequence — an empty sidebar — is why
+`app.config.ts` overrides the token **in mock mode only**, so local development is not
+mysteriously blank while production gets nothing until BO-D08 lands.
+
+This is the general pattern for anything blocked on a not-yet-built service: **define the
+injection token with a fail-closed default, and let the consumer depend on the data shape
+rather than on the service.** Swapping the provider later is one line, and the consumer
+never learns the difference.
+
+### Why the token is typed `Signal<readonly string[]>` and not `Signal<Permission[]>`
+
+The value arrives from the server at runtime, so it cannot be constrained by a
+compile-time union. `filterMenu()` ignores anything it does not recognise, which is the
+correct behaviour: an unknown permission grants nothing.
+
+### Why `filterMenu` is pure and returns new arrays
+
+`MENU` is a **module-level constant** shared by the whole app. Filtering it in place would
+mutate the one copy every user reads — and the classic symptom is a menu that only breaks
+after switching accounts: user A's restricted view persists into user B's session. So the
+function maps and filters into new arrays and never touches the input.
+
+Two rules:
+
+- An item with **no `permission`** is public to any signed-in user.
+- A group whose items **all** disappear is dropped too, so no heading renders above an
+  empty list.
+
+### Why a service and not a signal on `Sidebar`
+
+The permission list outlives the sidebar. It has to survive a re-login, at which point the
+sidebar recomputes (the `computed` reads the signal, so a new list rebuilds the menu), and
+it will later be read by the route guard and by feature components deciding whether to
+render an action button. A signal owned by `Sidebar` would be unreachable from all of
+those.
+
+### Why `MENU_PERMISSIONS` exists
+
+It is `MENU` flattened and de-duplicated. Tests assert that the menu references no
+permission outside the `Permission` union, and the mock seed uses it to grant everything —
+both need the same derived list, and deriving it twice is how the two would diverge.
+
+### What is deliberately not here
+
+- **No role model.** Roles are a server concept that maps onto permissions. Modelling
+  `SuperAdmin`/`ProductManager`/… in the front end would duplicate the mapping and give it
+  a second place to drift.
+- **No route guard.** BO-D07. See the warning at the top of this page.
+- **No `filterMenu` caching.** It is a filter over about a dozen objects, recomputed only
+  when the permission signal changes.

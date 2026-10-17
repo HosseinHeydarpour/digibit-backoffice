@@ -1,0 +1,252 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Core/ConfirmService" />
+
+# ConfirmService
+
+`src/app/core/services/confirm.ts` · rendered by
+[ConfirmDialogHost](/docs/shared-confirmdialog--docs) in the root template
+
+تنها راهی که این برنامه با آن می‌پرسد «آیا مطمئن هستید؟» و پاسخ را به‌صورت یک `Promise<boolean>` پس می‌گیرد.
+
+The one way this app asks «آیا مطمئن هستید؟» and gets the answer back as a
+`Promise<boolean>`.
+
+---
+
+## کاربرد / Use case
+
+**کِی سراغش برو:** وقتی یک کار مخرب یا سخت‌برگشت‌پذیر است: حذف یک محصول، لغو یک سفارش، باطل کردن یک کد تخفیف، خروج از حساب.
+
+**کِی سراغش نرو:** وقتی کار برگشت‌پذیر است. یک تأیید روی یک کار کم‌هزینه اصطکاکی است که کاربران را عادت می‌دهد بدون خواندن از دیالوگ‌ها بگذرند — و همین تأیید _واقعی_ را بی‌فایده می‌کند. اگر می‌شود برگرداند، بگذار برگردد.
+
+**کِی سراغش نرو:** وقتی فقط می‌خواهی نتیجه‌ای را گزارش کنی. آن [ToastService](/docs/core-toastservice--docs) است.
+
+**Reach for it when** an action is destructive or hard to undo: deleting a product,
+cancelling an order, revoking a coupon, signing out.
+
+**Do not reach for it when** the action is reversible. A confirmation on a cheap action
+is friction that trains users to click through dialogs without reading them — which
+makes the _real_ confirmation useless. If it can be undone, let it be undone.
+
+**Do not reach for it when** you only need to report an outcome. That is
+[ToastService](/docs/core-toastservice--docs).
+
+---
+
+## نحوهٔ استفاده / How to use
+
+```ts
+import { inject } from '@angular/core';
+import { ConfirmService } from '@core/services/confirm';
+
+private readonly confirm = inject(ConfirmService);
+
+async remove(product: Product): Promise<void> {
+  const confirmed = await this.confirm.confirm({
+    message: `آیا از حذف «${product.name}» مطمئن هستید؟`,
+    header: 'حذف محصول',
+    acceptLabel: 'حذف',
+    danger: true,
+  });
+
+  if (!confirmed) return;
+
+  await this.products.remove(product.id);
+  this.toast.success('محصول حذف شد.');
+}
+```
+
+یک پرسش معمولی فقط به پیام نیاز دارد:
+
+```ts
+if (await this.confirm.confirm({ message: 'آیا از خروج از حساب مطمئن هستید؟' })) {
+  this.auth.logout();
+}
+```
+
+### گزینه‌های `ConfirmOptions`
+
+| گزینه         | نوع       | پیش‌فرض        | معنی                                                         |
+| ------------- | --------- | -------------- | ------------------------------------------------------------ |
+| `message`     | `string`  | **الزامی**     | خود پرسش. چیزی را که رویش عمل می‌شود نام ببر.                |
+| `header`      | `string`  | «تأیید عملیات» | عنوان دیالوگ.                                                |
+| `acceptLabel` | `string`  | «تأیید»        | متن دکمهٔ تأیید.                                             |
+| `rejectLabel` | `string`  | «لغو»          | متن دکمهٔ رد.                                                |
+| `icon`        | `string`  | پرسش / اخطار   | فهرست کلاس‌های PrimeIcons.                                   |
+| `danger`      | `boolean` | `false`        | دکمهٔ تأیید قرمز، گلیف اخطار قرمز، و هدایت به دیالوگ danger. |
+
+### دو متد
+
+| متد                | امضا               | چه کسی صدایش می‌زند                         |
+| ------------------ | ------------------ | ------------------------------------------- |
+| `confirm(options)` | `Promise<boolean>` | فیچرها.                                     |
+| `settle(accepted)` | `void`             | **فقط host دیالوگ.** بخشی از API فیچر نیست. |
+
+An ordinary question needs only the message:
+
+### `ConfirmOptions`
+
+| Option        | Type      | Default            | Meaning                                                            |
+| ------------- | --------- | ------------------ | ------------------------------------------------------------------ |
+| `message`     | `string`  | **required**       | The question. Name the thing being acted on.                       |
+| `header`      | `string`  | «تأیید عملیات»     | Dialog title.                                                      |
+| `acceptLabel` | `string`  | «تأیید»            | Accept button text.                                                |
+| `rejectLabel` | `string`  | «لغو»              | Reject button text.                                                |
+| `icon`        | `string`  | question / warning | PrimeIcons class list.                                             |
+| `danger`      | `boolean` | `false`            | Red accept button, red warning glyph, routed to the danger dialog. |
+
+### The two methods
+
+| Method             | Signature          | Who calls it                                           |
+| ------------------ | ------------------ | ------------------------------------------------------ |
+| `confirm(options)` | `Promise<boolean>` | Features.                                              |
+| `settle(accepted)` | `void`             | **The dialog host only.** Not part of the feature API. |
+
+---
+
+## منطق پشت طراحی / Logic
+
+### چرا یک `Promise` و نه callbackهای `accept`/`reject` خود PrimeNG
+
+API خود PrimeNG شکل callback دارد:
+
+```ts
+this.confirmation.confirm({ message, accept: () => …, reject: () => … });
+```
+
+برای یک خط خوب است و برای هر چیز دیگری دست‌وپاگیر. تصمیم بین دو closure تقسیم می‌شود، کدی که روی آن عمل می‌کند از کدی که پرسیده دور می‌افتد، و راهی برای `await` کردنش داخل یک سرویس یا یک guard وجود ندارد.
+
+یک `Promise` کل تصمیم را در نقطهٔ فراخوانی نگه می‌دارد — خطوط بعد از `await` فقط وقتی اجرا می‌شوند که کاربر موافقت کرده باشد — و تست کردنش بی‌زحمت است.
+
+### باگ Promise معلق که این طراحی برای جلوگیری از آن وجود دارد
+
+یک تأیید می‌تواند به **چهار** شکل تمام شود:
+
+1. دکمهٔ تأیید → `ACCEPT`
+2. دکمهٔ رد → `REJECT`
+3. Escape، یا ✕ سرصفحه → `CANCEL`
+4. یک `ConfirmationService.close()` برنامه‌ای → `CANCEL`
+
+فقط دو مورد اول `accept`/`reject` هستند. وصل کردن فقط همان دو callback، Promise یک دیالوگ **با Escape ردشده** را **تا ابد** معلق می‌گذاشت — فراخوان روی یک `await` برای دیالوگی می‌نشست که دیگر روی صفحه نیست، و تابع هرگز ادامه پیدا نمی‌کرد.
+
+پس host درخواست را از رویداد **`onHide`** دیالوگ تمام می‌کند، که PrimeNG آن را با `ACCEPT`، `REJECT` یا `CANCEL` روی هر چهار مسیر شلیک می‌کند. یک مسیر کد، و راهی برای نشت دادن یک Promise معلق وجود ندارد.
+
+### چرا پرسش دوم به اولی «نه» می‌گوید
+
+`confirm()` پیش از باز کردن یک دیالوگ جدید، `settle(false)` را صدا می‌زند. معلق گذاشتن درخواست اول همان باگ وسوسه‌کننده است: `await` آن هرگز ادامه پیدا نمی‌کرد، و فراخوان تا ابد منتظر دیالوگی می‌ماند که کاربر دیگر نمی‌بیند. `false` پاسخ صادقانه است — کاربر هرگز به آن بله نگفته بود.
+
+`settle()` همچنین slot را **پیش از** resolve کردن پاک می‌کند، پس یک فراخوانی re-entrant — فراخوانی که دیالوگ بعدی را از داخل `await` همین یکی باز می‌کند — هرگز نمی‌تواند همان Promise را دو بار resolve کند.
+
+### چرا یک slot هست و نه یک صف
+
+یک تأیید یک پرسش modal است. همیشه فقط یکی از آن‌ها جلوی کاربر است، پس یک صف یک ساختمان داده برای حالتی می‌شد که نمی‌تواند رخ دهد.
+
+### چرا دکمهٔ لغو از داخل سرویس استایل می‌گیرد
+
+دیالوگ تأیید PrimeNG به **هر دو** دکمه ظاهر پیش‌فرض (primary) را می‌دهد. خارج از جعبه، دکمهٔ تأیید و دکمهٔ رد همان نارنجی هستند و تنها تفاوت label است — چیز ضعیفی برای اینکه کاربر زیر فشار بخواند. پس سرویس `rejectButtonProps: { severity: 'secondary', variant: 'outlined' }` را ضمیمه می‌کند، که جفت‌سازی خود مرجع طراحی را بازتاب می‌دهد: یک primary پرشده در کنار یک secondary حاشیه‌دار با متن خاکستری.
+
+باید روی **request** ست شود نه روی عنصر `<p-confirmDialog>`: `rejectButtonProps` یک ورودی اعلام‌شدهٔ کامپوننت نیست (فقط `rejectButtonStyleClass` هست)، اما PrimeNG هر کلید request را روی نمونهٔ دیالوگ کپی می‌کند و دوباره می‌خواندش.
+
+به همین دلیل، `danger` به‌جای یک کلاس قرمز Tailwind، `acceptButtonProps: { severity: 'danger' }` را ست می‌کند. دیالوگ این props را به یک `p-button` واقعی فوروارد می‌کند، که severity را روی توکن‌های رنگ danger نگاشت می‌کند — یک کلاس Tailwind نمی‌توانست، چون قواعد دکمهٔ خود تم بعد از استایل‌شیت برنامه تزریق می‌شوند و برنده می‌شدند.
+
+### چرا `DANGER_KEY` یک ثابت مشترک است
+
+PrimeNG یک request را با یک دیالوگ از طریق **برابری دقیق key** تطبیق می‌دهد. `DANGER_KEY` بین سرویس (که آن را روی request مهر می‌کند) و host (که آن را روی `<p-confirmDialog>` مهر می‌کند) مشترک است. دو literal جدا یک باگ بی‌صدا می‌شد: request به دیالوگی می‌رسید که وجود ندارد و به‌سادگی هرگز باز نمی‌شد.
+
+یک request معمولی `key` را عمداً **undefined** می‌گذارد — نه `'default'` — تا یک request از کدی که هنوز مستقیم با `ConfirmationService` خود PrimeNG حرف می‌زند به یک دیالوگ برسد، نه اینکه بی‌صدا به هیچ‌کدام نرسد.
+
+### چرا هرگز از `window.confirm` استفاده نمی‌شود
+
+کل تب را بلاک می‌کند، قابل تم‌دهی نیست، قابل ترجمه نیست، و از یک تست قابل رانده شدن نیست. هیچ نسخه‌ای از این برنامه وجود ندارد که آن قابل قبول باشد.
+
+### چه چیزی عمداً اینجا نیست
+
+- **نه ترجیح «دیگر نپرس».** آن یک فیچر تنظیمات است، و به یک تصمیم ذخیره‌سازی نیاز دارد که این سرویس نباید بگیرد.
+- **نه input prompt.** `ConfirmationService` فیلد متنی ندارد. اگر یک کار مخرب به یک دلیل تایپ‌شده نیاز دارد، آن یک فرم واقعی با یک داستان اعتبارسنجی واقعی است — نه یک دیالوگ.
+
+### Why a `Promise` and not PrimeNG's `accept`/`reject` callbacks
+
+PrimeNG's own API is callback shaped:
+
+That is fine for a one-liner and awkward for everything else. The decision is split
+across two closures, the code that acts on it sits far from the code that asked, and
+there is no way to `await` it inside a service or a guard.
+
+A `Promise` keeps the whole decision at the call site — the lines after the `await` run
+only if the user agreed — and it is trivially testable.
+
+### The pending-Promise bug this design exists to prevent
+
+A confirmation can end **four** ways:
+
+1. The accept button → `ACCEPT`
+2. The reject button → `REJECT`
+3. Escape, or the header's ✕ → `CANCEL`
+4. A programmatic `ConfirmationService.close()` → `CANCEL`
+
+Only the first two are `accept`/`reject`. Wiring just those two callbacks would leave
+the Promise of an **Escape-dismissed** dialog pending **forever** — the caller would sit
+on an `await` for a dialog that is no longer on screen, and the function would never
+resume.
+
+So the host settles the request from the dialog's **`onHide`** event, which PrimeNG fires
+with `ACCEPT`, `REJECT` or `CANCEL` on all four paths. One code path, and no way to leak
+a pending Promise.
+
+### Why a second question answers the first with "no"
+
+`confirm()` calls `settle(false)` before opening a new dialog. Leaving the first request
+pending is the tempting bug: its `await` would never resume, and the caller would wait
+forever on a dialog the user can no longer see. `false` is the honest answer — the user
+never said yes to it.
+
+`settle()` also clears the slot **before** resolving, so a re-entrant call — the caller
+opening the next dialog from the `await` of this one — can never resolve the same Promise
+twice.
+
+### Why there is one slot and not a queue
+
+A confirmation is a modal question. There is only ever one of them in front of the user,
+so a queue would be a data structure for a state that cannot occur.
+
+### Why the cancel button is styled from the service
+
+PrimeNG's confirm dialog gives **both** buttons the default (primary) look. Out of the
+box the accept and the reject button are the same orange and the only difference is the
+label — a poor thing to make the user read under pressure. So the service attaches
+`rejectButtonProps: { severity: 'secondary', variant: 'outlined' }`, mirroring the design
+reference's own pairing of a filled primary with a bordered, grey-text secondary.
+
+It has to be set on the **request** rather than on the `<p-confirmDialog>` element:
+`rejectButtonProps` is not a declared input of the component (only
+`rejectButtonStyleClass` is), but PrimeNG copies every key of the request onto the dialog
+instance and reads it back.
+
+For the same reason, `danger` sets `acceptButtonProps: { severity: 'danger' }` rather
+than a red Tailwind class. The dialog forwards these props to a real `p-button`, which
+maps the severity onto the danger colour tokens — a Tailwind class could not, because the
+theme's own button rules are injected after the app's stylesheet and would win.
+
+### Why `DANGER_KEY` is a shared constant
+
+PrimeNG matches a request to a dialog by **exact key equality**. `DANGER_KEY` is shared
+between the service (which stamps it on the request) and the host (which stamps it on the
+`<p-confirmDialog>`). Two separate literals would be a silent bug: the request would reach
+a dialog that does not exist and simply never open.
+
+An ordinary request leaves `key` **undefined** on purpose — not `'default'` — so that a
+request from code still talking to PrimeNG's `ConfirmationService` directly reaches a
+dialog instead of silently reaching none.
+
+### Why `window.confirm` is never used
+
+It blocks the whole tab, cannot be themed, cannot be translated, and cannot be driven
+from a test. There is no version of this app where that is acceptable.
+
+### What is deliberately not here
+
+- **No "don't ask me again" preference.** That is a settings feature, and it needs a
+  storage decision this service should not make.
+- **No input prompt.** `ConfirmationService` has no text field. If a destructive action
+  needs a typed reason, that is a real form with a real validation story — not a dialog.
