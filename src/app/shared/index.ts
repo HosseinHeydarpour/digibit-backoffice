@@ -42,3 +42,4 @@ export type { LoadingVariant } from './components/loading-block/loading-block';
 
 export { LoadingBlock } from './components/loading-block/loading-block';
 export { LoadingDirective } from './directives/loading.directive';
+export { FormField } from './components/form-field/form-field';

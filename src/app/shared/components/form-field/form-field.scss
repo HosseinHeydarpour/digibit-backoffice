@@ -1,0 +1,15 @@
+// src/app/shared/components/form-field/form-field.scss
+//
+// One rule, and it is not cosmetic. A component host is `display: inline` by
+// default, and an inline box ignores `width` — so without this the field would
+// shrink-wrap its content and a `w-full` input inside it would still be narrow.
+// Same defect LoadingBlock hit; the fix belongs on the host, never on the
+// wrapper div.
+//
+// Everything else is a Tailwind utility in the template, which is AGENTS.md's
+// first styling preference. Before adding a selector here, check whether a token
+// in src/styles/tailwind.css already expresses it.
+:host {
+  display: block;
+  width: 100%;
+}

@@ -42,5 +42,12 @@
   --color-text-primary-light: #1e293b;
   --color-text-primary-dark: #f8fafc;
 
+  /* Derived, not lifted from the reference: #ef4444 on white measures 3.76:1,
+     below WCAG AA's 4.5:1 for 12px text, so error copy cannot use it.
+     #dc2626 is the same hue at 4.83:1. `--color-danger` keeps the light red for
+     fills, borders and icons, where 3:1 is the bar. Dark mode needs no twin —
+     #f87171 on #0f172a is already 6.53:1. */
+  --color-danger-text: #dc2626;
+
   --font-sans: 'Payda', system-ui, sans-serif;
 }

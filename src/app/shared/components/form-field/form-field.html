@@ -1,0 +1,98 @@
+<!-- src/app/shared/components/form-field/form-field.html -->
+<!--
+  THE STACK
+
+  One column, always: label, control, hint, error. `gap-1.5` is the only spacing
+  decision, so a field with a hint and a field without one line up identically at
+  the top — a margin on the hint would push the error down only sometimes.
+
+  `w-full` on the wrapper plus `:host { width: 100% }` in the scss is tc 9: the
+  field owns the whole column at 320px, so the control inside it is as wide as
+  the column and as tall as its own padding makes it. Nothing collapses at a
+  breakpoint because a stacked column is already the mobile layout.
+-->
+<div class="flex w-full flex-col gap-1.5">
+  <!--
+    THE LABEL (tc 1)
+
+    `[for]` and not a wrapping <label>: the control is projected, so it is a
+    sibling in the DOM, not a descendant. The caller sets the matching `id` on
+    the control (see `inputId`).
+
+    `text-dark dark:text-light` is this project's body pair — the same one
+    empty-state's headline uses — which is what keeps the label legible in both
+    themes (tc 7's contrast requirement applies to the label too).
+  -->
+  <label [for]="fieldId()" class="text-sm font-medium text-dark dark:text-light">
+    {{ label() }}
+
+    <!--
+      THE ASTERISK (tc 5)
+
+      `ms-0.5` is a logical margin: in RTL the asterisk sits to the LEFT of the
+      text and its start edge faces that text, so the gap lands in the right
+      place without a direction-specific class.
+
+      `aria-hidden` on the glyph plus a visually-hidden word: a screen reader
+      announcing "star" is noise, but "required" is information. Same split
+      stat-card makes for its decorative arrows.
+    -->
+    @if (isRequired()) {
+      <span class="ms-0.5 text-danger-text dark:text-danger-dark" aria-hidden="true">*</span>
+      <span class="sr-only">(الزامی)</span>
+    }
+  </label>
+
+  <!--
+    THE CONTROL
+
+    Whatever the caller projected — `pInputText`, `p-select`, `textarea`, the
+    datepicker. The wrapper never styles it: PrimeNG owns the control's surface,
+    and a second border around it would be the mistake empty-state's header warns
+    about.
+  -->
+  <ng-content />
+
+  <!--
+    THE HINT (tc 4)
+
+    Rendered whenever the caller passed one — including while an error is
+    showing. The alternative (let the error replace the hint) is tidier but makes
+    «حداقل ۸ کاراکتر» vanish exactly when the user needs to read it, which is
+    the moment they got it wrong. Both lines are `text-xs`, so the pair reads as
+    one block of metadata under the control.
+
+    `-hint` / `-error` are a published id convention: a caller who wants
+    `aria-describedby` writes `[attr.aria-describedby]="'title-hint'"`.
+  -->
+  @if (hint(); as text) {
+    <p [id]="fieldId() + '-hint'" class="text-xs text-gray-500 dark:text-gray-400">
+      {{ text }}
+    </p>
+  }
+
+  <!--
+    THE ERROR (tc 2, tc 6, tc 8)
+
+    `@if (errorMessage(); as message)` — falsy means NO element is rendered at
+    all, not an empty paragraph with a leftover margin (tc 8).
+
+    `role="alert"` here, unlike empty-state's deliberate `role="status"`: an
+    empty state is the result of a load the user is waiting on, while this is the
+    direct answer to something the user just did. It should be spoken at once.
+
+    `text-danger-text`, not `text-danger`: #ef4444 on white is 3.76:1, under
+    WCAG AA's 4.5:1 for text this size. `--color-danger-text` is the same red
+    darkened to 4.83:1 (tc 7). `--color-danger` keeps its job on fills and
+    borders, where the bar is 3:1.
+  -->
+  @if (errorMessage(); as message) {
+    <p
+      [id]="fieldId() + '-error'"
+      class="text-xs font-medium text-danger-text dark:text-danger-dark"
+      role="alert"
+    >
+      {{ message }}
+    </p>
+  }
+</div>

@@ -532,6 +532,7 @@ Every entry, with its file and its docs id:
 | `ToastHost`         | `shared/components/toast-host/`          | `shared-toasthost--docs`        |
 | `ConfirmDialogHost` | `shared/components/confirm-dialog/`      | `shared-confirmdialog--docs`    |
 | `JalaliDatepicker`  | `shared/components/jalali-datepicker/`   | `shared-jalalidatepicker--docs` |
+| `FormField`         | `shared/components/form-field/`          | `shared-formfield--docs`        |
 | `LoadingBlock`      | `shared/components/loading-block/`       | `shared-loadingblock--docs`     |
 | `LoadingDirective`  | `shared/directives/loading.directive.ts` | `shared-loadingdirective--docs` |
 | `MainLayout`        | `layout/main-layout/`                    | `layout-mainlayout--docs`       |
@@ -555,6 +556,20 @@ Also documented: `layout/sidebar/menu.ts` (`MENU`, `MENU_PERMISSIONS`),
 `LoadingDirective` is the first **directive** in the catalogue, and it shows the shape the
 rest will follow: a directive has no template, so its stories drive it through a host
 element and the meta has no `component` key. `shared/directives/` is no longer empty.
+
+`FormField` is the first **reactive-forms** consumer in the app — before it, `src/app` contained
+no `ControlContainer`, `formControlName` or `FormGroup` at all. Two rules come out of it and hold
+for every form from here on:
+
+- A field binds to the parent form through `ControlContainer` and reads `form.get(controlName)`.
+  Nothing is copied onto the component, so nothing can go stale.
+- Re-render on `AbstractControl.events`, **not** on `statusChanges`. `markAsTouched()` fires on
+  blur and emits no status change — a field that was already invalid before the blur is still
+  invalid after it — so an error keyed on `statusChanges` stays hidden forever.
+
+A component that projects its control cannot reach it: the `for`/`id` pair and any
+`aria-describedby` stay the caller's job. `FormField` publishes the convention
+(`inputId`, defaulting to `controlName`, with `<id>-hint` and `<id>-error`).
 
 **Not covered because they do not exist yet:** `src/app/features/**`,
 `src/app/shared/pipes/`, `src/app/core/guards/` — all three folders are empty. The first
