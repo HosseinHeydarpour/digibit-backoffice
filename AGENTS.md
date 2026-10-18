@@ -230,6 +230,29 @@ in-place filter would leak one user's access into the next render).
 hidden route is still reachable by typing its URL. The real boundary is server-side
 validation (`ARCHITECTURE.md §6`). Never treat a filtered menu as authorisation.
 
+### Who is signed in — the `CURRENT_USER` token (BO-B06)
+
+`CURRENT_USER` (`core/auth/current-user.token.ts`) is a `Signal<SessionUser | null>` — the
+same seam and the same reasoning as `PERMISSIONS`, one layer further in. `SessionService`
+(`@core/services/session`) wraps it as `user` / `initials` / `logout()`, and the topbar's
+profile dropdown is its only consumer.
+
+- The default is **`null`, not a stub user**. An anonymous shell must render no profile
+  menu, and `@if (session.user(); as account)` in the topbar is what enforces that. Do not
+  "fix" the empty header by giving the token a placeholder identity.
+- BO-D03/B04 replace the provider with the real `/auth/me` result. Nothing else changes.
+- `logout()` clears the signal and `navigateByUrl('/login', { replaceUrl: true })` — the
+  replace flag matters, because a Back press after signing out must not return to the panel.
+- `toInitials` (in `session.model.ts`) is pure: first letter of the first two words, which
+  is why «مدیر سیستم» becomes «مس» and an empty name yields `''` — the avatar block then
+  falls back to a blank circle rather than throwing.
+- **Overriding the token in a spec or story requires overriding `SessionService` too.** It is
+  `providedIn: 'root'`, so a root-instantiated instance resolves `CURRENT_USER` from the
+  _root_ injector and never sees a component-scoped override — the header then renders with no
+  profile menu and nothing reports an error. `TestBed` providers are unaffected (they are the
+  root injector), which is why the specs pass and only the Storybook host needs the extra
+  `SessionService` entry.
+
 ### Breakpoints — `lg` is 992px, not 1024px
 
 `src/styles/tailwind.css` pins `--breakpoint-lg: 992px` in its `@theme` block, because the

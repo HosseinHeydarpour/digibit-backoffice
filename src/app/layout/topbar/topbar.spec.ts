@@ -1,24 +1,50 @@
 // src/app/layout/topbar/topbar.spec.ts
 import { signal } from '@angular/core';
+import type { Signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { CURRENT_USER } from '@core/auth/current-user.token';
 import { PageTitleService } from '@core/services/page-title';
 import { ThemeService } from '@core/services/theme';
+import type { SessionUser } from '@shared/models/session.model';
 
 import { Topbar } from './topbar';
 
+/**
+ * The router matches these but mounts nothing: both are component-less on
+ * purpose. A real component would drag its own dependencies into a topbar spec,
+ * and an *empty* table would make `SessionService.logout()` reject with
+ * NG04002 — an unhandled rejection the run reports as an error even though the
+ * assertion is about the cleared signal, not about routing. `children: []` is
+ * what satisfies `validateNode`, which refuses a leaf with no component.
+ */
+const TEST_ROUTES = [
+  { path: 'login', children: [] },
+  { path: 'profile', children: [] },
+];
+
 describe('Topbar', () => {
   let fixture: ComponentFixture<Topbar>;
+
+  /**
+   * A real signal, not a stub. The logout test asserts that «خروج» clears it,
+   * which only a real signal can show, and the "nobody signed in" test sets it
+   * to `null` without reconfiguring the TestBed.
+   */
+  let currentUser: Signal<SessionUser | null>;
 
   beforeEach(async () => {
     // Pin the starting theme so the toggle test cannot be affected by the host
     // system's `prefers-color-scheme` or by a value left in storage.
     localStorage.setItem('digibit.theme', 'light');
 
+    currentUser = signal<SessionUser | null>(null);
+
     await TestBed.configureTestingModule({
       imports: [Topbar],
       providers: [
-        provideRouter([]),
+        provideRouter(TEST_ROUTES),
+        { provide: CURRENT_USER, useValue: currentUser },
         {
           provide: PageTitleService,
           useValue: { title: signal('محصولات') },
@@ -31,11 +57,19 @@ describe('Topbar', () => {
   });
 
   /**
-   * Buttons are addressed by their accessible name, never by position. Since
-   * B07 the header holds two icon-only buttons (hamburger + theme switch), so a
-   * bare `querySelector('button')` resolves to whichever happens to be first —
-   * a selector that passes today and silently tests the wrong control if the
-   * markup is ever reordered.
+   * PrimeNG appends the popup menu to `<body>`, which outlives the component.
+   * Removing it here is what keeps the "menu is open" assertions of one test
+   * from leaking into the next one.
+   */
+  afterEach(() => {
+    document.querySelectorAll('.p-menu').forEach((el) => el.remove());
+  });
+
+  /**
+   * Buttons are addressed by their accessible name, never by position. The
+   * header holds several icon-only buttons, so a bare `querySelector('button')`
+   * resolves to whichever happens to be first — a selector that passes today and
+   * silently tests the wrong control if the markup is ever reordered.
    */
   function hamburger(): HTMLButtonElement {
     return fixture.nativeElement.querySelector(
@@ -76,6 +110,8 @@ describe('Topbar', () => {
     const buttons = Array.from(
       fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
     );
+    // Anonymous: hamburger + theme switch. The profile trigger is asserted
+    // separately, because it only exists when somebody is signed in.
     expect(buttons.length).toBe(2);
 
     buttons.forEach((button) => {
@@ -123,5 +159,176 @@ describe('Topbar', () => {
     // BOTH icons rendered at once. If someone "simplifies" these back to
     // `<i class="pi">`, this fails and points at the reason.
     expect(themeButton().querySelector('.pi')).toBeNull();
+  });
+});
+
+describe('Topbar profile menu (BO-B06)', () => {
+  let fixture: ComponentFixture<Topbar>;
+  let currentUser: ReturnType<typeof signal<SessionUser | null>>;
+
+  beforeEach(async () => {
+    localStorage.setItem('digibit.theme', 'light');
+    currentUser = signal<SessionUser | null>({
+      id: '1',
+      fullName: 'مدیر سیستم',
+      email: 'admin@digibit.market',
+      avatarUrl: null,
+    });
+
+    await TestBed.configureTestingModule({
+      imports: [Topbar],
+      providers: [
+        provideRouter(TEST_ROUTES),
+        { provide: CURRENT_USER, useValue: currentUser },
+        { provide: PageTitleService, useValue: { title: signal('محصولات') } },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(Topbar);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    document.querySelectorAll('.p-menu').forEach((el) => el.remove());
+  });
+
+  function profileTrigger(): HTMLButtonElement {
+    return fixture.nativeElement.querySelector('button[aria-haspopup="true"]') as HTMLButtonElement;
+  }
+
+  function menuLabels(): string[] {
+    return Array.from(document.querySelectorAll('.p-menu-item-label')).map(
+      (el) => el.textContent?.trim() ?? '',
+    );
+  }
+
+  /**
+   * Two animation frames — the wait PrimeNG's overlay lifecycle needs.
+   *
+   * `onOverlayBeforeEnter` (appends the container to `<body>` and binds the
+   * document listener) and `onOverlayAfterLeave` (removes the container) are
+   * both motion callbacks, so neither happens inside the click that triggers
+   * them. Asserting immediately after a click would test a half-mounted
+   * overlay — the menu appears closed because it has not opened yet.
+   */
+  function nextFrame(): Promise<void> {
+    return new Promise((resolve) => {
+      if (typeof requestAnimationFrame !== 'function') {
+        setTimeout(resolve, 32);
+        return;
+      }
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  }
+
+  it("shows the signed-in user's full name (tc 2)", () => {
+    const trigger = profileTrigger();
+    expect(trigger.textContent).toContain('مدیر سیستم');
+  });
+
+  it('keeps the visible name inside the accessible name (Label in Name)', () => {
+    // WCAG 2.5.3: a speech user must hear the account name, or they cannot tell
+    // which account they are signing out of.
+    const label = profileTrigger().getAttribute('aria-label') ?? '';
+    expect(label).toContain('مدیر سیستم');
+    expect(label).toContain('منوی کاربر');
+  });
+
+  it('falls back to initials when the user has no avatar (tc 9)', () => {
+    expect(profileTrigger().querySelector('img')).toBeNull();
+    expect(profileTrigger().textContent).toContain('مس');
+  });
+
+  it('renders the avatar image when the user has one (tc 9)', () => {
+    const withAvatar = { ...currentUser()!, avatarUrl: '/mock/avatar.png' };
+    currentUser.set(withAvatar);
+    fixture.detectChanges();
+
+    const img = profileTrigger().querySelector('img') as HTMLImageElement;
+    expect(img).toBeTruthy();
+    expect(img.getAttribute('src')).toBe('/mock/avatar.png');
+    expect(img.getAttribute('alt')).toBe('مدیر سیستم');
+  });
+
+  it('renders no profile trigger when nobody is signed in', () => {
+    currentUser.set(null);
+    fixture.detectChanges();
+
+    expect(profileTrigger()).toBeNull();
+    // And the menu host element is still in the template — hiding the trigger
+    // must not throw while rendering.
+    expect(fixture.nativeElement.querySelector('p-menu')).toBeTruthy();
+  });
+
+  it('opens the menu with the four expected items (tc 1, tc 3, tc 6)', () => {
+    profileTrigger().click();
+    fixture.detectChanges();
+
+    // The overlay is appended to <body> by `[appendTo]="'body'"`, so it is NOT
+    // inside `fixture.nativeElement` — a query scoped to the component would
+    // find nothing and this test would pass for the wrong reason.
+    expect(menuLabels()).toEqual(['پروفایل من', 'تنظیمات', 'بازگشت به سایت', 'خروج']);
+  });
+
+  it('links پروفایل من to the profile route (tc 3)', () => {
+    profileTrigger().click();
+    fixture.detectChanges();
+
+    const link = document.querySelector('.p-menu-item-link[href="/profile"]');
+    expect(link).toBeTruthy();
+  });
+
+  it('opens بازگشت به سایت in a new tab (tc 6)', () => {
+    profileTrigger().click();
+    fixture.detectChanges();
+
+    const link = Array.from(document.querySelectorAll('.p-menu-item-link')).find((el) =>
+      el.textContent?.includes('بازگشت به سایت'),
+    );
+    expect(link?.getAttribute('target')).toBe('_blank');
+    expect(link?.getAttribute('href')).toBe('http://localhost:4200');
+  });
+
+  it('closes the menu on an outside click (tc 7)', async () => {
+    // PrimeNG's own document listener hides a popup whose target and overlay
+    // both miss the click. Asserting it here keeps the topbar from growing a
+    // second, competing handler.
+    profileTrigger().click();
+    fixture.detectChanges();
+
+    // The overlay is mounted by a motion callback, not synchronously with the
+    // click: `onOverlayBeforeEnter` is what appends the container to <body> and
+    // binds the document listener. Waiting for that frame is what makes the
+    // outside click below reachable at all.
+    await nextFrame();
+    fixture.detectChanges();
+    expect(menuLabels().length).toBeGreaterThan(0);
+
+    document.body.click();
+    fixture.detectChanges();
+
+    // `hide()` only clears `visible`; the container is removed by the leave
+    // animation's `onOverlayAfterLeave`, hence the second frame.
+    await nextFrame();
+    fixture.detectChanges();
+
+    expect(menuLabels()).toEqual([]);
+  });
+
+  it('clears the session when خروج is chosen (tc 4)', () => {
+    // The navigation half is SessionService's own spec; what the topbar is
+    // responsible for is that the item fires `SessionService.logout()`.
+    profileTrigger().click();
+    fixture.detectChanges();
+
+    const item = Array.from(document.querySelectorAll('.p-menu-item')).find((el) =>
+      el.textContent?.includes('خروج'),
+    ) as HTMLElement;
+    item.querySelector('a')?.click();
+    fixture.detectChanges();
+
+    expect(currentUser()).toBeNull();
+    // ...and the trigger disappears with it, so «خروج» cannot be clicked twice.
+    expect(profileTrigger()).toBeNull();
   });
 });

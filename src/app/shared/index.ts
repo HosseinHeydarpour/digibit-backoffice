@@ -26,6 +26,7 @@ export type {
   SortOrder,
   SortState,
   TicketStatus,
+  SessionUser,
 } from './models';
 
 export {
@@ -35,6 +36,7 @@ export {
   ORDER_STATUS_META,
   TICKET_STATUS_META,
   fromPrimeSort,
+  toInitials,
   toOptions,
   toPrimeSort,
 } from './models';

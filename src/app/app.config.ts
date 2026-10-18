@@ -6,12 +6,15 @@ import {
   provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
+import { CURRENT_USER } from '@core/auth/current-user.token';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { errorInterceptor } from '@core/interceptors/error-interceptor';
+import { MOCK_SESSION_USER } from '@core/mock/fixtures';
 import { mockInterceptor } from '@core/mock/mock-interceptor';
 import { environment } from '@env/environment';
 import { definePreset } from '@primeng/themes';
 import Aura from '@primeng/themes/aura';
+import type { SessionUser } from '@shared/models/session.model';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 
@@ -71,6 +74,15 @@ export const appConfig: ApplicationConfig = {
     // dashboard-only menu, until D08 lands.
     ...(environment.useMockApi
       ? [{ provide: PERMISSIONS, useValue: signal<readonly string[]>(MENU_PERMISSIONS) }]
+      : []),
+
+    // The topbar's profile dropdown renders only when this signal holds a user,
+    // so the token's `null` default hides the menu entirely. Mock mode supplies
+    // the admin fixture so the shell is complete locally; BO-D03/D04 replace the
+    // provider with the one built from `/auth/me`, and nothing between here and
+    // there changes.
+    ...(environment.useMockApi
+      ? [{ provide: CURRENT_USER, useValue: signal<SessionUser | null>(MOCK_SESSION_USER) }]
       : []),
 
     provideHttpClient(

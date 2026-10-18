@@ -18,6 +18,14 @@ export interface Environment {
   /** Shown in the browser title and the header. */
   readonly APP_NAME: string;
 
+  /**
+   * Root of the shop front. The topbar's «بازگشت به سایت» opens it in a new
+   * tab, which is why it is an absolute URL and not a route of this app: the
+   * panel is a separate deployment, so a relative value would navigate inside
+   * the admin panel instead (BO-B06).
+   */
+  readonly SITE_URL: string;
+
   /** localStorage key holding the access token. */
   readonly TOKEN_STORAGE_KEY: string;
 

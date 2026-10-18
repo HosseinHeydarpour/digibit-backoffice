@@ -97,4 +97,77 @@
       />
     </svg>
   </button>
+
+  <!--
+    THE PROFILE TRIGGER (BO-B06)
+
+    `@if (session.user(); as account)` — the whole affordance is hidden when
+    nobody is signed in, because an anonymous shell has no profile to show and
+    «خروج» would be a lie. The token's default is `null`, so the trigger is
+    absent by default rather than half-rendered.
+
+    Label in Name (WCAG 2.5.3): the visible name must be *inside* the accessible
+    name, or a speech user hears "منوی کاربر" and cannot tell which account they
+    are about to sign out of. Hence the compound `aria-label` rather than a
+    fixed one.
+  -->
+  @if (session.user(); as account) {
+    <button
+      type="button"
+      (click)="toggleProfile(profileMenu, $event)"
+      [attr.aria-label]="account.fullName + ' — منوی کاربر'"
+      aria-haspopup="true"
+      class="flex h-10 shrink-0 items-center gap-2 rounded-lg px-2 text-gray-600 transition-colors hover:bg-gray-100 max-sm:h-11 dark:text-gray-300 dark:hover:bg-gray-700"
+    >
+      <!--
+        The avatar when the user has one (tc 9); otherwise initials. Reference
+        shape: `h-8 w-8 rounded-full` with a ring and an online dot. The dot is
+        dropped — presence is not something this panel knows about.
+      -->
+      @if (account.avatarUrl) {
+        <img
+          [src]="account.avatarUrl"
+          [alt]="account.fullName"
+          class="h-8 w-8 shrink-0 rounded-full border-2 border-white shadow dark:border-gray-800"
+        />
+      } @else {
+        <span
+          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary dark:bg-primary/20"
+          aria-hidden="true"
+          >{{ session.initials() }}</span
+        >
+      }
+
+      <!-- `max-sm:hidden` keeps the row within 320px: avatar only, which is what
+           the reference's own `max-sm:hidden` does to its avatar image. The
+           chevron goes with the name, so a phone gets a 40px round target and
+           nothing else. -->
+      <span class="max-sm:hidden text-sm font-medium text-gray-900 dark:text-white">{{
+        account.fullName
+      }}</span>
+      <i class="pi pi-angle-down max-sm:hidden text-xs" aria-hidden="true"></i>
+    </button>
+  }
 </header>
+
+<!--
+  The menu lives OUTSIDE the header, not beside the trigger.
+
+  Two reasons. In popup mode `p-menu` renders nothing until it is shown
+  (`@if (!popup || overlayVisible)`), so its host element is an empty inline box
+  that would otherwise become a zero-width flex item inside the header. And with
+  `[appendTo]="'body'"` the real overlay is moved to `<body>` on show, so its
+  position in the DOM is irrelevant to where it appears — all that matters is
+  that the header's flex container does not lay it out.
+
+  `appendTo="body"` is also the fix for tc 8: a menu kept inside the header
+  inherits its clipping context and gets cut off on a phone, which would leave
+  the off-canvas items unreachable.
+-->
+<p-menu
+  #profileMenu
+  [popup]="true"
+  [model]="menuItems"
+  [appendTo]="'body'"
+  ariaLabel="منوی کاربر"
+/>

@@ -1,7 +1,10 @@
+import type { SessionUser } from '@shared/models/session.model';
+
 import { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
 
 export { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
 export type { MockProduct } from './products.fixture';
+export type { SessionUser } from '@shared/models/session.model';
 
 /** 12 modules, matching the 12 feature folders. */
 export type MockModule =
@@ -186,3 +189,18 @@ export const MOCK_SETTINGS = {
   sms: { provider: 'kavenegar', sender: '10008663', apiKey: '****9876' },
   seo: { title: 'دیجیبیت مارکت', description: 'فروشگاه اینترنتی', keywords: ['فروشگاه', 'آنلاین'] },
 };
+
+/**
+ * The signed-in user for mock mode, typed as the shared `SessionUser`.
+ *
+ * `avatarUrl` is `null` on purpose — that is the common case, and it exercises
+ * the initials fallback in the topbar's dropdown (BO-B06 tc 9) instead of
+ * hiding it behind a working image. `MOCK_CUSTOMERS` is deliberately not
+ * reused: those rows are shoppers, and an admin is not one of them.
+ */
+export const MOCK_SESSION_USER = {
+  id: '1',
+  fullName: 'مدیر سیستم',
+  email: 'admin@digibit.market',
+  avatarUrl: null,
+} satisfies SessionUser;

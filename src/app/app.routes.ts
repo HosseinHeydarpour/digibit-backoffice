@@ -109,6 +109,15 @@ export const routes: Routes = [
         title: 'تنظیمات',
         children: [],
       },
+      // The profile page BO-B06's topbar dropdown links to. Component-less like
+      // the rest: the page itself is a later task, and a route that exists is
+      // worth more than a link that 404s.
+      {
+        path: 'profile',
+        data: { title: 'پروفایل', breadcrumb: 'پروفایل' },
+        title: 'پروفایل',
+        children: [],
+      },
 
       // 403 — where BO-D07's role guard will send a user who lacks a permission.
       // `router.navigate(['/forbidden'])` beats a raw error, and the page is
