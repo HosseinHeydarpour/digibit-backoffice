@@ -328,6 +328,52 @@ site root, so reference it as `/fonts/…`, never `/assets/fonts/…`. Note ther
 Regular cut — Medium is registered for both 400 and 500 to stop the browser synthesising
 a faux weight.
 
+## PrimeNG — the known gaps
+
+PrimeNG 21 is good but not complete, and two of its gaps have already cost this project
+real time. Check here before assuming a PrimeNG input does what its name says.
+
+### `[pButton]`'s `loading` does not disable the button
+
+`ButtonDirective` has a `loading` input, and on its own it is **not enough** to satisfy
+"a submitting button must be disabled". What it actually does
+(`node_modules/primeng/fesm2022/primeng-button.mjs:415-424`):
+
+```js
+if (this.loading) {
+  styleClass.push(
+    INTERNAL_BUTTON_CLASSES.disabled /* 'p-disabled' */,
+    INTERNAL_BUTTON_CLASSES.loading /* 'p-button-loading' */,
+  );
+}
+```
+
+It pushes **classes**, never the attribute. The directive declares no `disabled` input at
+all, and its only host bindings are `p-button-icon-only` / `p-button-text`. `.p-disabled`
+carries `pointer-events: none`, so a mouse click is swallowed and the button dims — but:
+
+- the button **stays in the tab order** while it is working, and
+- **Enter / Space** still fire the click handler.
+
+A keyboard user can therefore submit the same form twice. PrimeNG's own `p-button`
+_component_ binds `[disabled]="disabled || loading || buttonProps?.disabled"`, so
+"loading implies disabled" is clearly the intended contract; the directive is just the
+leaner API. **Use `pLoading` (`src/app/shared/directives/loading.directive.ts`)**, which
+sets the native property — do not bind `[pButton] [loading]` on its own.
+
+### `p-skeleton` is `aria-hidden` and its inputs do not reflect
+
+Two consequences that matter when testing or documenting it:
+
+- The host hard-codes `attr.aria-hidden: "true"`. A skeleton can never announce itself, so
+  any loading region needs its own `role="status"` wrapper.
+- `animation`, `shape` and the rest are **inputs**, so a property binding
+  (`[animation]="'none'"`) sets the input and writes **no DOM attribute**. What you can
+  assert on is the class the style function emits — `p-skeleton-animation-none` for
+  `animation: 'none'`, `p-skeleton-circle` for `shape: 'circle'`
+  (`primeng/fesm2022/primeng-skeleton.mjs:16-21`). A selector like
+  `p-skeleton[animation="none"]` matches nothing and is the trap.
+
 ## Naming — one convention, applied everywhere
 
 The rule comes from Angular 21's own style guide (`angular.dev/style-guide`) and the CLI
@@ -477,37 +523,42 @@ instead of failing, so check it when you add a new root.
 
 Every entry, with its file and its docs id:
 
-| Entry               | File                                    | Docs id                         |
-| ------------------- | --------------------------------------- | ------------------------------- |
-| `StatCard`          | `shared/components/stat-card/`          | `shared-statcard--docs`         |
-| `EmptyState`        | `shared/components/empty-state/`        | `shared-emptystate--docs`       |
-| `PageHeader`        | `shared/components/page-header/`        | `shared-pageheader--docs`       |
-| `Breadcrumb`        | `shared/components/breadcrumb/`         | `shared-breadcrumb--docs`       |
-| `ToastHost`         | `shared/components/toast-host/`         | `shared-toasthost--docs`        |
-| `ConfirmDialogHost` | `shared/components/confirm-dialog/`     | `shared-confirmdialog--docs`    |
-| `JalaliDatepicker`  | `shared/components/jalali-datepicker/`  | `shared-jalalidatepicker--docs` |
-| `MainLayout`        | `layout/main-layout/`                   | `layout-mainlayout--docs`       |
-| `Sidebar`           | `layout/sidebar/`                       | `layout-sidebar--docs`          |
-| `SidebarDrawer`     | `layout/sidebar-drawer/`                | `layout-sidebardrawer--docs`    |
-| `Topbar`            | `layout/topbar/`                        | `layout-topbar--docs`           |
-| `ApiService`        | `core/services/api.ts`                  | `core-apiservice--docs`         |
-| `ThemeService`      | `core/services/theme.ts`                | `core-themeservice--docs`       |
-| `ToastService`      | `core/services/toast.ts`                | `core-toastservice--docs`       |
-| `ConfirmService`    | `core/services/confirm.ts`              | `core-confirmservice--docs`     |
-| `PageTitleService`  | `core/services/page-title.ts`           | `core-pagetitleservice--docs`   |
-| `BreadcrumbService` | `core/services/breadcrumb.ts`           | `core-breadcrumbservice--docs`  |
-| HTTP pipeline       | `core/interceptors/`, `core/mock/`      | `core-http-pipeline--docs`      |
-| Permissions & menu  | `core/auth/`, `layout/sidebar/menu*.ts` | `core-permissions--docs`        |
-| Shared models       | `shared/models/**`                      | `core-shared-models--docs`      |
+| Entry               | File                                     | Docs id                         |
+| ------------------- | ---------------------------------------- | ------------------------------- |
+| `StatCard`          | `shared/components/stat-card/`           | `shared-statcard--docs`         |
+| `EmptyState`        | `shared/components/empty-state/`         | `shared-emptystate--docs`       |
+| `PageHeader`        | `shared/components/page-header/`         | `shared-pageheader--docs`       |
+| `Breadcrumb`        | `shared/components/breadcrumb/`          | `shared-breadcrumb--docs`       |
+| `ToastHost`         | `shared/components/toast-host/`          | `shared-toasthost--docs`        |
+| `ConfirmDialogHost` | `shared/components/confirm-dialog/`      | `shared-confirmdialog--docs`    |
+| `JalaliDatepicker`  | `shared/components/jalali-datepicker/`   | `shared-jalalidatepicker--docs` |
+| `LoadingBlock`      | `shared/components/loading-block/`       | `shared-loadingblock--docs`     |
+| `LoadingDirective`  | `shared/directives/loading.directive.ts` | `shared-loadingdirective--docs` |
+| `MainLayout`        | `layout/main-layout/`                    | `layout-mainlayout--docs`       |
+| `Sidebar`           | `layout/sidebar/`                        | `layout-sidebar--docs`          |
+| `SidebarDrawer`     | `layout/sidebar-drawer/`                 | `layout-sidebardrawer--docs`    |
+| `Topbar`            | `layout/topbar/`                         | `layout-topbar--docs`           |
+| `ApiService`        | `core/services/api.ts`                   | `core-apiservice--docs`         |
+| `ThemeService`      | `core/services/theme.ts`                 | `core-themeservice--docs`       |
+| `ToastService`      | `core/services/toast.ts`                 | `core-toastservice--docs`       |
+| `ConfirmService`    | `core/services/confirm.ts`               | `core-confirmservice--docs`     |
+| `PageTitleService`  | `core/services/page-title.ts`            | `core-pagetitleservice--docs`   |
+| `BreadcrumbService` | `core/services/breadcrumb.ts`            | `core-breadcrumbservice--docs`  |
+| HTTP pipeline       | `core/interceptors/`, `core/mock/`       | `core-http-pipeline--docs`      |
+| Permissions & menu  | `core/auth/`, `layout/sidebar/menu*.ts`  | `core-permissions--docs`        |
+| Shared models       | `shared/models/**`                       | `core-shared-models--docs`      |
 
 Also documented: `layout/sidebar/menu.ts` (`MENU`, `MENU_PERMISSIONS`),
 `layout/sidebar/menu-filter.ts` (`filterMenu`), `layout/sidebar-drawer/sidebar-drawer.state.ts`
 (`SidebarDrawerState`).
 
+`LoadingDirective` is the first **directive** in the catalogue, and it shows the shape the
+rest will follow: a directive has no template, so its stories drive it through a host
+element and the meta has no `component` key. `shared/directives/` is no longer empty.
+
 **Not covered because they do not exist yet:** `src/app/features/**`,
-`src/app/shared/pipes/`, `src/app/shared/directives/`, `src/app/core/guards/` — all four
-folders are empty. The first pipe, directive or guard to land gets a story file or an MDX
-page the same way a component does.
+`src/app/shared/pipes/`, `src/app/core/guards/` — all three folders are empty. The first
+pipe or guard to land gets a story file or an MDX page the same way a component does.
 
 ### The docs standard — three parts, always in this order
 
@@ -581,8 +632,20 @@ until the server was restarted; the restart alone fixed every page. Restart
 
 - Stories live **next to what they document**: `stat-card.stories.ts` beside
   `stat-card.ts`.
-- `tags: ['autodocs']` on every component story, or there is no page for the description
-  to live on.
+- `tags: ['autodocs']` on every **component** story, or there is no page for the
+  description to live on.
+- A **directive** has no template of its own, so autodocs has nothing to introspect: give
+  it a stories file (host element, no `component` key in the meta) plus an MDX page that
+  carries the same `title` and pulls the stories in with `<Canvas of={Stories.X} />`. That
+  is how `LoadingDirective` is documented, and it is the pattern for every future
+  directive. Do **not** put `tags: ['autodocs']` on such a meta as well — you get two docs
+  entries for one title.
+- **`<Meta of={Stories} />` produces the wrong docs id.** It derives the page name from
+  the MDX's first heading, so `Shared/LoadingDirective` came out as
+  `shared-loadingdirective--loadingdirective` instead of the catalogue's uniform
+  `…--docs`. `MetaProps` has no `name` to pin it, so use a standalone
+  `<Meta title="…" />` (identical to the stories file's title, which is what groups them
+  in the sidebar) and reference the canvases explicitly.
 - A `/** … */` comment above every story export — it becomes the story's description.
 - Name stories for the **scenario** (`SalesToday`, `OrdersWithProgress`), never for the
   values (`Variant1`).
@@ -592,7 +655,8 @@ until the server was restarted; the restart alone fixed every page. Restart
 - **Never import app fixtures into a story.** Define the data in the story file; the mock
   layer is compiled out of production and Storybook must not depend on it.
 - MDX pages live in `src/docs/`, one per non-visual concern. `src/docs/core/*.mdx` is the
-  convention for services, interceptors, tokens and models.
+  convention for services, interceptors, tokens and models; `src/docs/shared/*.mdx` for
+  shared building blocks that are not components (directives, pipes).
 
 ### Gotchas
 
@@ -620,6 +684,14 @@ until the server was restarted; the restart alone fixed every page. Restart
 - **Adjacent string literals are a syntax error, not concatenation.** In a docs array,
   a missing `+` produces a confusing `Parsing error: ':' expected` at the end of the
   following line. `tsc -p .storybook/tsconfig.json --noEmit` finds it in a second.
+- **MDX supports no comment syntax, so put notes in the prose or in this file.** The two
+  obvious candidates both break:
+  - `{/* … */}` — Prettier's MDX printer escapes a **multi-line** one to `{/\* … \*/}`,
+    and the build then dies with `Could not parse expression with acorn`. A single-line
+    `{/* … */}` survives, but only until someone wraps it.
+  - `<!-- … -->` — MDX 3 is not HTML: `Unexpected character '!' (U+0021) before name`.
+    This is why `.prettierrc` now parses `*.mdx` with the `mdx` parser (it was falling back
+    to markdown, which is what caused the escaping in the first place).
 - **`a11y.test` is `'todo'`, not `'error'`.** Violations are reported in the panel without
   failing the build — the right level while the feature pages are still being written.
 - **The docs page follows the Theme and Direction toolbars, and is RTL by default.**
