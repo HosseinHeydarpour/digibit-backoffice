@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { MainLayout } from '@layout/index';
+import { ErrorPage } from '@shared/components/error-page/error-page';
 
 /**
  * Every feature route is a child of `MainLayout`, so the sidebar and topbar are
@@ -109,20 +110,31 @@ export const routes: Routes = [
         children: [],
       },
 
-      // Catch-all so an unknown URL resolves to a fallback title instead of
-      // throwing NG04002 ("Cannot match any routes"). BO-B05 tc 6 wants a
-      // sensible heading on a 404; a dedicated NotFound page is a later task,
-      // at which point this entry gains a component.
+      // 403 — where BO-D07's role guard will send a user who lacks a permission.
+      // `router.navigate(['/forbidden'])` beats a raw error, and the page is
+      // reachable directly as well (tc 6), so the guard needs no special case.
       //
-      // A wildcard needs `children` to be valid at all (NG04014) — `data` and
-      // `title` alone are not enough. The empty child keeps it component-less
-      // while still letting `readDeepestTitle()` find this node's title.
+      // No `breadcrumb` here either: an error page is not a location in the
+      // hierarchy, and a chip pointing at it would be a dead end.
+      {
+        path: 'forbidden',
+        component: ErrorPage,
+        data: { title: 'دسترسی غیرمجاز', code: 403 },
+        title: 'دسترسی غیرمجاز',
+      },
+
+      // Catch-all: an unknown URL renders the 404 page (tc 1).
+      //
+      // The `children: []` that used to live here is gone — it only existed to
+      // make a component-less route valid (NG04014). A route with a `component`
+      // is valid on its own.
+      //
+      // Still no `breadcrumb`, so the 404 shows no chips (BO-B08 tc 9).
       {
         path: '**',
-        // No `breadcrumb` here on purpose — see the note above.
-        data: { title: 'صفحه یافت نشد' },
+        component: ErrorPage,
+        data: { title: 'صفحه یافت نشد', code: 404 },
         title: 'صفحه یافت نشد',
-        children: [],
       },
     ],
   },

@@ -9,6 +9,7 @@
 // interfaces and unions, plain `export { … }` for classes, functions and
 // constants. Mixing the two is a compile error under `isolatedModules`.
 
+// Models
 export type {
   ApiErrorBody,
   ApiResponse,
@@ -38,14 +39,18 @@ export {
   toPrimeSort,
 } from './models';
 
-export type { LoadingVariant } from './components/loading-block/loading-block';
-
-export { LoadingBlock } from './components/loading-block/loading-block';
+// Directives
 export { LoadingDirective } from './directives/loading.directive';
+
+// Components
+export type { LoadingVariant } from './components/loading-block/loading-block';
+export { LoadingBlock } from './components/loading-block/loading-block';
 export { FormField } from './components/form-field/form-field';
+export { ErrorPage } from './components/error-page/error-page';
+
+// Pipes
 export type { PersianDateStyle } from './pipes/persian-date.pipe';
 export type { TomanOptions } from './pipes/toman.pipe';
-
 export { PersianDatePipe } from './pipes/persian-date.pipe';
 export { PersianDigitsPipe } from './pipes/persian-digits.pipe';
 export { TomanPipe } from './pipes/toman.pipe';

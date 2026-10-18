@@ -1,0 +1,9 @@
+// src/app/shared/components/error-page/error-page.scss
+//
+// One rule, and it is structural rather than cosmetic: a component host is
+// `display: inline` by default, which makes the host box shrink-wrap its child
+// and breaks the `min-h-[60vh]` column inside it. Same defect LoadingBlock and
+// FormField hit; the fix belongs on the host.
+:host {
+  display: block;
+}

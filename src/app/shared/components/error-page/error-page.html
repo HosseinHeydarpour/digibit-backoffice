@@ -1,0 +1,86 @@
+<!-- src/app/shared/components/error-page/error-page.html -->
+<!--
+  THE COLUMN
+
+  Centred, one column, `min-h-[60vh]` so the block sits in the middle of the
+  routed area instead of hugging the topbar. `px-4` keeps the text off the
+  screen edge at 320px and `max-w-md` stops the description from running the
+  full width of a 1600px monitor — the two halves of tc 7.
+
+  `role="status"` announces the page politely when it replaces content during an
+  in-app navigation. It is the same choice empty-state makes, and for the same
+  reason: this is the result of a navigation, not an interruption.
+-->
+<section
+  class="flex min-h-[60vh] flex-col items-center justify-center px-4 py-12 text-center"
+  role="status"
+>
+  <!--
+    THE CODE (tc 4)
+
+    Large and muted rather than large and loud: the heading underneath is the
+    sentence the user needs, and a 72px orange «۴۰۴» would win that fight. The
+    same neutral pair the sidebar footer uses, so it sits in the palette (tc 8).
+
+    `aria-hidden` because it is a watermark — the code is still announced, by the
+    visually-hidden prefix inside the heading below. Without that split a screen
+    reader reads «۴۰۴» and then the heading, which says the same thing twice in a
+    less useful order.
+
+    `persianDigits` and not the raw number: the panel is Persian throughout
+    (BO-B16), and a Latin 404 in the middle of it would be the one widget that
+    forgot.
+  -->
+  <p
+    class="text-7xl leading-none font-black text-gray-200 select-none dark:text-gray-700"
+    aria-hidden="true"
+  >
+    {{ code() | persianDigits }}
+  </p>
+
+  <!--
+    THE SENTENCE (tc 5)
+
+    `text-dark dark:text-light` is this project's heading pair — the same one
+    page-header's <h1> and empty-state's headline use — so the page reads as part
+    of the panel rather than as a browser error.
+  -->
+  <h1 class="mt-5 text-xl font-bold text-dark dark:text-light">
+    <span class="sr-only">{{ code() | persianDigits }} — </span>
+    {{ copy().heading }}
+  </h1>
+
+  <p class="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
+    {{ copy().description }}
+  </p>
+
+  <!--
+    THE ACTIONS (tc 3, tc 9)
+
+    `flex-wrap` is what keeps the pair from overflowing a 320px screen: at that
+    width they stack, and nothing is clipped.
+
+    The primary action is always there — an error page with no way out is a dead
+    end. The secondary one appears only when there is a real page to go back to,
+    which is the `showBack` signal.
+  -->
+  <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
+    <button
+      type="button"
+      class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      (click)="goToDashboard()"
+    >
+      بازگشت به داشبورد
+    </button>
+
+    @if (showBack()) {
+      <button
+        type="button"
+        class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-dark transition-colors hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:border-gray-700 dark:text-light dark:hover:bg-gray-700"
+        (click)="goBack()"
+      >
+        بازگشت به صفحهٔ قبل
+      </button>
+    }
+  </div>
+</section>

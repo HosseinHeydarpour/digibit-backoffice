@@ -164,9 +164,15 @@ describe('BreadcrumbService against the real app routes (integration)', () => {
 
   it('declares breadcrumb data on every real feature route', () => {
     // A missing label must fail a test, not silently drop a crumb.
+    //
+    // Error routes are exempt by construction: an error page is not a location
+    // in the hierarchy, so a chip pointing at it would be a dead end. They are
+    // recognised by `data.code` rather than by path, so a second one
+    // (`maintenance`, `server-error`) is exempt the moment it is added — and a
+    // feature route that forgets `breadcrumb` still fails here.
     const layout = APP_ROUTES[0];
     const children = (layout.children ?? []).filter(
-      (r) => r.redirectTo === undefined && r.path !== '**',
+      (r) => r.redirectTo === undefined && r.path !== '**' && r.data?.['code'] === undefined,
     );
 
     expect(children.length).toBeGreaterThan(0);

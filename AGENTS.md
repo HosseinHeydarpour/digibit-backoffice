@@ -534,6 +534,7 @@ Every entry, with its file and its docs id:
 | `JalaliDatepicker`  | `shared/components/jalali-datepicker/`   | `shared-jalalidatepicker--docs` |
 | `FormField`         | `shared/components/form-field/`          | `shared-formfield--docs`        |
 | `LoadingBlock`      | `shared/components/loading-block/`       | `shared-loadingblock--docs`     |
+| `ErrorPage`         | `shared/components/error-page/`          | `shared-errorpage--docs`        |
 | `LoadingDirective`  | `shared/directives/loading.directive.ts` | `shared-loadingdirective--docs` |
 | `PersianPipes`      | `shared/pipes/`                          | `shared-persianpipes--docs`     |
 | `MainLayout`        | `layout/main-layout/`                    | `layout-mainlayout--docs`       |
@@ -579,9 +580,30 @@ A component that projects its control cannot reach it: the `for`/`id` pair and a
 `aria-describedby` stay the caller's job. `FormField` publishes the convention
 (`inputId`, defaulting to `controlName`, with `<id>-hint` and `<id>-error`).
 
+`ErrorPage` is the first **route component** in the catalogue — it is mounted from `app.routes.ts`
+and never from a template. Three rules come out of it:
+
+- **One component, a copy table.** The 404 and the 403 differ in two strings and one number, so
+  the layout lives in the component and the sentences in `ERROR_COPY`, keyed by code. `code` is
+  `number`, not `403 | 404`: route `data` is untyped, so a closed union would compile and then
+  index a table with no entry. The lookup falls back to a generic pair instead.
+- **No wrapper component.** `app.config.ts` registers `withComponentInputBinding()`, so
+  `data.code` binds straight to `input.required<number>()`. A test router has to ask for it
+  explicitly — `provideRouter(routes, withComponentInputBinding())` — or the route matches and
+  then throws **NG0950** while rendering.
+- **Error routes carry `data.code` and no `data.breadcrumb`.** An error page is not a location in
+  the hierarchy, so a crumb pointing at it would be a dead end. `breadcrumb.spec.ts` exempts
+  routes by `data.code` rather than by path, so a second one (`maintenance`, `server-error`) is
+  exempt the moment it is added, while a feature route that forgets `breadcrumb` still fails.
+
+The back action is conditional on `history.state.navigationId > 1` (the router writes it,
+starting at 1 for the first navigation). A back button on a page the user deep-linked to either
+does nothing or leaves the site.
+
 **Not covered because they do not exist yet:** `src/app/features/**` and
-`src/app/core/guards/` — both folders are empty. The first guard to land gets an MDX page
-the same way a pipe or a directive does.
+`src/app/core/guards/` — both folders are empty. `/forbidden` is already routed and waiting for
+BO-D07's role guard; the first guard to land gets an MDX page the same way a pipe or a
+directive does.
 
 ### The docs standard — three parts, always in this order
 
