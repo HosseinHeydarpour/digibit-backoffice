@@ -242,6 +242,35 @@ the two widths has **neither** — no sidebar and no way to open one. Verify bre
 in the **built** CSS (`dist/backoffice/browser/styles-*.css`), not just in source; Tailwind
 emits a single `@media(width>=992px)` block and a stale 1024px query is easy to miss.
 
+### Responsive rules (BO-B17)
+
+The shell and the shared kit were measured at **320 / 375 / 768 / 1280 / 1920** across every
+story. The result worth keeping: **nothing overflows horizontally at any width**, and the
+rules below are what keeps it that way.
+
+- **Touch targets are 44px on phones, 36-40px above.** A control that only exists to be
+  tapped gets `max-sm:min-h-11` (or `max-sm:h-11 max-sm:w-11` for an icon button). Scoping it
+  to `max-sm` is deliberate: a 44px toolbar button on a 1920px screen is a bigger button, not
+  a better one. Do not raise the base size instead.
+- **An icon-only button needs a box, not just an icon.** A bare `<i class="pi …">` inside a
+  `<button>` inherits the glyph's size — the theme switch was **24×24** and the drawer close
+  **16×24** before BO-B17. Give it `flex h-10 w-10 items-center justify-center` (or `h-11 w-11`
+  where it is always a mobile control).
+- **A truncating flex item needs `min-w-0`.** Flex items default to `min-width: auto` and
+  refuse to shrink below their content, so `truncate` alone does nothing and the item pushes
+  its siblings off-screen. `PageHeader` and `Topbar` both pair `min-w-0` with `truncate`; the
+  topbar also uses `flex-1` to reproduce the reference's `justify-between`.
+- **A table never scrolls the page.** Wrap it: `<div class="overflow-x-auto …"><p-table/></div>`.
+  `overflow-x-auto` on `<main>` is the anti-pattern — it makes the whole shell scroll and
+  hides the bug instead of fixing it. No `p-table` exists yet, so this rule is unenforced.
+- **Grids collapse on a named breakpoint, never on a container guess.** Stat cards are
+  `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`; forms are `grid-cols-1` until `sm:`.
+
+**Still unverified:** no `p-table` and no form page exists, so the table-wrapper and
+single-column-form rules have no target yet, and only the emulated matrix was run — real
+mobile browsers (tc 10) remain outstanding. PrimeNG's own dialog footer buttons are 36px;
+raising them is a design-system decision, not a responsive patch.
+
 ### Page title (BO-B05)
 
 `PageTitleService` (`core/services/page-title.ts`) owns the topbar heading. It listens on
