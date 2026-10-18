@@ -16,6 +16,11 @@ import { ErrorPage } from '@shared/components/error-page/error-page';
  * (BO-F*, BO-H*, …). A component-less route still matches and still resolves
  * `data.title`, so the topbar heading switches correctly the moment navigation
  * happens — but the routed area renders nothing until the page components land.
+ *
+ * BO-E01 is the exception that sets the pattern: `/dashboard` is a
+ * `loadChildren` route that owns its definition in `features/dashboard/`, so
+ * from here on a feature brings its own page, resolver and `data` with it, and
+ * this file stays a shell: the layout, the error pages and one line per feature.
  */
 export const routes: Routes = [
   {
@@ -36,13 +41,21 @@ export const routes: Routes = [
       // «سفارش 42». Every feature route below declares one; the wildcard
       // deliberately does not, so the 404 page shows no chips (BO-B08 tc 9).
 
-      // feature routes land here from queue C onward
+      // The dashboard is the first FEATURE page (BO-E01), so it is also the
+      // first route that owns its own definition: the page, its resolver, its
+      // service and its models all live in `features/dashboard/` and arrive as
+      // one lazy chunk. Statically importing a resolver here would hoist the
+      // whole data layer into the main bundle — see the note in
+      // `features/dashboard/dashboard.routes.ts`.
+      //
+      // `data`/`title` live on the inner route for the same reason: they belong
+      // to the page that reads them.
       {
         path: 'dashboard',
-        data: { title: 'پیشخوان', breadcrumb: 'پیشخوان' },
-        title: 'پیشخوان',
-        children: [],
+        loadChildren: () =>
+          import('@features/dashboard/dashboard.routes').then((m) => m.DASHBOARD_ROUTES),
       },
+
       {
         path: 'products',
         data: { title: 'محصولات', breadcrumb: 'محصولات' },

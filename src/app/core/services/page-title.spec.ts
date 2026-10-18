@@ -125,8 +125,17 @@ describe('PageTitleService against the real app routes (integration)', () => {
   it('declares both data.title and title on every real feature route', () => {
     // data.title drives the in-app heading; title drives the browser tab. A
     // route missing one of them is a silent half-failure (see BO-B05 tc 2).
+    //
+    // A `loadChildren` route is exempt for the same reason it is exempt in
+    // breadcrumb.spec.ts: its `data` and `title` live inside the feature's own
+    // chunk, unreachable from here. The functional test above ("never leaves a
+    // routable URL showing the fallback heading") still covers it, because it
+    // navigates and reads what the service actually sees, and
+    // `dashboard.spec.ts` pins the labels themselves.
     const layout = APP_ROUTES[0];
-    const children = (layout.children ?? []).filter((r) => r.redirectTo === undefined);
+    const children = (layout.children ?? []).filter(
+      (r) => r.redirectTo === undefined && r.loadChildren === undefined,
+    );
 
     expect(children.length).toBeGreaterThan(0);
     for (const route of children) {

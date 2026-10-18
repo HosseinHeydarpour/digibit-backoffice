@@ -308,6 +308,56 @@ and `startWith(null)` so the first paint is already correct.
 - `Topbar.menuToggle` is an `output<void>()`; BO-B04 listens to it to open the drawer. The
   topbar must not own drawer state or import the sidebar.
 
+### Feature routes own their own definition (BO-E01)
+
+BO-E01 made `/dashboard` the first **feature** route: `app.routes.ts` keeps one
+`loadChildren` line, and `features/dashboard/dashboard.routes.ts` owns the page, its resolver
+and its `data`. Every feature page after it follows that shape.
+
+- **Why `loadChildren` and not a statically imported resolver.** A `resolve:` entry pointing
+  at an imported resolver pulls the resolver, its service and `ApiService` into the MAIN
+  bundle — every visitor downloads the dashboard's data layer to see the login page. With
+  `loadChildren`, the production build emits `dashboard-routes` as its own chunk (20.87 kB
+  raw), which is the real acceptance test for tc 4.
+- **The route fetches, the page renders.** A page with a service call in `ngOnInit` cannot be
+  re-resolved, has to invent its own loading state, and drags HTTP into every test of the
+  page. A page reads `ActivatedRoute.data` (as a signal via `toSignal`, not a snapshot —
+  a retry replaces the snapshot).
+- **A resolver returns `null` on failure; it never rejects.** A rejected resolver cancels the
+  navigation (`NavigationError`), which on a deep link leaves a blank screen. `null` lets the
+  page render its own error state with a retry, and the failure is still reported because the
+  error interceptor toasts it.
+- **Refetching needs TWO router settings, and missing either one fails silently.** (1)
+  `navigateByUrl(url, { onSameUrlNavigation: 'reload' })` — otherwise the router drops a
+  same-URL navigation as `NavigationSkipped` before any guard or resolver is considered.
+  (2) `runGuardsAndResolvers: 'always'` on the route — otherwise the reused route is handed
+  the previous route's already-resolved `_resolvedData` and the resolver never runs again.
+  Both are in `Dashboard.retry()` / `DASHBOARD_ROUTES` with the source references.
+- **`breadcrumb.spec.ts` and `page-title.spec.ts` exempt `loadChildren` routes.** Their "every
+  feature route declares `data`" loops cannot see inside a lazy chunk. The labels are pinned
+  by the feature's own spec instead, and the functional tests still navigate to the route and
+  assert what the services actually read.
+- **Feature models live in `features/*/models/`.** Only models two features agree on belong
+  in `shared/models` (BO-C06) — a shared barrel that holds one page's schema becomes the whole
+  backend.
+- **Deferred on purpose:** tc 7 (no login → no resolve) is BO-D06's guard, and a first-paint
+  progress bar is BO-C05's loading interceptor. A resolver blocks navigation, so a page-level
+  loading state is only reachable on a _re_-resolve (retry, return visit).
+
+### Production environment is checked only by a production build
+
+`environment.prod.ts` is swapped in by `fileReplacements`, so nothing in `ng test`, `ng lint`,
+`prettier` or `build-storybook` ever compiles it — `satisfies Environment` in the dev file does
+not check the prod file. BO-B06 added `SITE_URL` to the model and to `environment.ts` only, and
+`main` shipped with a production build that did not compile. **Run
+`ng build --configuration production` before merging anything that touches `environments/`.**
+
+Also note the current state of the bundle: the `initial` budget (500 kB warning / 750 kB error
+in `angular.json`) is already exceeded on main — 779.34 kB before BO-E01 and 782.53 kB after
+it, with 20.87 kB of dashboard code moved into a lazy chunk, so the split costs about 3 kB of
+module overhead up front. Raising the budget is a `build`-scoped decision; it should not be
+silenced by bumping the limit.
+
 ### Imports — let `lint:fix` decide
 
 `eslint.config.js` uses `import-x/order` with `newlines-between: 'always'`. The trap:

@@ -170,9 +170,19 @@ describe('BreadcrumbService against the real app routes (integration)', () => {
     // recognised by `data.code` rather than by path, so a second one
     // (`maintenance`, `server-error`) is exempt the moment it is added — and a
     // feature route that forgets `breadcrumb` still fails here.
+    //
+    // LAZY routes are exempt too, and this is the trade BO-E01 bought: a
+    // feature that owns its routes (`loadChildren`) keeps `data` inside its own
+    // chunk, which this file cannot see. The label is pinned by the feature's
+    // own spec instead (`dashboard.spec.ts` → "declares both title fields"),
+    // and the crumb itself is asserted by the navigation test above.
     const layout = APP_ROUTES[0];
     const children = (layout.children ?? []).filter(
-      (r) => r.redirectTo === undefined && r.path !== '**' && r.data?.['code'] === undefined,
+      (r) =>
+        r.redirectTo === undefined &&
+        r.path !== '**' &&
+        r.data?.['code'] === undefined &&
+        r.loadChildren === undefined,
     );
 
     expect(children.length).toBeGreaterThan(0);

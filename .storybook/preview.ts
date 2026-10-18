@@ -152,7 +152,18 @@ const preview: Preview = {
      */
     options: {
       storySort: {
-        order: ['Introduction', 'Foundations', 'Conventions', 'Shared', 'Layout', 'Core'],
+        order: [
+          'Introduction',
+          'Foundations',
+          'Conventions',
+          'Shared',
+          'Layout',
+          'Core',
+          // BO-E01 adds the first feature page. Features come last: a page is
+          // a consumer of everything above it, so the sidebar reads as a
+          // dependency order.
+          'Features',
+        ],
       },
     },
 

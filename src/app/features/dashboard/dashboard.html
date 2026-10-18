@@ -1,0 +1,114 @@
+<!-- src/app/features/dashboard/dashboard.html -->
+<!--
+  The dashboard body — three states, in the order the user meets them.
+
+  The KPI grid is the reference's own, one-for-one:
+  `arino/page/fa/admin-panel-index.html`, line 477
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
+-->
+<app-page-header title="پیشخوان" description="خلاصهٔ فروش، سفارش‌ها و موجودی فروشگاه" />
+
+<!--
+  STATE 2 — A RE-RESOLVE IN FLIGHT (tc 10).
+
+  `loading-block`'s `cards` variant mirrors this grid exactly (same 1 / sm:2 /
+  xl:4 progression, same gap-6), which is the whole point: the skeleton and the
+  content occupy the same columns, so nothing reflows when the data lands.
+
+  Only reachable on a retry or a return visit — see the component's comment on
+  why first paint never shows this.
+-->
+@if (resolving()) {
+  <app-loading-block [loading]="true" variant="cards" [rows]="1" [columns]="4" />
+} @else if (summary(); as summary) {
+  <!-- STATE 1 — DATA. -->
+  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+    <!--
+      Every value arrives pre-formatted by a shared pipe (BO-B16) and every
+      label comes from BO-E02's wording, so the page holds no formatting logic:
+
+        toman         → grouping + Persian digits (+ the unit, suppressed here)
+        persianDigits → counts are not money, so no separator and no unit
+
+      The unit is a separate `StatCard` input because the reference prints it
+      smaller beside the number — `[value]="… | toman: { unit: false }"` plus
+      `unit="تومان"` is that layout.
+    -->
+    <app-stat-card
+      [value]="summary.totalSales | toman: { unit: false }"
+      unit="تومان"
+      label="فروش امروز"
+      icon="pi pi-dollar"
+      tone="neutral"
+    />
+
+    <app-stat-card
+      [value]="summary.pendingOrders | persianDigits"
+      unit="سفارش"
+      label="سفارش‌های جدید"
+      icon="pi pi-shopping-bag"
+      tone="warning"
+    />
+
+    <app-stat-card
+      [value]="summary.customerCount | persianDigits"
+      unit="کاربر"
+      label="کاربران"
+      icon="pi pi-users"
+      tone="positive"
+    />
+
+    <!--
+      `negative` — the only tile that is a problem when it is not zero, which
+      is what the reference does too (its products card is red).
+    -->
+    <app-stat-card
+      [value]="summary.lowStockCount | persianDigits"
+      unit="محصول"
+      label="کم‌موجودی"
+      icon="pi pi-box"
+      tone="negative"
+    />
+  </div>
+} @else {
+  <!--
+    STATE 3 — THE RESOLVE FAILED (tc 3).
+
+    NOT `app-empty-state`: that component's contract is «موردی برای نمایش وجود
+    ندارد» — an empty list, which is a normal outcome. A failed fetch is not
+    normal, and reusing the empty state would tell the user the dashboard has
+    no sales when what actually happened is that the request failed.
+
+    `role="alert"` because this is not a page the user asked for: it replaced
+    content they were waiting on, so it is announced when it appears rather
+    than when a screen reader happens to reach it.
+  -->
+  <div
+    role="alert"
+    class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+  >
+    <div class="flex items-start gap-4">
+      <div
+        class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-100 text-2xl text-red-600 dark:bg-red-900/30 dark:text-red-400"
+      >
+        <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+      </div>
+
+      <div class="min-w-0">
+        <h2 class="text-lg font-bold text-gray-900 dark:text-white">دریافت اطلاعات ناموفق بود</h2>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          خلاصهٔ پیشخوان از سرور گرفته نشد. لطفاً دوباره تلاش کنید.
+        </p>
+
+        <button
+          type="button"
+          (click)="retry()"
+          class="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
+        >
+          <i class="pi pi-refresh" aria-hidden="true"></i>
+          تلاش دوباره
+        </button>
+      </div>
+    </div>
+  </div>
+}
