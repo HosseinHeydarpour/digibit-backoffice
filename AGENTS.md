@@ -287,7 +287,13 @@ rules below are what keeps it that way.
   `overflow-x-auto` on `<main>` is the anti-pattern — it makes the whole shell scroll and
   hides the bug instead of fixing it. No `p-table` exists yet, so this rule is unenforced.
 - **Grids collapse on a named breakpoint, never on a container guess.** Stat cards are
-  `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`; forms are `grid-cols-1` until `sm:`.
+  `grid-cols-1 min-[360px]:grid-cols-2 xl:grid-cols-4`; forms are `grid-cols-1` until `sm:`.
+  The second step is 360px and not `sm` (640px) because BO-E02 tc 6 asks for **two columns on a
+  phone**, and a phone is 360-430px — `sm:` leaves every one of them single-column. The base
+  `grid-cols-1` still holds the 320px overflow floor the BO-B17 review measured. Verified in the
+  compiled CSS: `@media (width >= 360px)` with a `grid-template-columns: repeat(2, …)` rule.
+  `LoadingBlock`'s `cards` variant must declare the same three steps, or the skeleton reflows into
+  a different shape than the content it stands in for.
 
 **Still unverified:** no `p-table` and no form page exists, so the table-wrapper and
 single-column-form rules have no target yet, and only the emulated matrix was run — real
