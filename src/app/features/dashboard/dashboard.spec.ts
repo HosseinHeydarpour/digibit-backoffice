@@ -35,6 +35,7 @@ const SUMMARY: DashboardSummary = {
   pendingOrders: 23,
   customerCount: 187,
   productCount: 96,
+  orderCount: 342,
   salesChangePercent: 12.4,
   lowStockCount: 7,
   newComments: 5,
@@ -77,7 +78,17 @@ class Host {}
  * The real feature routes, mounted the way `app.routes.ts` mounts them, plus
  * one dead-end route to navigate away to.
  */
-const ROUTES = [{ path: '', children: [...DASHBOARD_ROUTES, { path: 'away', children: [] }] }];
+const ROUTES = [
+  {
+    path: '',
+    children: [
+      ...DASHBOARD_ROUTES,
+      { path: 'away', children: [] },
+      // BO-E02 tc 10 clicks the low-stock tile; the router needs somewhere to go.
+      { path: 'products', children: [] },
+    ],
+  },
+];
 
 function setup(outcomes: (DashboardSummary | Error)[]) {
   const service = new RecordingDashboardService(outcomes);
@@ -262,5 +273,107 @@ describe('DASHBOARD_ROUTES', () => {
     const mounted = (layout.children ?? []).find((child) => child.path === 'dashboard');
 
     expect(mounted?.loadChildren).toBeTypeOf('function');
+  });
+});
+
+describe('Dashboard KPI cards (BO-E02)', () => {
+  /**
+   * The tiles in template order. `[0]` is sales and `[3]` is low-stock — the two
+   * that carry behaviour beyond a number.
+   */
+  const tile = (fixture: ComponentFixture<Host>, index: number): Element =>
+    fixture.nativeElement.querySelectorAll('app-stat-card')[index];
+
+  const text = (fixture: ComponentFixture<Host>): string => fixture.nativeElement.textContent;
+
+  it('shows an upward arrow and the growth sentence for a positive change (tc 4)', async () => {
+    const { fixture, router } = setup([SUMMARY]);
+    await open(fixture, router);
+
+    const card = tile(fixture, 0);
+    expect(card.querySelector('i.pi-arrow-up')).toBeTruthy();
+    expect(card.textContent).toContain('افزایش');
+    expect(card.textContent).toContain('نسبت به دیروز');
+  });
+
+  it('shows a downward arrow and the decline sentence for a negative change (tc 4)', async () => {
+    const { fixture, router } = setup([{ ...SUMMARY, salesChangePercent: -3.5 }]);
+    await open(fixture, router);
+
+    const card = tile(fixture, 0);
+    expect(card.querySelector('i.pi-arrow-down')).toBeTruthy();
+    expect(card.textContent).toContain('کاهش');
+  });
+
+  it('prints the sale in Toman with grouping and the unit once (tc 2)', async () => {
+    const { fixture, router } = setup([SUMMARY]);
+    await open(fixture, router);
+
+    // Grouped Persian digits on the value, «تومان» from the card's own unit
+    // input — the reference's «42,850,000 تومان» layout.
+    expect(text(fixture)).toContain('۱٬۲۸۴٬۵۰۰٬۰۰۰');
+    expect(text(fixture)).toContain('تومان');
+  });
+
+  it('renders the board date in Jalali (tc 3)', async () => {
+    const { fixture, router } = setup([SUMMARY]);
+    await open(fixture, router);
+
+    // The page header prints today via `persianDate`. A Jalali year is ۱۴xx; a
+    // Gregorian one would be ۲۰xx. The class is `[۰-۹]`, not `\d`: JavaScript's
+    // `\d` matches ONLY ASCII digits, and `Intl` emits U+06F0-U+06F9 here, so a
+    // `\d` pattern would never match a single character of the rendered date.
+    const header = fixture.nativeElement.querySelector('app-page-header') as HTMLElement;
+    expect(header.textContent).toMatch(/۱۴[۰-۹]{2}/);
+    expect(header.textContent).not.toMatch(/۲۰[۰-۹]{2}/);
+  });
+
+  it('marks the low-stock tile as an alert while it is non-zero (tc 5)', async () => {
+    const { fixture, router } = setup([SUMMARY]);
+    await open(fixture, router);
+
+    // The icon bubble's tint comes from the tone table: red-100 for `negative`,
+    // primary-100 for `neutral`.
+    expect(tile(fixture, 3).querySelector('.bg-red-100')).toBeTruthy();
+  });
+
+  it('leaves the low-stock tile neutral when nothing is running out (tc 5)', async () => {
+    const { fixture, router } = setup([{ ...SUMMARY, lowStockCount: 0 }]);
+    await open(fixture, router);
+
+    expect(tile(fixture, 3).querySelector('.bg-red-100')).toBeNull();
+    expect(tile(fixture, 3).querySelector('.bg-primary-100')).toBeTruthy();
+  });
+
+  it('renders zeroes rather than an error when every metric is zero (tc 9)', async () => {
+    const zero: DashboardSummary = {
+      totalSales: 0,
+      pendingOrders: 0,
+      customerCount: 0,
+      productCount: 0,
+      orderCount: 0,
+      salesChangePercent: 0,
+      lowStockCount: 0,
+      newComments: 0,
+    };
+    const { fixture, router } = setup([zero]);
+    await open(fixture, router);
+
+    expect(tiles(fixture)).toHaveLength(4);
+    expect(text(fixture)).toContain('۰');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('navigates to the products list from the low-stock tile (tc 10)', async () => {
+    const { fixture, router } = setup([SUMMARY]);
+    await open(fixture, router);
+
+    // The clickable element is the card's own <article>: clicking the
+    // <app-stat-card> host would not reach it, because a DOM event bubbles UP,
+    // never down.
+    (tile(fixture, 3).querySelector('article') as HTMLElement).click();
+    await fixture.whenStable();
+
+    expect(router.url).toBe('/products');
   });
 });

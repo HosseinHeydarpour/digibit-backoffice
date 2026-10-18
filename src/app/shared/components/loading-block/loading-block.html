@@ -37,7 +37,7 @@
     <!--
       CARDS (tc 1, tc 7)
 
-      The grid classes MIRROR the real stat-card grid exactly — same 1 / sm:2 /
+      The grid classes MIRROR the real stat-card grid exactly — same 1 / 360:2 /
       xl:4 progression, same `gap-6`. That is the entire trick behind tc 7 (the
       mobile skeleton reflects the real layout): at any width, the placeholder
       grid and the content grid resolve to the same number of columns, so nothing
@@ -50,7 +50,7 @@
     -->
     @switch (variant()) {
       @case ('cards') {
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid grid-cols-1 gap-6 min-[360px]:grid-cols-2 xl:grid-cols-4">
           @for (index of cardIndexes(); track index) {
             <div
               class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"

@@ -3,37 +3,49 @@
 // WHAT THIS IS
 // ------------
 // The panel's landing page, and the first FEATURE page in the app (BO-E01).
-// It owns no fetching and no formatting of its own: the summary arrives through
-// the route's resolver, and the tiles are the shared `StatCard` (BO-B10) with
-// the shared pipes (BO-B16) doing the Persian digits and the Toman grouping.
+// It owns no fetching: the summary arrives through the route's resolver. It
+// owns no formatting either — the tiles are the shared `StatCard` (BO-B10), the
+// numbers go through the shared pipes (BO-B16), and the one piece of arithmetic
+// the page does add (a signed percentage -> arrow + colour + sentence) lives in
+// `dashboard.trend.ts` so it is testable without a DOM.
 //
 // WHAT IT READS AND WHERE IT COMES FROM
 // -------------------------------------
 //   summary   ← `ActivatedRoute.data[SUMMARY_DATA_KEY]` (the resolver)
 //   resolving ← Router events (a re-resolve in flight, e.g. a retry)
 //
-// There is no `@Input()` and no service call, which is the shape every feature
-// page in this panel should have: the route fetches, the page renders.
+// THE FOUR KPI TILES (BO-E02)
+// ---------------------------
+//   1. فروش امروز       ← totalSales     + the trend pill (tc 4)
+//   2. سفارش‌های جدید    ← pendingOrders  + «از ۳۴۲ سفارش ثبت‌شده»
+//   3. کاربران          ← customerCount
+//   4. کم‌موجودی         ← lowStockCount  + «از ۹۶ محصول», red while it is non-zero (tc 5)
+//
+// EVERY TILE IS THE LINK (tc 10)
+// ------------------------------
+// `actionable` + `(cardClick)` and NOT a nested `<a>`: a link inside a card that
+// is itself a button puts an interactive element inside another one, which no
+// screen reader and no keyboard user wants. The destination is a plain path
+// string because the page already knows where its cards lead — a shared tile has
+// no business importing the Router.
 //
 // THE THREE STATES AND WHY THEY ARE THREE
 // ---------------------------------------
 //   1. data       → four KPI tiles
-//   2. resolving  → a skeleton in the tiles' exact grid (tc 10)
-//   3. no data    → an error block with a retry (tc 3)
+//   2. resolving  → a skeleton in the tiles' exact grid (E01 tc 10)
+//   3. no data    → an error block with a retry (E01 tc 3)
 //
-// The loading state is NOT reachable on first paint, and that is deliberate:
-// a resolver blocks navigation, so the component is only created once the data
-// exists. The skeleton exists for the SECOND visit — a retry, a link back to
-// «پیشخوان» — where the user is already looking at the page and a re-resolve is
-// happening behind it. A first-paint progress bar belongs to the app shell
-// (BO-C05's loading interceptor), not to this component.
+// The loading state is NOT reachable on first paint, and that is deliberate: a
+// resolver blocks navigation, so the component is only created once the data
+// exists. The skeleton exists for the SECOND visit — a retry, or a link back to
+// «پیشخوان» — where the user is already looking at the page. A first-paint
+// progress bar belongs to the app shell (BO-C05's loading interceptor).
 //
 // WHAT IS DELIBERATELY NOT HERE
 // -----------------------------
-// No trend arrows, no footer links, no click-through: BO-E02 owns the cards'
-// presentation and E03–E05 own the chart, the recent-orders table and the
-// low-stock list. This page renders what the resolver already returns, so the
-// widget tasks add markup rather than plumbing.
+// No chart, no recent-orders table, no low-stock list: BO-E03/E04/E05 own those
+// and each arrives as its own widget with its own data. This file stays the
+// summary page.
 
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -43,15 +55,18 @@ import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart } fro
 import { LoadingBlock } from '@shared/components/loading-block/loading-block';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import { StatCard } from '@shared/components/stat-card/stat-card';
+import type { Tone } from '@shared/components/stat-card/stat-card';
+import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
 
 import { readSummary } from './dashboard.resolver';
+import { toKpiTrend } from './dashboard.trend';
 import type { DashboardSummary } from './models/dashboard.model';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [PageHeader, StatCard, LoadingBlock, PersianDigitsPipe, TomanPipe],
+  imports: [PageHeader, StatCard, LoadingBlock, PersianDatePipe, PersianDigitsPipe, TomanPipe],
   templateUrl: './dashboard.html',
 })
 export class Dashboard {
@@ -70,13 +85,36 @@ export class Dashboard {
   private readonly routeData = toSignal(this.route.data, { initialValue: {} as Data });
 
   /**
-   * The resolved summary, or `null` when the resolve failed (tc 3).
+   * The resolved summary, or `null` when the resolve failed (E01 tc 3).
    *
    * Reads through `readSummary` so the untyped route-data bag is narrowed in
    * exactly one place. `null` — never `undefined` — is the "no data" value, so
    * the template has one branch instead of two overlapping ones.
    */
   readonly summary = computed<DashboardSummary | null>(() => readSummary(this.routeData()));
+
+  /**
+   * Today, frozen when the page is created.
+   *
+   * A plain field, not a signal or a ticking clock: «امروز» on a dashboard is
+   * the day the page was opened, and a header that silently re-renders at
+   * midnight would be a change nobody asked for. The pipe turns it Jalali (tc 3).
+   */
+  protected readonly today = new Date();
+
+  /** The sales tile's arrow, colour and sentence, or `null` when there is no change. */
+  protected readonly salesTrend = computed(() => toKpiTrend(this.summary()?.salesChangePercent));
+
+  /**
+   * Red only while something is actually running out (tc 5).
+   *
+   * A permanently red card is a red card nobody looks at. «کم‌موجودی: ۰» on a
+   * healthy shop is good news, so it gets the neutral brand accent; the moment
+   * the count is non-zero the bubble turns to the alert colour.
+   */
+  protected readonly lowStockTone = computed<Tone>(() =>
+    (this.summary()?.lowStockCount ?? 0) > 0 ? 'negative' : 'neutral',
+  );
 
   /**
    * True while a resolve is in flight for THIS page.
@@ -110,7 +148,7 @@ export class Dashboard {
   }
 
   /**
-   * Refetches by re-navigating to the page's own URL (tc 3's way out).
+   * Refetches by re-navigating to the page's own URL (E01 tc 3's way out).
    *
    * `navigateByUrl(router.url)` and not `navigateByUrl('/dashboard')`: the
    * component should not know its own path any more than it should know the
@@ -132,5 +170,16 @@ export class Dashboard {
    */
   retry(): void {
     void this.router.navigateByUrl(this.router.url, { onSameUrlNavigation: 'reload' });
+  }
+
+  /**
+   * Opens a tile's destination (tc 10).
+   *
+   * A path, not a route name, and `void` on the promise: a navigation that is
+   * refused resolves `false` and the router has already reported why, so there
+   * is nothing here to catch.
+   */
+  open(path: string): void {
+    void this.router.navigate([path]);
   }
 }

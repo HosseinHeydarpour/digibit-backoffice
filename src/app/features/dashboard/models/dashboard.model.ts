@@ -43,11 +43,21 @@ export interface DashboardSummary {
   readonly productCount: number;
 
   /**
+   * Orders in the period, in any status.
+   *
+   * Distinct from `pendingOrders`, which is the actionable subset. The tile
+   * prints the pending count and says «از ۳۴۲ سفارش ثبت‌شده» underneath it, so
+   * the pair reads as "23 of 342" rather than repeating one number twice.
+   */
+  readonly orderCount: number;
+
+  /**
    * Percentage change versus the previous period, e.g. `12.4`.
    *
    * Signed: negative means the number went down. Left as a number rather than
-   * a direction so BO-E02 (the trend arrows) can decide both the sign and the
-   * label in one place, instead of this model guessing at presentation.
+   * a direction so `toKpiTrend` (BO-E02) can decide the sign, the colour, the
+   * arrow and the sentence in one place, instead of this model guessing at
+   * presentation.
    */
   readonly salesChangePercent: number;
 

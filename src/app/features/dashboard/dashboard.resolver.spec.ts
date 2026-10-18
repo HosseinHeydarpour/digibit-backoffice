@@ -28,6 +28,7 @@ const SUMMARY: DashboardSummary = {
   pendingOrders: 23,
   customerCount: 187,
   productCount: 96,
+  orderCount: 342,
   salesChangePercent: 12.4,
   lowStockCount: 7,
   newComments: 5,

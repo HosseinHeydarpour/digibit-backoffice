@@ -422,10 +422,10 @@ describe('LoadingBlock', () => {
       // The classes are asserted rather than computed widths: jsdom does not run
       // a layout engine, so `.offsetWidth` is always 0 and a width assertion would
       // pass against anything. What CAN be checked is that the placeholder grid is
-      // the real grid — same 1 / sm:2 / xl:4 progression — which is the actual
+      // the real grid — same 1 / 360:2 / xl:4 progression — which is the actual
       // mechanism behind "the skeleton reflects the layout".
       expect(grid.classList.contains('grid-cols-1')).toBe(true);
-      expect(grid.classList.contains('sm:grid-cols-2')).toBe(true);
+      expect(grid.classList.contains('min-[360px]:grid-cols-2')).toBe(true);
       expect(grid.classList.contains('xl:grid-cols-4')).toBe(true);
     });
 

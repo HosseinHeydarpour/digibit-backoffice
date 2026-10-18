@@ -5,13 +5,27 @@
   The KPI grid is the reference's own, one-for-one:
   `arino/page/fa/admin-panel-index.html`, line 477
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
+
+  ONE DELIBERATE DIFFERENCE FROM THE REFERENCE'S GRID (tc 6): the second
+  breakpoint is 360px, not Tailwind's `sm` (640px). BO-E02 tc 6 asks for TWO
+  columns on a phone, and a phone is 360-430px — `sm:grid-cols-2` would leave
+  every one of them single-column. The base `grid-cols-1` still covers the
+  320px case, which is the width the BO-B17 responsive review measured as the
+  overflow floor. `min-[360px]` is the narrowest breakpoint that satisfies both.
+
+  That means the skeleton in `loading-block`'s `cards` variant has to declare the
+  same progression, or the placeholder and the content reflow into different
+  shapes — see the note there.
 -->
-<app-page-header title="پیشخوان" description="خلاصهٔ فروش، سفارش‌ها و موجودی فروشگاه" />
+<app-page-header
+  title="پیشخوان"
+  [description]="'خلاصهٔ فروش، سفارش‌ها و موجودی فروشگاه — امروز ' + (today | persianDate: 'long')"
+/>
 
 <!--
-  STATE 2 — A RE-RESOLVE IN FLIGHT (tc 10).
+  STATE 2 — A RE-RESOLVE IN FLIGHT (E01 tc 10).
 
-  `loading-block`'s `cards` variant mirrors this grid exactly (same 1 / sm:2 /
+  `loading-block`'s `cards` variant mirrors this grid exactly (same 1 / 360:2 /
   xl:4 progression, same gap-6), which is the whole point: the skeleton and the
   content occupy the same columns, so nothing reflows when the data lands.
 
@@ -21,14 +35,16 @@
 @if (resolving()) {
   <app-loading-block [loading]="true" variant="cards" [rows]="1" [columns]="4" />
 } @else if (summary(); as summary) {
-  <!-- STATE 1 — DATA. -->
-  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+  <!-- STATE 1 — DATA. Four tiles, each a link (tc 10). -->
+  <div class="grid grid-cols-1 gap-6 min-[360px]:grid-cols-2 xl:grid-cols-4">
     <!--
-      Every value arrives pre-formatted by a shared pipe (BO-B16) and every
-      label comes from BO-E02's wording, so the page holds no formatting logic:
+      1 — SALES (tc 2, tc 4)
 
-        toman         → grouping + Persian digits (+ the unit, suppressed here)
-        persianDigits → counts are not money, so no separator and no unit
+      The only KPI the summary carries a CHANGE for, and therefore the only tile
+      with a trend pill: `trend` picks the arrow and the green/red tint,
+      `trendPercent` is the pill's text, `footerText` is the sentence beside it.
+      All three come from `salesTrend()` so the sign, the colour and the wording
+      cannot disagree.
 
       The unit is a separate `StatCard` input because the reference prints it
       smaller beside the number — `[value]="… | toman: { unit: false }"` plus
@@ -40,39 +56,70 @@
       label="فروش امروز"
       icon="pi pi-dollar"
       tone="neutral"
+      [actionable]="true"
+      [footerText]="salesTrend()?.sentence"
+      [trend]="salesTrend()?.direction ?? 'neutral'"
+      [trendPercent]="salesTrend()?.percent"
+      (cardClick)="open('/orders')"
     />
 
+    <!--
+      2 — NEW ORDERS
+
+      The value is the ACTIONABLE subset (awaiting action); the footer states the
+      total, so the tile reads "23 of 342" rather than repeating itself.
+      `warning` — the reference colours its orders card amber.
+    -->
     <app-stat-card
       [value]="summary.pendingOrders | persianDigits"
       unit="سفارش"
       label="سفارش‌های جدید"
       icon="pi pi-shopping-bag"
       tone="warning"
+      [actionable]="true"
+      [footerText]="'از ' + (summary.orderCount | persianDigits) + ' سفارش ثبت‌شده'"
+      (cardClick)="open('/orders')"
     />
 
+    <!--
+      3 — CUSTOMERS
+
+      No footer, and that is not an oversight: the summary carries no second
+      customer number, and repeating the value in a muted sentence would be
+      noise. `StatCard` hides the footer strip when it has nothing to show
+      (`empty:hidden`), so the tile stays a plain card.
+    -->
     <app-stat-card
       [value]="summary.customerCount | persianDigits"
       unit="کاربر"
       label="کاربران"
       icon="pi pi-users"
       tone="positive"
+      [actionable]="true"
+      (cardClick)="open('/customers')"
     />
 
     <!--
-      `negative` — the only tile that is a problem when it is not zero, which
-      is what the reference does too (its products card is red).
+      4 — LOW STOCK (tc 5, tc 10)
+
+      The tone is DERIVED, not fixed: red while products are actually running
+      out, neutral when the shop is healthy. A permanently red card stops being
+      read as a warning. The footer says "7 of 96" so the count has a scale.
     -->
     <app-stat-card
       [value]="summary.lowStockCount | persianDigits"
       unit="محصول"
       label="کم‌موجودی"
       icon="pi pi-box"
-      tone="negative"
+      [tone]="lowStockTone()"
+      [actionable]="true"
+      [footerText]="'از ' + (summary.productCount | persianDigits) + ' محصول'"
+      (cardClick)="open('/products')"
     />
   </div>
 } @else {
   <!--
-    STATE 3 — THE RESOLVE FAILED (tc 3).
+    STATE 3 — THE RESOLVE FAILED (E01 tc 3).
 
     NOT `app-empty-state`: that component's contract is «موردی برای نمایش وجود
     ندارد» — an empty list, which is a normal outcome. A failed fetch is not

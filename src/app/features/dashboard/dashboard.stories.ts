@@ -18,6 +18,7 @@ const STORY_SUMMARY: DashboardSummary = {
   pendingOrders: 23,
   customerCount: 187,
   productCount: 96,
+  orderCount: 342,
   salesChangePercent: 12.4,
   lowStockCount: 7,
   newComments: 5,
@@ -98,6 +99,15 @@ const meta: Meta<Dashboard> = {
           'برای نمایش وجود ندارد»; a failed resolve is not normal, and saying «no sales» for «the',
           'request failed» is the kind of lie a user then acts on. It is also `role="alert"` rather',
           'than `role="status"` for the same reason.',
+          '',
+          '**The four tiles (BO-E02)** — sales with a trend pill, new orders with the period ',
+          'total underneath, customers, and the low-stock count with its catalogue size. Every ',
+          'tile is a link; the destination lives on the card and not in a nested `<a>`, because a ',
+          'link inside a button is a trap for both a keyboard and a screen reader.',
+          '',
+          'The low-stock tile is red ONLY while something is actually running out. A permanently red',
+          'card stops being read as a warning, so the tone is derived from the count rather than',
+          'fixed in the template.',
         ].join('\n'),
       },
     },
@@ -122,6 +132,73 @@ export const ResolveFailed: Story = {
         story:
           'The resolve returned null — see `resolveSummary`\u2019s `catchError`. The toast that ' +
           'reports WHY (BO-C04) is separate from this block, which says what to do about it.',
+      },
+    },
+  },
+};
+
+/**
+ * A store that has sold nothing yet: four zeroes, a neutral «بدون تغییر» pill and
+ * a healthy low-stock tile. This is what an empty period renders — the values are
+ * `۰`, not an error (tc 9).
+ */
+export const EmptyPeriod: Story = {
+  decorators: [
+    moduleMetadata({
+      providers: [
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            data: of({
+              [SUMMARY_DATA_KEY]: {
+                ...STORY_SUMMARY,
+                totalSales: 0,
+                pendingOrders: 0,
+                customerCount: 0,
+                productCount: 0,
+                orderCount: 0,
+                salesChangePercent: 0,
+                lowStockCount: 0,
+                newComments: 0,
+              },
+            }),
+          },
+        },
+      ],
+    }),
+  ],
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Every metric zero. The sales tile shows a grey «بدون تغییر نسبت به دیروز» pill instead ' +
+          'of an arrow, and the low-stock tile falls back to the neutral accent, because a healthy ' +
+          'shop is not a warning (tc 5, tc 9).',
+      },
+    },
+  },
+};
+
+/** Sales DOWN versus yesterday: the same tile, red, with a downward arrow (tc 4). */
+export const SalesDeclining: Story = {
+  decorators: [
+    moduleMetadata({
+      providers: [
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            data: of({ [SUMMARY_DATA_KEY]: { ...STORY_SUMMARY, salesChangePercent: -8.6 } }),
+          },
+        },
+      ],
+    }),
+  ],
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A negative `salesChangePercent`. The pill turns red and the arrow points down — both the ' +
+          'direction and the colour come from `toKpiTrend`, never from the template.',
       },
     },
   },
