@@ -1,0 +1,215 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as LoadingDirectiveStories from '../../app/shared/directives/loading.directive.stories';
+
+<Meta title="Shared/LoadingDirective" />
+
+# LoadingDirective
+
+`src/app/shared/directives/loading.directive.ts` · used together with PrimeNG's
+`[pButton]` directive
+
+تنها جایی که یک دکمه می‌فهمد «مشغول است»: اسپینر می‌گیرد، محو می‌شود، و تا پایان کار
+نه کلیک می‌شود نه فوکوس.
+
+The one place a button learns it is busy: it takes a spinner, dims, and until the
+work finishes it can neither be clicked nor focused.
+
+---
+
+## کاربرد / Use case
+
+**کِی سراغش برو:** هر دکمه‌ای که یک کار ناهمگام را شروع می‌کند — ارسال فرم، ذخیره، حذف،
+تأیید سفارش. یعنی هر دکمه‌ای که اگر دو بار زده شود، دو درخواست می‌فرستد.
+
+**کِی سراغش نرو:** وقتی دکمه فقط «در دسترس نیست» — مثلاً فرم هنوز کامل نشده. آن حالت
+`[disabled]` است. اگر این دو را یکی کنی، کاربر نمی‌فهمد «دارد کار می‌کند» را از «تو اجازه
+نداری» تشخیص دهد، و دکمهٔ ناتمام شبیه دکمهٔ خراب به نظر می‌رسد.
+
+**کِی سراغش نرو:** برای نشان‌دادن لود یک فهرست یا جدول. آن کار
+[LoadingBlock](/docs/shared-loadingblock--docs) است؛ اینجا فقط یک دکمه است.
+
+**Reach for it when** a button starts an async action — a form submit, a save, a
+delete, an order confirmation. In other words, any button that would send two
+requests if it were clicked twice.
+
+**Do not reach for it when** the button is merely _unavailable_, because the form is
+not valid yet. That is `[disabled]`. Conflating the two leaves the user unable to tell
+"working" from "you may not", and an incomplete form's button ends up looking broken.
+
+**Do not reach for it when** you want to show that a list or a table is loading. That
+is [LoadingBlock](/docs/shared-loadingblock--docs); this directive is about one button.
+
+---
+
+## نحوهٔ استفاده / How to use
+
+یک binding، کنار `pButton`:
+
+One binding, next to `pButton`:
+
+```html
+<button pButton pLoading [loading]="saving()" (click)="save()">ذخیرهٔ تغییرات</button>
+```
+
+و در کامپوننت، همان signal که کار را کنترل می‌کند:
+
+And in the component, the same signal that guards the work:
+
+```ts
+import { Component, inject, signal } from '@angular/core';
+import { ApiService } from '@core/services/api';
+import { ToastService } from '@core/services/toast';
+
+export class ProductForm {
+  private readonly api = inject(ApiService);
+  private readonly toast = inject(ToastService);
+  protected readonly saving = signal(false);
+
+  protected save(): void {
+    if (this.saving()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.post('/products', this.form.value).subscribe({
+      next: () => this.toast.success('محصول ذخیره شد.'),
+      error: () => this.toast.error('ذخیره انجام نشد.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+}
+```
+
+`pButton` **اختیاری** است — سلکتور روی یک `<button>` ساده هم کار می‌کند — اما ترکیب
+پیشنهادی همین است، چون `pButton` همان چیزی است که اسپینر را می‌کشد.
+
+`pButton` is **optional** — the selector works on a bare `<button>` too — but the
+combination above is the intended one, because `pButton` is what draws the spinner.
+
+<Canvas of={LoadingDirectiveStories.Idle} />
+
+<Canvas of={LoadingDirectiveStories.Busy} />
+
+---
+
+## منطق پشت طراحی / Logic
+
+### چرا این directive وجود دارد
+
+`[pButton]` خودش یک input به نام `loading` دارد و تقریباً کافی است. آن input کلاس
+`p-disabled` و کلاس `p-button-loading` را اضافه می‌کند، و `.p-disabled` در
+`@primeuix/styles` این‌طور تعریف شده:
+
+```css
+.p-disabled,
+.p-disabled * {
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+}
+```
+
+پس کاربر **ماوس** در امان است: کلیک به دکمه نمی‌رسد. اما آن input هرگز attribute واقعی
+`disabled` را ست نمی‌کند — `ButtonDirective` اصلاً چنین input‌ای ندارد، و تنها host
+binding‌هایش `p-button-icon-only` و `p-button-text` هستند. نتیجه:
+
+1. دکمه در حالت کار **در ترتیب Tab می‌ماند**، و
+2. **Enter / Space** همان کلیکی را فعال می‌کند که `pointer-events` نمی‌بیند.
+
+یعنی یک کاربر کیبورد می‌تواند یک فرم را دو بار بفرستد، بدون هیچ نشانهٔ بصری‌ای که بگوید
+چیزی اشتباه است.
+
+### چرا این باگ نیست، بلکه یک شکاف
+
+کامپوننت `p-button` خود PrimeNG دقیقاً همین را درست انجام می‌دهد:
+
+```html
+<button [disabled]="disabled || loading || buttonProps?.disabled"></button>
+```
+
+یعنی «لودینگ به معنای غیرفعال» قرارداد موردنظر خود PrimeNG است، و directive فقط API
+لاغرترِ آن است. این فایل همان نیمهٔ گمشده را تأمین می‌کند، نه اینکه دکمه را از نو
+بسازد.
+
+### چرا directive و نه component
+
+`pButton` از قبل روی یک `<button>` واقعی می‌نشیند، و `disabled` یک property واقعی همان
+المان است. یک کامپوننت پوششی باید محتوا را دوباره project کند، همهٔ input‌های `pButton`
+را دوباره اعلام کند، و المان native را از دست بدهد — همهٔ اینها برای اضافه‌کردن یک
+attribute.
+
+### چرا `effect` و نه `ngOnChanges`
+
+`loading` یک signal input است، پس `ngOnChanges` وجود ندارد — signal‌ها `SimpleChanges`
+تولید نمی‌کنند. `effect` با هر تغییر دوباره اجرا می‌شود، **از جمله بار اول** — و همین
+است که دکمه‌ای که در همان رندر اول مشغول است، درست از فریم اول غیرفعال می‌شود. با یک
+پیاده‌سازی که فقط به _تغییر_ واکنش می‌دهد، یک فریم دکمهٔ فعال دیده می‌شود.
+
+### چرا `pButton` اختیاری است
+
+یک دکمهٔ بدون استایل هم می‌تواند مشغول باشد. اگر سلکتور `pButton` را الزامی می‌کرد،
+تنها راه جایگزین تکرار این فایل برای آن حالت بود.
+
+<Canvas of={LoadingDirectiveStories.ComparedWithStock} />
+
+### چه چیزی عمداً اینجا نیست
+
+- **نه یک کامپوننت دکمه.** `pButton` هست و کارش را خوب انجام می‌دهد؛ این فایل فقط یک
+  attribute اضافه می‌کند.
+- **نه مدیریت درخواست.** directive نمی‌داند چه چیزی در حال اجراست و چه زمانی تمام
+  می‌شود — این کار صفحه است. تنها چیزی که می‌داند این است که «الان مشغول است».
+- **نه حالت خطا.** اگر درخواست شکست بخورد، `loading` باید `false` شود؛ این را
+  `ToastService` و اینترسپتور خطا گزارش می‌کنند، نه دکمه.
+
+### Why this directive exists
+
+`[pButton]` has a `loading` input of its own and it is _nearly_ enough. That input adds
+the class `p-disabled` and the class `p-button-loading`, and `.p-disabled` in
+`@primeuix/styles` is defined as above: `pointer-events: none` plus a dimmed opacity.
+
+So a **mouse** user is already safe — the click never reaches the button. But that
+input never sets the real `disabled` attribute. `ButtonDirective` does not declare such
+an input at all, and its only host bindings are `p-button-icon-only` and
+`p-button-text`. Two things follow: the button stays in the **tab order** while it is
+working, and **Enter / Space** still activate the click that `pointer-events` never
+sees. A keyboard user can therefore submit the same form twice, with no visual evidence
+that anything is wrong.
+
+### Why this is a gap rather than a bug
+
+PrimeNG's own `p-button` **component** does it correctly: it binds
+`[disabled]="disabled || loading || buttonProps?.disabled"`. That is the clearest
+available evidence that "loading implies disabled" is PrimeNG's intended contract, and
+that the directive is simply the leaner of the two APIs. This file supplies the missing
+half rather than reimplementing the button.
+
+### Why a directive and not a component
+
+`pButton` already sits on a real `<button>`, where `disabled` is a genuine element
+property. A wrapper component would have to re-project children, redeclare every
+`pButton` input, and give up the native element — all to add one attribute.
+
+### Why `effect` and not `ngOnChanges`
+
+`loading` is a signal input, so there is no `ngOnChanges` to hook — signals do not
+produce `SimpleChanges`. An effect re-runs on every change **including the first**, and
+that is what puts a button that mounts already-busy into the correct state from frame
+one. An implementation that only reacts to a _change_ renders an enabled button for one
+frame.
+
+### Why `pButton` is optional
+
+An unstyled button is perfectly capable of being busy. If the selector required
+`pButton`, duplicating this file for that case would be the only alternative.
+
+<Canvas of={LoadingDirectiveStories.SubmitFlow} />
+
+### What is deliberately not here
+
+- **No button component.** `pButton` exists and does its job; this file adds one
+  attribute.
+- **No request handling.** The directive does not know what is running or when it ends
+  — that is the page's business. All it knows is "busy right now".
+- **No error state.** If the request fails, `loading` must go back to `false`; that is
+  reported by `ToastService` and the error interceptor, not by the button.

@@ -1,0 +1,71 @@
+// src/app/shared/components/loading-block/loading-block.scss
+//
+// One utility that Tailwind v4 does not ship, plus a note on why the rest of the
+// placeholder needs no CSS at all.
+//
+// WHY `sr-only` IS DEFINED HERE AND NOT RELIED ON FROM TAILWIND
+// -------------------------------------------------------------
+// Tailwind v4 does provide `sr-only`, and it is used in the template — this block
+// exists only as the escape hatch for the one case it does not cover: keeping the
+// text available to a screen reader while the skeleton animates OVER it. The
+// standard clip technique is repeated rather than `@extend`ed because the utility
+// is generated, not authored, and extending a generated class is how a build
+// starts depending on class-detection order.
+//
+// The `background`-colour override below is the important one for tc 8, and it is
+// the ONLY skeleton colour this project sets. See the comment on it.
+// ============================================================================
+
+:host {
+  // The host is dropped into <main>, a card, or a table cell. Same contract as
+  // every other shared block: the container owns the width, the component fills
+  // it. Without this the block is content-width in a flex parent and leaves a gap
+  // — the bug already fixed once for <app-sidebar> (see project memory).
+  display: block;
+  width: 100%;
+}
+
+// ============================================================================
+// DARK MODE (tc 8)
+// ============================================================================
+//
+// Nothing to do. VERIFIED, not assumed:
+//
+//   node_modules/@primeuix/themes/dist/aura/skeleton/index.mjs
+//     dark: { root: { background: 'rgba(255, 255, 255, 0.06)',
+//                     animationBackground: 'rgba(255, 255, 255, 0.04)' } }
+//
+// Aura already carries a dark pair, and PrimeNG resolves it through the
+// `darkModeSelector: '.app-dark'` set in app.config.ts — the SAME switch the rest
+// of the app uses, so the skeleton cannot get out of step with the theme.
+//
+// A custom `dark:bg-*` here would be actively worse: it would override a token
+// the theme designers tuned against `--color-card-dark` (#1e293b) and would have
+// to be re-tuned by hand every time that surface changed. The correct handling of
+// tc 8 is therefore a REGRESSION TEST that the token is still there, which
+// loading-block.spec.ts has — not a CSS rule.
+//
+// What the two values mean together, since it is not obvious: 0.06 white on the
+// #1e293b card is a lift of roughly one step, and the animation background at
+// 0.04 white is a slightly DARKER sweep travelling across the 0.06 base. The
+// shimmer works by contrast between those two, so changing either alone flattens
+// it into a static grey box.
+
+// ============================================================================
+// REDUCED MOTION (tc 6)
+// ============================================================================
+//
+// A full page of pulsing rectangles is exactly the pattern that triggers motion
+// sensitivity, and a user who has asked their OS to reduce motion has already
+// answered the question. `p-skeleton`'s pulse is a CSS animation, so it is
+// suppressable in one rule — and `animation: none` (rather than hiding the
+// skeleton) keeps the placeholder and its reserved height intact.
+//
+// This is the one behaviour the Aura theme does not provide, and it is worth the
+// four lines: the alternative is that the accessibility-conscious user gets MORE
+// motion on a loading screen than everyone else.
+@media (prefers-reduced-motion: reduce) {
+  :host ::ng-deep .p-skeleton {
+    animation: none;
+  }
+}

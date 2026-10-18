@@ -1,0 +1,204 @@
+<!-- src/app/shared/components/loading-block/loading-block.html -->
+<!--
+  TWO STATES, ONE OF WHICH IS THE CALLER'S OWN MARKUP
+
+  `@if (loading())` / `@else` and not `[class.hidden]`: hiding the real content
+  with CSS would still create it, still run its `@for` over an empty array, and
+  still fire its `ngOnInit` API call. A skeleton is supposed to run INSTEAD of the
+  content, so the content must not be instantiated at all.
+
+  The projected `<ng-content>` is what makes this a block rather than another
+  helper: the caller's table or card grid sits here once, and is replaced by the
+  placeholder without a second copy of it existing anywhere.
+-->
+@if (loading()) {
+  <!--
+    THE ANNOUNCEMENT
+
+    `role="status"` + `aria-busy="true"` is the whole accessibility story for the
+    block. `status` is polite — it waits for the screen reader to reach a gap —
+    which is right for a load the user is already waiting on; `alert` would
+    interrupt whatever was being read to say "loading", which is louder than the
+    event.
+
+    `aria-busy` on the SAME element is what tells assistive tech that the region's
+    contents are expected to change, so it should not be read as final. The text
+    is inside a `sr-only` span: the sighted user gets the skeleton (which already
+    says "loading" in a language faster than words), and only the screen reader
+    reads this. Putting a visible «در حال بارگذاری…» above a skeleton would be
+    saying it twice in the same breath.
+
+    `aria-live="polite"` is implied by `role="status"`, so it is deliberately NOT
+    repeated here — a redundant attribute is a second thing to keep in sync.
+  -->
+  <div class="flex flex-col gap-4" role="status" aria-busy="true">
+    <span class="sr-only">در حال بارگذاری…</span>
+
+    <!--
+      CARDS (tc 1, tc 7)
+
+      The grid classes MIRROR the real stat-card grid exactly — same 1 / sm:2 /
+      xl:4 progression, same `gap-6`. That is the entire trick behind tc 7 (the
+      mobile skeleton reflects the real layout): at any width, the placeholder
+      grid and the content grid resolve to the same number of columns, so nothing
+      reflows when the data arrives.
+
+      `[style.--p-skeleton-width]`-style overrides are deliberately absent. The
+      tiles get their dimensions from the height classes below and `w-full` from
+      p-skeleton's own `width: 100%` default, which is what keeps them in step
+      with the real `.p-card` width instead of a hardcoded 320px.
+    -->
+    @switch (variant()) {
+      @case ('cards') {
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+          @for (index of cardIndexes(); track index) {
+            <div
+              class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+            >
+              <!-- The label line: a short, narrow bar standing in for the caption. -->
+              <p-skeleton width="40%" height="0.75rem" class="mb-3" />
+              <!-- The value line: taller, because a metric is a big number. -->
+              <p-skeleton width="60%" height="1.5rem" class="mb-4" />
+              <!-- The trend row: a small pill plus a short caption. -->
+              <div class="flex items-center gap-2">
+                <p-skeleton shape="circle" size="1.25rem" />
+                <p-skeleton width="30%" height="0.75rem" />
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!--
+        TABLE (tc 3)
+
+        Five rows by default, because tc 3 asks for five and because five is also
+        the usual page size — so the placeholder height matches the loaded height
+        and the page does not jump when rows replace it (tc 6).
+
+        The header is drawn as a separate, dimmer band rather than as a sixth row:
+        a table's header is persistent furniture, not data, and making it look like
+        a row would suggest it is also loading. Its columns are fixed fractions
+        rather than matching the real table's widths, because the real widths live
+        in the caller's `p-table` and a shared block has no way to read them —
+        `divide-y` and the row height carry the resemblance, which is what the eye
+        actually uses.
+      -->
+      @case ('table') {
+        <div
+          class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+        >
+          <!-- The header band: persistent, so it gets no animation. -->
+          <div
+            class="flex items-center gap-4 border-b border-gray-200 px-6 py-4 dark:border-gray-700"
+          >
+            <p-skeleton width="12%" height="0.75rem" [animation]="'none'" />
+            <p-skeleton width="20%" height="0.75rem" [animation]="'none'" />
+            <p-skeleton width="16%" height="0.75rem" [animation]="'none'" />
+            <p-skeleton width="10%" height="0.75rem" [animation]="'none'" />
+          </div>
+
+          <div class="divide-y divide-gray-200 dark:divide-gray-700">
+            @for (index of rowIndexes(); track index) {
+              <div class="flex items-center gap-4 px-6 py-4">
+                <!--
+                  The leading circle is the avatar/thumb column nearly every list
+                  in this panel has. `shape="circle"` + `size` is the documented
+                  way to get a square, which beats reading a width and height pair
+                  and keeping the two the same number.
+                -->
+                <p-skeleton shape="circle" size="2rem" />
+                <p-skeleton width="24%" height="0.875rem" />
+                <p-skeleton width="16%" height="0.875rem" />
+                <p-skeleton width="12%" height="0.875rem" />
+                <!--
+                  The action cell is pushed to the far end with `ms-auto`, which
+                  is the logical-property spelling of "margin at the end edge" —
+                  the physical `ml-auto` would put it on the wrong side in this
+                  RTL layout.
+                -->
+                <p-skeleton width="2rem" height="2rem" class="ms-auto" />
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!--
+        FORM (tc 4)
+
+        Label, field, label, field. The label bar is short and thin and the field
+        is tall, which is the shape difference that makes a form readable at a
+        glance — two identical bars would read as a list.
+
+        `mt-1` between each label and its field, `space-y-5` between pairs: the
+        same rhythm a real form uses, so the block reserves the right height.
+      -->
+      @case ('form') {
+        <div class="space-y-5">
+          @for (index of fieldIndexes(); track index) {
+            <div>
+              <p-skeleton width="25%" height="0.75rem" class="mb-1" />
+              <!-- 2.5rem is the form-field height the Aura theme sets for inputs. -->
+              <p-skeleton height="2.5rem" borderRadius="8px" />
+            </div>
+          }
+          <!--
+            The submit row. A short primary-width bar on the end edge, because
+            that is where a form's action button sits in this layout — and because
+            a busy form's button is the thing tc 5 is about, so its placeholder
+            should be recognisable as a button.
+          -->
+          <div class="flex justify-end pt-2">
+            <p-skeleton width="8rem" height="2.5rem" borderRadius="8px" />
+          </div>
+        </div>
+      }
+
+      <!--
+        LIST — stacked rows with a leading circle, for feeds and activity streams.
+        Not in the test cases; included because it is the same problem as `table`
+        without a header, and leaving it out would push every caller who needs it
+        back to hand-rolling a skeleton (see the component header).
+      -->
+      @case ('list') {
+        <div class="space-y-4">
+          @for (index of rowIndexes(); track index) {
+            <div class="flex items-start gap-3">
+              <p-skeleton shape="circle" size="2.5rem" />
+              <div class="flex-1">
+                <p-skeleton width="35%" height="0.875rem" class="mb-2" />
+                <p-skeleton width="70%" height="0.75rem" />
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!--
+        TEXT — paragraph lines, for a detail page or a description field.
+        The last line is short on purpose: real prose does not fill its final row
+        to the edge, and a full-width last line is the single detail that makes a
+        skeleton read as "fake".
+      -->
+      @default {
+        <div class="space-y-2">
+          @for (index of rowIndexes(); track index) {
+            <p-skeleton [width]="index === rows() - 1 ? '45%' : '100%'" height="0.875rem" />
+          }
+        </div>
+      }
+    }
+  </div>
+} @else {
+  <!--
+    THE REAL CONTENT
+
+    A bare `<ng-content />`, with no wrapper. The caller's markup is already
+    inside their own card, table or section — adding a box here would nest two
+    surfaces and show a border-inside-a-border, which is the same call
+    empty-state.html makes (see its header). The block is a state machine, not a
+    container.
+  -->
+  <ng-content />
+}

@@ -37,3 +37,8 @@ export {
   toOptions,
   toPrimeSort,
 } from './models';
+
+export type { LoadingVariant } from './components/loading-block/loading-block';
+
+export { LoadingBlock } from './components/loading-block/loading-block';
+export { LoadingDirective } from './directives/loading.directive';
