@@ -65,9 +65,14 @@
     which is the `showBack` signal.
   -->
   <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
+    <!--
+      `max-sm:min-h-11` on both actions is BO-B17 tc 6: 44px is the smallest box
+      a thumb hits reliably, and these two buttons are the entire navigation the
+      page offers. Desktop keeps the 36px density.
+    -->
     <button
       type="button"
-      class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-sm:min-h-11"
       (click)="goToDashboard()"
     >
       بازگشت به داشبورد
@@ -76,7 +81,7 @@
     @if (showBack()) {
       <button
         type="button"
-        class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-dark transition-colors hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:border-gray-700 dark:text-light dark:hover:bg-gray-700"
+        class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-dark transition-colors hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-sm:min-h-11 dark:border-gray-700 dark:text-light dark:hover:bg-gray-700"
         (click)="goBack()"
       >
         بازگشت به صفحهٔ قبل

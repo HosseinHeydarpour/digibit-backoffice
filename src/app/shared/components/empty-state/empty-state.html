@@ -81,9 +81,14 @@
     left-aligned on a 1600px screen.
   -->
   @if (actionLabel(); as label) {
+    <!--
+      `max-sm:min-h-11` is 44px on phones (BO-B17 tc 6). This button is the only
+      way out of an empty state, so a 36px target is the difference between
+      "nothing here" and "this is broken". Desktop keeps the 36px density.
+    -->
     <button
       type="button"
-      class="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      class="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-sm:min-h-11"
       (click)="action.emit()"
     >
       {{ label }}

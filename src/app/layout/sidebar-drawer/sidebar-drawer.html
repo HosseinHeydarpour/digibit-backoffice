@@ -55,11 +55,17 @@
       class="flex shrink-0 items-center justify-between border-b border-gray-400 p-3 dark:border-gray-600"
     >
       <h2 class="text-base font-bold">پنل ادمین</h2>
+      <!--
+        `h-11 w-11` is 44px: this is the one control a phone user must hit to get
+        out of the drawer, and it was a bare 24px glyph before (BO-B17 tc 6). The
+        negative `me-2` pulls the larger box back so the icon still lines up with
+        the panel's padding edge.
+      -->
       <button
         type="button"
         (click)="close()"
         aria-label="بستن منو"
-        class="cursor-pointer text-gray-500 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"
+        class="-me-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100"
       >
         <i class="pi pi-times text-2xl" aria-hidden="true"></i>
       </button>

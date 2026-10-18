@@ -9,7 +9,7 @@
     is a signal, so the heading updates without re-creating the component.
 -->
 <header
-  class="flex h-20 shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-6 dark:border-gray-700 dark:bg-card-dark"
+  class="flex h-20 shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 sm:px-6 dark:border-gray-700 dark:bg-card-dark"
 >
   <!--
     Hamburger: mobile only. `lg:hidden` hides it at >=992px, matching the
@@ -17,17 +17,37 @@
     affordances is available at any width (test case 3). The 992px value comes
     from `--breakpoint-lg` in src/styles/tailwind.css, not Tailwind's default
     1024px — using the default would leave 992-1023px with neither control.
+
+    `max-sm:h-11 max-sm:w-11` raises the box from 40px to 44px on phones, which
+    is the smallest target a thumb hits reliably (BO-B17 tc 6). It is scoped to
+    `max-sm` rather than applied everywhere: 44px of chrome in a desktop toolbar
+    is a bigger button, not a better one, and it would undo the reference's
+    density.
   -->
   <button
     type="button"
     (click)="menuToggle.emit()"
     aria-label="باز کردن منو"
-    class="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 lg:hidden dark:text-gray-300 dark:hover:bg-gray-700"
+    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 max-sm:h-11 max-sm:w-11 lg:hidden dark:text-gray-300 dark:hover:bg-gray-700"
   >
     <i class="pi pi-bars text-lg" aria-hidden="true"></i>
   </button>
 
-  <h1 class="text-lg font-semibold text-dark dark:text-light">{{ title() }}</h1>
+  <!--
+    `min-w-0` + `truncate` are the overflow fix (BO-B17 tc 7). A flex item
+    defaults to `min-width: auto`, which refuses to shrink below its content, so
+    a long route title pushed the theme switch past the viewport edge instead of
+    ellipsising. `min-w-0` lets this item shrink and `truncate` (which includes
+    `nowrap`) keeps the header's fixed `h-20` intact.
+
+    `flex-1` reproduces the reference's `justify-between`: the title block and
+    the switch are two groups with the gap between them, so the switch sits at
+    the inline-end edge instead of hugging the title. The reference has a search
+    box in that gap; this shell does not have one yet.
+  -->
+  <h1 class="min-w-0 flex-1 truncate text-lg font-semibold text-dark dark:text-light">
+    {{ title() }}
+  </h1>
 
   <!--
     Theme switch (BO-B07). Button classes and both inline SVGs are copied
@@ -44,7 +64,7 @@
     type="button"
     (click)="theme.toggle()"
     [attr.aria-label]="theme.isDark() ? 'تغییر به حالت روشن' : 'تغییر به حالت تاریک'"
-    class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-sm:h-11 max-sm:w-11 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300"
   >
     <svg
       xmlns="http://www.w3.org/2000/svg"
