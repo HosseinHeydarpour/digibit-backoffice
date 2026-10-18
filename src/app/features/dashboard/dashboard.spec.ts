@@ -27,7 +27,7 @@ import type { Observable } from 'rxjs';
 import { routes as APP_ROUTES } from '../../app.routes';
 
 import { DASHBOARD_ROUTES } from './dashboard.routes';
-import type { DashboardSummary } from './models/dashboard.model';
+import type { DashboardSummary, SalesChartPoint } from './models/dashboard.model';
 import { DashboardService } from './services/dashboard';
 
 const SUMMARY: DashboardSummary = {
@@ -53,6 +53,8 @@ class RecordingDashboardService {
 
   delayMs = 0;
 
+  salesChartCalls: number[] = [];
+
   constructor(private readonly outcomes: (DashboardSummary | Error)[]) {}
 
   summary(): Observable<DashboardSummary> {
@@ -63,6 +65,11 @@ class RecordingDashboardService {
       outcome instanceof Error ? throwError(() => outcome) : of(outcome);
 
     return this.delayMs > 0 ? source.pipe(delay(this.delayMs)) : source;
+  }
+
+  salesChart(days = 7): Observable<SalesChartPoint[]> {
+    this.salesChartCalls.push(days);
+    return of([]);
   }
 }
 

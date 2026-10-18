@@ -27,7 +27,7 @@ import { Injectable, inject } from '@angular/core';
 import { ApiService } from '@core/services/api';
 import { Observable } from 'rxjs';
 
-import type { DashboardSummary } from '../models/dashboard.model';
+import type { DashboardSummary, SalesChartPoint, SalesChartRange } from '../models/dashboard.model';
 
 /**
  * Reads the dashboard summary.
@@ -38,6 +38,10 @@ import type { DashboardSummary } from '../models/dashboard.model';
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   private readonly api = inject(ApiService);
+
+  salesChart(days: SalesChartRange = 7): Observable<SalesChartPoint[]> {
+    return this.api.get<SalesChartPoint[]>('/dashboard/sales-chart', { days });
+  }
 
   /**
    * `GET /dashboard/summary` → the seven numbers the KPI tiles print.

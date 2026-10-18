@@ -350,6 +350,17 @@ and its `data`. Every feature page after it follows that shape.
   progress bar is BO-C05's loading interceptor. A resolver blocks navigation, so a page-level
   loading state is only reachable on a _re_-resolve (retry, return visit).
 
+### Sales chart and Chart.js testing (BO-E03)
+
+- **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`
+  and passes canvas to `new Chart(canvas, ...)`. In jsdom, `getContext('2d')` and
+  `ResizeObserver` are not provided natively. Specs mock `getContext('2d')` with a Proxy
+  returning no-op functions for methods like `resetTransform()` and binds `ctx.canvas = this`
+  to keep Chart.js from failing or printing console errors.
+- **Range switches cancel in-flight queries (tc 9):** `Dashboard.salesChartData` uses
+  `range$.pipe(switchMap(...))`. When the user rapidly toggles between 7 and 30 days,
+  the previous HTTP request is cancelled automatically, avoiding race conditions.
+
 ### Production environment is checked only by a production build
 
 `environment.prod.ts` is swapped in by `fileReplacements`, so nothing in `ng test`, `ng lint`,

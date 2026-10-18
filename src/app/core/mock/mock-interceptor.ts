@@ -132,7 +132,10 @@ function resolve(method: string, url: string, params: ParamReader): MockResoluti
   switch (module) {
     case 'dashboard':
       if (id === 'summary') return single(fixtures.MOCK_DASHBOARD_SUMMARY);
-      if (id === 'sales-chart') return single(fixtures.MOCK_SALES_CHART);
+      if (id === 'sales-chart') {
+        const days = num(params, 'days', 7);
+        return single(fixtures.getMockSalesChart(days));
+      }
       if (id === 'recent-orders') return list(fixtures.MOCK_ORDERS.slice(0, 8));
       if (id === 'low-stock') return list(fixtures.MOCK_LOW_STOCK);
       return notFound;

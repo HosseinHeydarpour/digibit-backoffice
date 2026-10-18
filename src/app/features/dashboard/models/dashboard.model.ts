@@ -67,3 +67,10 @@ export interface DashboardSummary {
   /** Comments awaiting moderation. */
   readonly newComments: number;
 }
+
+export type SalesChartRange = 7 | 30;
+
+export interface SalesChartPoint {
+  readonly date: string;
+  readonly value: number;
+}

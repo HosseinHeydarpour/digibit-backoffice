@@ -7,6 +7,7 @@ import { EMPTY, of } from 'rxjs';
 import { Dashboard } from './dashboard';
 import { SUMMARY_DATA_KEY } from './dashboard.resolver';
 import type { DashboardSummary } from './models/dashboard.model';
+import { DashboardService } from './services/dashboard';
 
 /**
  * The fixture the mock interceptor already serves for `dashboard/summary`
@@ -58,13 +59,30 @@ const breadcrumbStub = {
   useValue: { crumbs: signal([{ label: 'پیشخوان', url: '/dashboard' }]) },
 };
 
+const dashboardServiceStub = {
+  provide: DashboardService,
+  useValue: {
+    summary: () => of(STORY_SUMMARY),
+    salesChart: () =>
+      of([
+        { date: '2026-10-12', value: 14_000_000 },
+        { date: '2026-10-13', value: 18_500_000 },
+        { date: '2026-10-14', value: 22_000_000 },
+        { date: '2026-10-15', value: 16_000_000 },
+        { date: '2026-10-16', value: 29_000_000 },
+        { date: '2026-10-17', value: 21_000_000 },
+        { date: '2026-10-18', value: 35_000_000 },
+      ]),
+  },
+};
+
 const meta: Meta<Dashboard> = {
   title: 'Features/Dashboard',
   component: Dashboard,
   tags: ['autodocs'],
   decorators: [
     moduleMetadata({
-      providers: [routerStub, breadcrumbStub, routeWithSummary],
+      providers: [routerStub, breadcrumbStub, routeWithSummary, dashboardServiceStub],
     }),
   ],
   parameters: {

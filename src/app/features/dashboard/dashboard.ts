@@ -59,20 +59,33 @@ import type { Tone } from '@shared/components/stat-card/stat-card';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
+import { BehaviorSubject, switchMap, tap } from 'rxjs';
 
 import { readSummary } from './dashboard.resolver';
 import { toKpiTrend } from './dashboard.trend';
-import type { DashboardSummary } from './models/dashboard.model';
+import type { DashboardSummary, SalesChartPoint, SalesChartRange } from './models/dashboard.model';
+import { SalesChart } from './sales-chart/sales-chart';
+import { DashboardService } from './services/dashboard';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [PageHeader, StatCard, LoadingBlock, PersianDatePipe, PersianDigitsPipe, TomanPipe],
+  imports: [
+    PageHeader,
+    StatCard,
+    LoadingBlock,
+    SalesChart,
+    PersianDatePipe,
+    PersianDigitsPipe,
+    TomanPipe,
+  ],
   templateUrl: './dashboard.html',
 })
 export class Dashboard {
   private readonly route = inject(ActivatedRoute);
 
   private readonly router = inject(Router);
+
+  private readonly dashboardService = inject(DashboardService);
 
   /**
    * Route data as a signal.
@@ -125,6 +138,60 @@ export class Dashboard {
    * here or leave. Both are cleared by the matching end/cancel/error event.
    */
   readonly resolving = signal(false);
+
+  /** Active sales chart range (7 or 30 days). */
+  readonly chartRange = signal<SalesChartRange>(7);
+
+  /** True while the chart points are being fetched over HTTP. */
+  readonly chartLoading = signal<boolean>(false);
+
+  /**
+   * Reactive stream driving chart data queries with auto-cancellation (tc 9).
+   *
+   * TRACE / PRACTICAL EXECUTION EXAMPLE:
+   * ------------------------------------
+   * 1. Initial State:
+   *    - `chartRange` initialized to `7`.
+   *    - `range$` initialized with `7`.
+   *    - `salesChartData` starts evaluating: sets `chartLoading = true`, fires
+   *      `dashboardService.salesChart(7)`.
+   *    - HTTP response returns 7 data points -> `chartLoading = false`, `salesChartData()` holds 7 points.
+   *
+   * 2. User switches to 30 days:
+   *    - User clicks "۳۰ روز اخیر" -> `onChartRangeChange(30)` is called.
+   *    - `chartRange.set(30)` updates button active state immediately.
+   *    - `range$.next(30)` triggers the pipeline:
+   *      a. `tap`: `chartLoading.set(true)` activates the spinner.
+   *      b. `switchMap`: initiates `dashboardService.salesChart(30)`.
+   *
+   * 3. Rapid click / Cancel in-flight (tc 9):
+   *    - Before 30-day response arrives, user immediately clicks "۷ روز اخیر".
+   *    - `onChartRangeChange(7)` calls `range$.next(7)`.
+   *    - `switchMap` immediately unsubscribes/aborts the pending 30-day request (no redundant data or race conditions).
+   *    - Only the new 7-day request is fetched and landed.
+   */
+  private readonly range$ = new BehaviorSubject<SalesChartRange>(7);
+
+  readonly salesChartData = toSignal<readonly SalesChartPoint[] | null>(
+    this.range$.pipe(
+      tap(() => this.chartLoading.set(true)),
+      switchMap((range) =>
+        this.dashboardService.salesChart(range).pipe(
+          tap({
+            next: () => this.chartLoading.set(false),
+            error: () => this.chartLoading.set(false),
+          }),
+        ),
+      ),
+    ),
+    { initialValue: null },
+  );
+
+  /** Handles range switches emitted by the sales chart widget. */
+  onChartRangeChange(range: SalesChartRange): void {
+    this.chartRange.set(range);
+    this.range$.next(range);
+  }
 
   constructor() {
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {

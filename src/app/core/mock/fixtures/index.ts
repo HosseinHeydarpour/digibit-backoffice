@@ -176,10 +176,18 @@ export const MOCK_DASHBOARD_SUMMARY = {
   newComments: 5,
 };
 
-export const MOCK_SALES_CHART = makeList(12, (i) => ({
-  label: `ماه ${i + 1}`,
-  value: 80_000_000 + ((i * 37) % 9) * 12_000_000,
-}));
+export function getMockSalesChart(days = 7): { date: string; value: number }[] {
+  const count = days === 30 ? 30 : 7;
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(now - (count - 1 - i) * DAY);
+    return {
+      date: d.toISOString().split('T')[0],
+      value: 12_000_000 + ((i * 47) % 19) * 4_500_000,
+    };
+  });
+}
+
+export const MOCK_SALES_CHART = getMockSalesChart(7);
 
 export const MOCK_LOW_STOCK = MOCK_PRODUCTS.filter((p) => p.stock <= 6).slice(0, 8);
 
