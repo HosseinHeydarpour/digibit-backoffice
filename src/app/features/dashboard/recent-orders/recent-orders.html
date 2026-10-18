@@ -1,0 +1,130 @@
+<div
+  class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  <div class="flex items-center justify-between border-b border-gray-200 p-6 dark:border-gray-700">
+    <h3
+      class="relative pb-3 text-lg font-bold text-gray-900 before:absolute before:bottom-0 before:start-0 before:size-2 before:rounded-full before:bg-primary after:absolute after:bottom-0 after:start-4 after:h-2 after:w-32 after:rounded-lg after:bg-primary dark:text-white"
+    >
+      سفارشات اخیر
+    </h3>
+    <a
+      routerLink="/orders"
+      class="flex items-center gap-1 text-sm font-medium text-primary transition hover:text-primary-dark"
+    >
+      <span>مشاهده همه</span>
+      <i class="pi pi-angle-left text-xs" aria-hidden="true"></i>
+    </a>
+  </div>
+
+  <!-- جدول سفارشات -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead class="bg-gray-50 dark:bg-gray-700/50">
+        <tr>
+          @for (col of cols; track col.field) {
+            <th
+              scope="col"
+              [class]="
+                'px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 ' +
+                (col.class ?? '')
+              "
+            >
+              {{ col.header }}
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+        @if (loading()) {
+          @for (i of [1, 2, 3, 4]; track i) {
+            <tr class="animate-pulse">
+              <td class="whitespace-nowrap px-6 py-4 text-start">
+                <div class="h-4 w-20 rounded bg-gray-200 dark:bg-gray-700"></div>
+              </td>
+              <td class="hidden whitespace-nowrap px-6 py-4 text-start sm:table-cell">
+                <div class="h-4 w-16 rounded bg-gray-200 dark:bg-gray-700"></div>
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-start">
+                <div class="h-4 w-24 rounded bg-gray-200 dark:bg-gray-700"></div>
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-start">
+                <div class="h-4 w-20 rounded bg-gray-200 dark:bg-gray-700"></div>
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-start">
+                <div class="h-6 w-16 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-start">
+                <div class="h-4 w-12 rounded bg-gray-200 dark:bg-gray-700"></div>
+              </td>
+            </tr>
+          }
+        } @else if (!orders() || orders()!.length === 0) {
+          <tr>
+            <td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+              هیچ سفارشی یافت نشد
+            </td>
+          </tr>
+        } @else {
+          @for (order of orders(); track order.id) {
+            <tr
+              class="cursor-pointer transition hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              (click)="selectOrder(order.id)"
+            >
+              <!-- شماره سفارش -->
+              <td
+                class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium text-gray-900 dark:text-white"
+              >
+                <bdi class="font-mono">#{{ order.code | persianDigits }}</bdi>
+              </td>
+
+              <!-- تاریخ -->
+              <td
+                class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 sm:table-cell dark:text-gray-400"
+              >
+                {{ order.createdAt | persianDate }}
+              </td>
+
+              <!-- نام مشتری -->
+              <td
+                class="whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 dark:text-gray-400"
+              >
+                {{ order.customerName ?? 'مشتری نامشخص' }}
+              </td>
+
+              <!-- مبلغ -->
+              <td
+                class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium text-gray-900 dark:text-white"
+              >
+                {{ order.total | toman }}
+              </td>
+
+              <!-- بج وضعیت -->
+              <td class="whitespace-nowrap px-6 py-4 text-start">
+                <span
+                  class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+                  [class]="statusBadgeClass(order.status)"
+                >
+                  {{ statusLabel(order.status) }}
+                </span>
+              </td>
+
+              <!-- عملیات -->
+              <td
+                class="whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 dark:text-gray-400"
+              >
+                <a
+                  [routerLink]="['/orders', order.id]"
+                  (click)="$event.stopPropagation()"
+                  class="inline-flex items-center gap-1 text-primary transition hover:text-primary-dark"
+                >
+                  <span>جزئیات</span>
+                  <i class="pi pi-angle-left text-xs" aria-hidden="true"></i>
+                </a>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

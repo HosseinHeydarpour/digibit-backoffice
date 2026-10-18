@@ -19,6 +19,8 @@
 // a compile error instead of a tile that quietly disagrees with the next
 // re-resolve.
 
+import type { OrderStatus } from '@shared/models/status-badge.model';
+
 /**
  * The one payload `GET /dashboard/summary` returns (BO-E01).
  *
@@ -74,3 +76,27 @@ export interface SalesChartPoint {
   readonly date: string;
   readonly value: number;
 }
+
+export interface DashboardRecentOrder {
+  readonly id: string;
+  readonly code: string;
+  readonly customerId: string;
+  readonly customerName?: string;
+  readonly status: OrderStatus;
+  readonly total: number;
+  readonly itemCount: number;
+  readonly createdAt: string | number;
+}
+export interface OrderColumn {
+  readonly field: string;
+  readonly header: string;
+  readonly class?: string;
+}
+export const RECENT_ORDER_COLS: readonly OrderColumn[] = [
+  { field: 'code', header: 'شماره سفارش' },
+  { field: 'createdAt', header: 'تاریخ', class: 'hidden sm:table-cell' },
+  { field: 'customerName', header: 'مشتری' },
+  { field: 'total', header: 'مبلغ' },
+  { field: 'status', header: 'وضعیت' },
+  { field: 'actions', header: 'عملیات' },
+];

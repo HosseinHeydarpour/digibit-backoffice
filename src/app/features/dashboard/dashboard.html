@@ -126,6 +126,14 @@
       (rangeChange)="onChartRangeChange($event)"
     />
   </div>
+
+  <div class="mt-6">
+    <app-recent-orders
+      [orders]="recentOrders()"
+      [loading]="resolving()"
+      (orderClick)="onOrderClick($event)"
+    />
+  </div>
 } @else {
   <!--
     STATE 3 — THE RESOLVE FAILED (E01 tc 3).

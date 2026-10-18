@@ -73,6 +73,19 @@ const dashboardServiceStub = {
         { date: '2026-10-17', value: 21_000_000 },
         { date: '2026-10-18', value: 35_000_000 },
       ]),
+    recentOrders: () =>
+      of([
+        {
+          id: 'ord-14000',
+          code: 'ORD-14000',
+          customerId: 'c-1',
+          customerName: 'زهرا محمدی',
+          status: 'pending',
+          total: 480000,
+          itemCount: 2,
+          createdAt: 1729684800000,
+        },
+      ]),
   },
 };
 

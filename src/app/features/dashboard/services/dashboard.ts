@@ -27,6 +27,7 @@ import { Injectable, inject } from '@angular/core';
 import { ApiService } from '@core/services/api';
 import { Observable } from 'rxjs';
 
+import type { DashboardRecentOrder } from '../models/dashboard.model';
 import type { DashboardSummary, SalesChartPoint, SalesChartRange } from '../models/dashboard.model';
 
 /**
@@ -53,5 +54,9 @@ export class DashboardService {
    */
   summary(): Observable<DashboardSummary> {
     return this.api.get<DashboardSummary>('/dashboard/summary');
+  }
+
+  recentOrders(): Observable<DashboardRecentOrder[]> {
+    return this.api.get<DashboardRecentOrder[]>('/dashboard/recent-orders');
   }
 }

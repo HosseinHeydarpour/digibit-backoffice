@@ -64,6 +64,8 @@ import { BehaviorSubject, switchMap, tap } from 'rxjs';
 import { readSummary } from './dashboard.resolver';
 import { toKpiTrend } from './dashboard.trend';
 import type { DashboardSummary, SalesChartPoint, SalesChartRange } from './models/dashboard.model';
+import type { DashboardRecentOrder } from './models/dashboard.model';
+import { RecentOrders } from './recent-orders/recent-orders';
 import { SalesChart } from './sales-chart/sales-chart';
 import { DashboardService } from './services/dashboard';
 
@@ -74,6 +76,7 @@ import { DashboardService } from './services/dashboard';
     StatCard,
     LoadingBlock,
     SalesChart,
+    RecentOrders,
     PersianDatePipe,
     PersianDigitsPipe,
     TomanPipe,
@@ -193,6 +196,11 @@ export class Dashboard {
     this.range$.next(range);
   }
 
+  readonly recentOrders = toSignal<readonly DashboardRecentOrder[] | null>(
+    this.dashboardService.recentOrders(),
+    { initialValue: null },
+  );
+
   constructor() {
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
       if (event instanceof NavigationStart) {
@@ -212,6 +220,10 @@ export class Dashboard {
         this.resolving.set(false);
       }
     });
+  }
+
+  onOrderClick(orderId: string): void {
+    void this.router.navigate(['/orders', orderId]);
   }
 
   /**
