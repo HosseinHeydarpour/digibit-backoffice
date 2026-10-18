@@ -1,0 +1,202 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as PersianPipesStories from '../../app/shared/pipes/pipes.stories';
+
+<Meta title="Shared/PersianPipes" />
+
+# PersianPipes
+
+`src/app/shared/pipes/` · `persianDate` · `toman` · `persianDigits`
+
+سه پایپ خالص که فارسی را پیش‌فرض می‌کنند، نه تصمیمی که هر صفحه جدا بگیرد: تاریخ شمسی،
+مبلغ تومانی با جداکننده، و ارقام فارسی.
+
+Three pure pipes that make Persian the default rather than a per-page decision: a Jalali
+date, a grouped Toman amount, and Persian numerals.
+
+---
+
+## کاربرد / Use case
+
+**کِی سراغشان برو:** هرجا تاریخی، مبلغی یا شماره‌ای به کاربر نشان داده می‌شود. یعنی تقریباً
+هر جدول، هر کارت، هر جزئیات سفارش.
+
+**کِی سراغشان نرو:** وقتی مقدار را می‌خواهی به API برگردانی. تاریخ به API **میلادی**
+می‌رود (`YYYY-MM-DD`) و مبلغ به **عدد خالص**. این‌ها پایپ‌های نمایش‌اند؛ اگر خروجی‌شان را
+دوباره بفرستی، یک عدد فارسی یا یک تاریخ شمسی به سرور می‌رود و داده خراب می‌شود.
+
+**کِی سراغشان نرو:** برای گرد‌کردن یا تبدیل واحد. `toman` فرض می‌کند ورودی **عدد صحیح**
+است؛ اگر API ریال می‌دهد، `{ rial: true }` بده، ولی محاسبهٔ تجاری جای دیگری است.
+
+**Reach for them when** a date, an amount or an identifier is shown to the user — which
+is nearly every table, card and order detail.
+
+**Do not reach for them when** the value is going back to the API. Dates travel as
+**Gregorian** `YYYY-MM-DD` and amounts as a **plain number**. These are display pipes; feed
+their output back into a request and you send a Jalali string or a Persian numeral to the
+server.
+
+**Do not reach for them when** you need rounding or unit conversion. `toman` assumes an
+**integer**; if the API sends Rial, pass `{ rial: true }`. Business arithmetic belongs
+somewhere else.
+
+---
+
+## نحوهٔ استفاده / How to use
+
+```html
+<td>{{ order.createdAt | persianDate }}</td>
+<td>{{ order.createdAt | persianDate: 'long' }}</td>
+<td>{{ order.total | toman }}</td>
+<td>{{ order.code | persianDigits }}</td>
+```
+
+هر سه پایپ **pure** هستند، پس با change detection پیش‌فرض و بدون `async` کار می‌کنند.
+فقط یک نکته: گزینه‌ها را روی کامپوننت نگه دار، نه به‌صورت آبجکت درون‌خطی.
+
+All three are **pure**, so they work with default change detection. One rule: hold the
+options on the component instead of writing an object literal inline.
+
+```ts
+protected readonly noUnit = { unit: false };
+```
+
+```html
+<td>{{ order.total | toman: noUnit }}</td>
+```
+
+<Canvas of={PersianPipesStories.Dates} />
+
+---
+
+## منطق / Logic
+
+### چرا `Intl` و نه تبدیل دستی
+
+تبدیل میلادی به شمسی با دست، یک جدول کبیسه و یک خطای مرزی است که سالی یک بار ظاهر
+می‌شود. `Intl.DateTimeFormat('fa-IR')` همان تقویم را از ICU می‌گیرد و همان چیزی را
+می‌دهد که مرورگر برای بقیهٔ سایت‌ها می‌دهد. `jalali-ts` در پروژه هست، ولی برای **ورودی**
+تاریخ است، نه برای نمایش.
+
+یک جزئیات که به‌سادگی از دست می‌رود: `dateStyle: 'short'` در `fa-IR` می‌شود `۱۴۰۴/۷/۱` —
+ماه و روز **صفر‌پر** نمی‌شوند، پس ستون جدول بین `۱۴۰۴/۷/۱` و `۱۴۰۴/۱۱/۲۳` نامنظم می‌شود.
+برای همین صریحاً `month: '2-digit'` و `day: '2-digit'` خواسته شده.
+
+### چرا تاریخِ بدون ساعت به وقت محلی خوانده می‌شود
+
+API تاریخ را `YYYY-MM-DD` می‌فرستد. `new Date('2025-09-23')` این را **نیمه‌شب UTC**
+می‌فهمد، پس کاربری در یک منطقهٔ زمانی منفی، `2025-09-22` را می‌بیند و پایپ یک روز عقب
+می‌زند. تاریخِ بدون ساعت یک **تاریخ تقویمی** است نه یک لحظه، پس به وقت محلی خوانده
+می‌شود و روزش هرگز جابه‌جا نمی‌شود.
+
+تایم‌استمپ کامل (`...T10:30:00Z`) یک لحظهٔ واقعی است، پس به وقت کاربر نمایش داده می‌شود —
+که خوانش درست «چه زمانی این اتفاق افتاد» است.
+
+### چرا ورودی خراب خطا نمی‌دهد
+
+`Intl.format(new Date('nope'))` استثنای `RangeError` می‌دهد. پایپ اول `getTime()` را
+بررسی می‌کند. همچنین `2025-02-31` رد می‌شود: `new Date(2025, 1, 31)` بی‌صدا به ۳ مارس
+می‌غلتد، پس اجزای تاریخ با ورودی مقایسه می‌شوند.
+
+تفاوت `''` و `'—'` عمدی است: تاریخِ **غایب** هیچ نشان نمی‌دهد، تاریخِ **خراب** «—» می‌دهد،
+تا این دو در جدول از هم قابل تشخیص باشند.
+
+<Canvas of={PersianPipesStories.Prices} />
+
+### چرا جداکننده هزارگان کاما نیست
+
+جداکنندهٔ `fa-IR` کاراکتر U+066C (٬) است، نه کاما لاتین و نه U+060C. هارد‌کردن `,`
+شایع‌ترین راهی است که یک عدد فارسی کنار متن فارسی کمی غلط به نظر می‌رسد. `Intl` این را
+درست می‌دهد و ارقام فارسی را هم رایگان می‌آورد — به همین دلیل `toman` هیچ‌وقت به
+`persianDigits` نیاز ندارد.
+
+### چرا علامت منفیِ نامرئی می‌ماند
+
+خروجی `format(-45000)` با U+200E (LRM) شروع می‌شود. این کاراکتر را CLDR بیدلیل
+نگذاشته: عدد را به یک ران چپ‌به‌راست سنجاق می‌کند تا منفی در پاراگراف راست‌به‌چپ سمت
+**چپ** ارقام بماند. اگر حذفش کنی، در بعضی مرورگرها مبلغ منفی به‌صورت `۴۵٬۰۰۰−` دیده
+می‌شود. برای همین تست هم زیررشته را بررسی می‌کند نه کل رشته را.
+
+### چرا فاصلهٔ واحد، فاصلهٔ نشکن است
+
+`1250000 تومان` می‌تواند بین عدد و کلمه بشکند و «تومان» تنها در خط بعد بیفتد. `\u00A0`
+این جفت را کنار هم نگه می‌دارد — ارزان‌ترین نصفِ «سرریز نکردن در موبایل».
+
+### چرا گزینه‌ها باید پایدار باشند
+
+پایپ pure است، یعنی وقتی **مرجع** آرگومان عوض شود دوباره اجرا می‌شود. `{ unit: false }`
+درون template در هر change detection یک آبجکت تازه است، پس پایپ هر بار برای هر ردیف
+دوباره اجرا می‌شود و memoisation دور ریخته می‌شود. گزینه‌ها را روی کامپوننت نگه دار.
+
+<Canvas of={PersianPipesStories.Digits} />
+
+### چه چیزی عمداً اینجا نیست
+
+- **نه یک pipe برای هر فرمت تاریخ.** سه شکل (`short` / `long` / `monthYear`) یک union
+  بسته‌اند، پس غلط تایپی خطای کامپایل است، نه یک تاریخ خاموش‌شده.
+- **نه تبدیل معکوس.** شمسی به میلادی کار `jalali-ts` و لایهٔ فرم است؛ اینجا فقط نمایش.
+- **نه آگاهی از تم یا اندازهٔ فونت.** این‌ها پایپ‌اند؛ ظاهر کار Tailwind و والد است.
+
+### Why `Intl` and not a hand-rolled conversion
+
+Converting Gregorian to Jalali by hand means carrying a leap-year table and a boundary bug
+that shows up once a year. `Intl.DateTimeFormat('fa-IR')` takes the calendar from ICU and
+matches what the browser already does everywhere else. `jalali-ts` is in the project for
+date **input**, not for display.
+
+One detail that is easy to lose: `dateStyle: 'short'` in `fa-IR` is `۱۴۰۴/۷/۱` — month and
+day are **not zero-padded**, so a column mixes `۱۴۰۴/۷/۱` with `۱۴۰۴/۱۱/۲۳` and the digits
+stop lining up. Hence the explicit `month: '2-digit'` and `day: '2-digit'`.
+
+### Why a date-only string is read in local time
+
+The API sends `YYYY-MM-DD`. `new Date('2025-09-23')` reads that as **UTC midnight**, so a
+viewer in a negative offset sees `2025-09-22` and the pipe is a day out. A date-only value
+is a **calendar date**, not an instant, so it is parsed locally and the day never moves. A
+full timestamp is a real instant and is shown in the viewer's timezone, which is the
+correct reading of "when did this happen".
+
+### Why invalid input does not throw
+
+`Intl.format(new Date('nope'))` raises `RangeError`. The pipe checks `getTime()` first. It
+also rejects `2025-02-31`, because `new Date(2025, 1, 31)` silently rolls over to 3 March;
+the parsed parts are compared back against the input.
+
+The difference between `''` and `'—'` is deliberate: an **absent** date renders nothing, a
+**broken** date renders «—», so the two are distinguishable in a table.
+
+### Why the grouping separator is not a comma
+
+The `fa-IR` separator is U+066C (٬), not a Latin comma and not U+060C. Hard-coding `,` is
+the most common way a Persian number ends up looking subtly wrong beside Persian text.
+`Intl` gets it right and emits Persian digits for free — which is why `toman` never needs
+`persianDigits`.
+
+### Why the invisible minus sign stays
+
+`format(-45000)` starts with U+200E (LRM). CLDR does not add it for nothing: it pins the
+number to a left-to-right run so the minus stays on the **left** of the digits inside an
+RTL paragraph. Strip it and some browsers render a negative amount as `۴۵٬۰۰۰−`. That is
+also why the spec asserts a substring rather than whole-string equality.
+
+### Why the unit is joined with a no-break space
+
+`1250000 تومان` can break between the number and the word, orphaning «تومان» onto the next
+line. `\u00A0` keeps the pair together — the cheapest half of "no overflow on mobile".
+
+### Why the options object must be stable
+
+A pure pipe re-runs when the **reference** of an argument changes. `{ unit: false }` inline
+in a template is a new object on every change detection pass, so the pipe re-formats every
+row every time and the memoisation is thrown away. Hold the options on the component.
+
+<Canvas of={PersianPipesStories.InContext} />
+
+### What is deliberately not here
+
+- **No pipe per date format.** The three styles (`short` / `long` / `monthYear`) are a
+  closed union, so a typo is a compile error rather than a silently mis-formatted date.
+- **No reverse conversion.** Jalali to Gregorian is `jalali-ts` and the form layer's job;
+  this is display only.
+- **No theme or font-size awareness.** These are pipes; appearance is Tailwind and the
+  parent's business.

@@ -43,3 +43,9 @@ export type { LoadingVariant } from './components/loading-block/loading-block';
 export { LoadingBlock } from './components/loading-block/loading-block';
 export { LoadingDirective } from './directives/loading.directive';
 export { FormField } from './components/form-field/form-field';
+export type { PersianDateStyle } from './pipes/persian-date.pipe';
+export type { TomanOptions } from './pipes/toman.pipe';
+
+export { PersianDatePipe } from './pipes/persian-date.pipe';
+export { PersianDigitsPipe } from './pipes/persian-digits.pipe';
+export { TomanPipe } from './pipes/toman.pipe';

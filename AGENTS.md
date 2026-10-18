@@ -535,6 +535,7 @@ Every entry, with its file and its docs id:
 | `FormField`         | `shared/components/form-field/`          | `shared-formfield--docs`        |
 | `LoadingBlock`      | `shared/components/loading-block/`       | `shared-loadingblock--docs`     |
 | `LoadingDirective`  | `shared/directives/loading.directive.ts` | `shared-loadingdirective--docs` |
+| `PersianPipes`      | `shared/pipes/`                          | `shared-persianpipes--docs`     |
 | `MainLayout`        | `layout/main-layout/`                    | `layout-mainlayout--docs`       |
 | `Sidebar`           | `layout/sidebar/`                        | `layout-sidebar--docs`          |
 | `SidebarDrawer`     | `layout/sidebar-drawer/`                 | `layout-sidebardrawer--docs`    |
@@ -557,6 +558,13 @@ Also documented: `layout/sidebar/menu.ts` (`MENU`, `MENU_PERMISSIONS`),
 rest will follow: a directive has no template, so its stories drive it through a host
 element and the meta has no `component` key. `shared/directives/` is no longer empty.
 
+`PersianPipes` is the first **pipe** group, and it adds one rule to that shape: a pipe has
+no inputs a Controls panel could drive, so `tags: ['autodocs']` would generate an empty args
+table. The stories are mapping tables instead — input on the left, exact output on the
+right — with no `component` key, and the prose lives in `src/docs/shared/PersianPipes.mdx`
+referenced by explicit `<Canvas of={…} />`. Keep the story rows and the spec cases in step:
+they are the same list, and that is what stops the canvas and the suite from drifting.
+
 `FormField` is the first **reactive-forms** consumer in the app — before it, `src/app` contained
 no `ControlContainer`, `formControlName` or `FormGroup` at all. Two rules come out of it and hold
 for every form from here on:
@@ -571,9 +579,9 @@ A component that projects its control cannot reach it: the `for`/`id` pair and a
 `aria-describedby` stay the caller's job. `FormField` publishes the convention
 (`inputId`, defaulting to `controlName`, with `<id>-hint` and `<id>-error`).
 
-**Not covered because they do not exist yet:** `src/app/features/**`,
-`src/app/shared/pipes/`, `src/app/core/guards/` — all three folders are empty. The first
-pipe or guard to land gets a story file or an MDX page the same way a component does.
+**Not covered because they do not exist yet:** `src/app/features/**` and
+`src/app/core/guards/` — both folders are empty. The first guard to land gets an MDX page
+the same way a pipe or a directive does.
 
 ### The docs standard — three parts, always in this order
 
