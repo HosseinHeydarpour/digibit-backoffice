@@ -9,9 +9,17 @@
   skeleton → empty (healthy) → list. The order matters: `showSkeleton()` is
   checked FIRST, so a `null` response (no answer yet) can never fall through to
   the green "everything is fine" block.
+
+  THE CARD FILLS ITS ROW
+  ----------------------
+  On `xl` this card shares a grid row with «آمار فروش». `h-full` + `flex
+  flex-col` lets it take the row height, and `flex-1` on the rows area keeps the
+  card's surface (border, background) reaching the bottom even when the list is
+  shorter than the row — otherwise the card ends mid-row and the chart beside it
+  hangs below it, which is exactly the ragged edge this used to have.
 -->
 <div
-  class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+  class="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
 >
   <!-- Card header: title, count badge, link to the full list. -->
   <div
@@ -46,8 +54,9 @@
     </a>
   </div>
 
-  <!-- Rows: skeleton, empty, or the list itself. -->
-  <div class="divide-y divide-gray-200 dark:divide-gray-700">
+  <!-- Rows: skeleton, empty, or the list itself. `flex-1` so the divider and
+       the card's bottom edge reach the row's height (see the header note). -->
+  <div class="flex-1 divide-y divide-gray-200 dark:divide-gray-700">
     @if (showSkeleton()) {
       <!--
         Four pulse rows, matching a real row's height and column rhythm
@@ -72,7 +81,7 @@
         check, not a warning triangle — this is the one empty state in the panel
         that is a success message.
       -->
-      <div class="flex flex-col items-center justify-center p-8 text-center">
+      <div class="flex h-full flex-col items-center justify-center p-8 text-center">
         <div
           class="flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
         >

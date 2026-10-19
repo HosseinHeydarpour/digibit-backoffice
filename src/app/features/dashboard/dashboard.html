@@ -36,6 +36,12 @@
   <app-loading-block [loading]="true" variant="cards" [rows]="1" [columns]="4" />
 } @else if (summary(); as summary) {
   <!-- STATE 1 — DATA. Four tiles, each a link (tc 10). -->
+  <!--
+    Every cell in a row is the same height by definition of a grid; the CARD
+    inside the cell had to be told to take it (`h-full` in `stat-card.html`),
+    or «کاربران» — the one tile with no footer — ended a line higher than the
+    three beside it.
+  -->
   <div class="grid grid-cols-1 gap-6 min-[360px]:grid-cols-2 xl:grid-cols-4">
     <!--
       1 — SALES (tc 2, tc 4)
@@ -127,8 +133,16 @@
   </div>
 
   <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+    <!--
+      `block h-full` on both widget hosts, not a wrapper: a custom element is
+      `display: inline` until told otherwise, and an inline box ignores the
+      grid's stretch — which is why the chart card and the stock card used to
+      end at two different heights. The wrapper divs are the grid items and are
+      already stretched; the hosts only have to pass that height down.
+    -->
     <div class="xl:col-span-2">
       <app-sales-chart
+        class="block h-full"
         [data]="salesChartData()"
         [range]="chartRange()"
         [loading]="chartLoading()"
@@ -146,6 +160,7 @@
         renders «موجودی سالم» over a full list of low-stock products).
       -->
       <app-low-stock
+        class="block h-full"
         [items]="lowStockItems()"
         [loading]="resolving()"
         (editClick)="onEditProduct($event)"

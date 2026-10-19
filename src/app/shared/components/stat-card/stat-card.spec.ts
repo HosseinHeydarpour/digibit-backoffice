@@ -323,6 +323,35 @@ describe('StatCard', () => {
     }
   });
 
+  it('fills its cell’s HEIGHT, so four tiles in a row end on one line', () => {
+    const fixture = mount(GridHost);
+    const cards = Array.from(fixture.nativeElement.querySelectorAll('article')) as HTMLElement[];
+
+    // `w-full` alone was not enough: the grid stretches the CELL, but a card
+    // that is only as tall as its content left «کاربران» — the one tile with no
+    // footer — ending a line higher than the three beside it. jsdom cannot
+    // measure, so this pins the two classes the fix depends on.
+    for (const element of cards) {
+      expect(element.classList.contains('h-full')).toBe(true);
+      expect(element.classList.contains('flex-col')).toBe(true);
+    }
+  });
+
+  it('pins the footer to the bottom, so all four dividers share a baseline', () => {
+    const fixture = mount(Host);
+    fixture.componentInstance.footerText.set('از ۳۴۲ سفارش');
+    fixture.detectChanges();
+
+    const footer = fixture.nativeElement.querySelector('[data-stat-footer]') as HTMLElement;
+
+    // `mt-auto` in a column flex container: the footer absorbs whatever height
+    // the tallest sibling added, instead of following its own amount of text.
+    expect(footer.classList.contains('mt-auto')).toBe(true);
+    // The old `mt-4` would now fight it — a fixed margin and an auto margin on
+    // the same element is one of the two silently winning.
+    expect(footer.classList.contains('mt-4')).toBe(false);
+  });
+
   it('gives every coloured text a dark-mode counterpart (tc 7)', () => {
     const fixture = mount(ReferenceCardsHost);
 

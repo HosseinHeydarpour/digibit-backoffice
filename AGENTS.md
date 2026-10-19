@@ -397,6 +397,33 @@ and its `data`. Every feature page after it follows that shape.
   (`TODAY_SALES` in `core/mock/fixtures/index.ts`) and `salesChangePercent` from the last two
   bars. They used to be written by hand, 1,284,500,000 against an 84,000,000 bar.
 
+### Two bars per period, and cards that fill their cell (BO-E03/E05 layout pass)
+
+- **The sales chart draws two series, on two axes.** `SalesChartPoint` carries `value` (revenue,
+  in **Toman**) and `orders` (a count). They cannot share a scale — 14-35 million against 8-25
+  would flatten the counts into the axis — so `orders` is `position: 'left'` and `revenue` is
+  `'right'`, and **only one of them draws grid lines** (`revenue.grid.display = false`); two sets
+  of horizontal rules is a fence, not a grid. Revenue stays in Toman in the dataset so the tooltip
+  can print an exact amount; only the _tick callback_ divides by a million. The tooltip branches
+  on `dataset.yAxisID`, which is what stops a count from being printed with «تومان».
+- **`orders` is derived from `value`, never hand-written.** `ordersFor(sales)` in
+  `core/mock/fixtures/index.ts` is `sales / 1_800_000` (min 1), so the two bars of a group tell
+  one story. Same rule as `totalSales`: two numbers describing one day must not be able to
+  disagree, and `fixtures.spec.ts` pins the derivation.
+- **A grid stretches the CELL, not the card inside it.** Every KPI tile is a grid item, but
+  `app-stat-card`'s host is `display: block` with no height and the `<article>` was only as tall
+  as its content — so «کاربران», the one tile with no footer, ended a line higher than the three
+  beside it. The fix is `h-full` on the article plus `flex flex-col` + `mt-auto` on the footer,
+  which also puts all four dividers on one baseline instead of each following its own text.
+- **A custom element is `display: inline` until told otherwise.** `app-sales-chart` and
+  `app-low-stock` had no `:host` rule, so `h-full` on their root `<div>` resolved against an
+  inline box and did nothing — the chart kept a fixed `h-72` while the stock list grew with its
+  rows, and the two ended at different heights. The page now passes `class="block h-full"` on the
+  host, the card root is `flex h-full flex-col`, and the plot area is `flex-1` with `min-h-72` as
+  a **floor** (not a height): the extra space goes to the chart, not to a blank strip under it.
+  jsdom has no layout, so `stat-card.spec`, `low-stock.spec` (tc 8d) and `sales-chart.spec` pin
+  these classes instead.
+
 ### Production environment is checked only by a production build
 
 `environment.prod.ts` is swapped in by `fileReplacements`, so nothing in `ng test`, `ng lint`,
@@ -407,12 +434,12 @@ not check the prod file. BO-B06 added `SITE_URL` to the model and to `environmen
 
 Also note the current state of the bundle: the `initial` budget (500 kB warning / 750 kB error
 in `angular.json`) is exceeded on main and has been for several tasks — **787.47 kB before
-BO-E05 and 788.61 kB after it** (the card itself lives in the lazy chunk, which went from 241.83
-to 248.60 kB). `npm run build` therefore exits non-zero on a budget error that predates the
-task, and it is the ONLY thing that fails: `npm test`, `npm run lint`, `format:check` and
-`build-storybook` are green. Raising the ceiling is a `build`-scoped decision; it should not be
-silenced by bumping the limit inside a feature task, and the numbers above are what a future
-`build` task should start from.
+BO-E05, 788.61 kB after it, 788.75 kB after the two-bar chart** (the dashboard lives in the lazy
+chunk, which went from 241.83 to 249.75 kB). `npm run build` therefore exits non-zero on a
+budget error that predates the task, and it is the ONLY thing that fails: `npm test`,
+`npm run lint`, `format:check` and `build-storybook` are green. Raising the ceiling is a
+`build`-scoped decision; it should not be silenced by bumping the limit inside a feature task,
+and the numbers above are what a future `build` task should start from.
 
 ### Imports — let `lint:fix` decide
 

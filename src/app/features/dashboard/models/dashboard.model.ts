@@ -81,9 +81,41 @@ export interface DashboardSummary {
 
 export type SalesChartRange = 7 | 30;
 
+/**
+ * One x-axis slot of the sales chart — one day, two bars.
+ *
+ * WHY TWO NUMBERS AND NOT ONE
+ * ---------------------------
+ * The chart draws a GROUP per day: revenue beside order count, exactly like the
+ * design reference's «آمار فروش ماهانه». They answer different questions — a
+ * day can earn more while selling fewer, more expensive things — and the panel
+ * exists to make that visible. One number per day hid it.
+ *
+ * TRACE: `{ date: '2026-10-18', value: 35_000_000, orders: 19 }` renders one
+ * x label («۲۶ مهر»), a green bar at 35M on the RIGHT axis and a blue bar at 19
+ * on the LEFT axis. Hovering either bar prints its own unit — «درآمد: … تومان»
+ * or «سفارشات: ۱۹» — because the two axes measure different things.
+ */
 export interface SalesChartPoint {
+  /** The day, `YYYY-MM-DD`. The chart turns it into a Jalali label. */
   readonly date: string;
+
+  /**
+   * Revenue for that day, in **Toman** — the same unit `totalSales` uses.
+   *
+   * Kept in Toman rather than pre-divided into millions so the tooltip can print
+   * an exact amount; only the AXIS divides, and only for its tick labels.
+   */
   readonly value: number;
+
+  /**
+   * Orders placed that day — the second bar of the group.
+   *
+   * Counts, not money: it has its own y-axis, because a range of 15-25 orders
+   * and a range of 14-35 million Toman cannot share one scale without one of
+   * them flattening into the floor.
+   */
+  readonly orders: number;
 }
 
 export interface DashboardRecentOrder {

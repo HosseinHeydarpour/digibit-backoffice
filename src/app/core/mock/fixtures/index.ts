@@ -198,13 +198,32 @@ function salesFor(offset: number): number {
   return Math.round(WEEKLY_SALES[offset % WEEKLY_SALES.length] * (1 - week * 0.05));
 }
 
-export function getMockSalesChart(days = 7): { date: string; value: number }[] {
+/**
+ * Orders implied by a day's revenue.
+ *
+ * The average order in this catalogue is worth about 1.8 million Toman, so the
+ * two bars of a chart group move together: a day the chart shows as a revenue
+ * peak is also a day with more orders. DERIVED rather than a second
+ * hand-written series, for the same reason `totalSales` is derived from the
+ * last bar — two numbers that describe one day must not be able to disagree.
+ *
+ * `Math.max(1, …)` keeps a very quiet day at one order instead of zero, so the
+ * order axis never collapses to a single flat line at the bottom.
+ */
+function ordersFor(sales: number): number {
+  return Math.max(1, Math.round(sales / 1_800_000));
+}
+
+export function getMockSalesChart(days = 7): { date: string; value: number; orders: number }[] {
   const count = days === 30 ? 30 : 7;
   return Array.from({ length: count }, (_, i) => {
     const offset = count - 1 - i;
+    const value = salesFor(offset);
+
     return {
       date: new Date(now - offset * DAY).toISOString().split('T')[0],
-      value: salesFor(offset),
+      value,
+      orders: ordersFor(value),
     };
   });
 }

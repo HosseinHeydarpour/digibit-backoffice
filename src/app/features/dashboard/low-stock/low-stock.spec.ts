@@ -243,6 +243,20 @@ describe('LowStock (BO-E05)', () => {
     expect(el.querySelector('button[title="ویرایش محصول"]')?.className).toContain('max-sm:size-11');
   });
 
+  it('tc8d: fills its grid row, so it ends level with the sales chart', async () => {
+    await setup();
+
+    // On `xl` this card shares a row with «آمار فروش». The grid stretches the
+    // CELL; the card has to claim that height (`h-full`) and pass the slack to
+    // its list area (`flex-1`), or the shorter of the two ends mid-row.
+    const card = el.querySelector(':scope > div') as HTMLElement;
+    expect(card.classList.contains('h-full')).toBe(true);
+    expect(card.classList.contains('flex-col')).toBe(true);
+
+    const rows = card.querySelector(':scope > div:last-child') as HTMLElement;
+    expect(rows.classList.contains('flex-1')).toBe(true);
+  });
+
   // ─── tc9: lowest stock first ───────────────────────────────────────────────
 
   it('tc9: lists the stock-0 item before the stock-3 item', async () => {

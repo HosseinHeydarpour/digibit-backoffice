@@ -6,13 +6,13 @@ import type { SalesChartPoint, SalesChartRange } from '../models/dashboard.model
 import { SalesChart } from './sales-chart';
 
 const SAMPLE_7_DAYS: SalesChartPoint[] = [
-  { date: '2026-10-12', value: 14_000_000 },
-  { date: '2026-10-13', value: 18_500_000 },
-  { date: '2026-10-14', value: 22_000_000 },
-  { date: '2026-10-15', value: 16_000_000 },
-  { date: '2026-10-16', value: 29_000_000 },
-  { date: '2026-10-17', value: 21_000_000 },
-  { date: '2026-10-18', value: 35_000_000 },
+  { date: '2026-10-12', value: 14_000_000, orders: 8 },
+  { date: '2026-10-13', value: 18_500_000, orders: 10 },
+  { date: '2026-10-14', value: 22_000_000, orders: 12 },
+  { date: '2026-10-15', value: 16_000_000, orders: 9 },
+  { date: '2026-10-16', value: 29_000_000, orders: 16 },
+  { date: '2026-10-17', value: 21_000_000, orders: 12 },
+  { date: '2026-10-18', value: 35_000_000, orders: 19 },
 ];
 
 const mock2DContext: Record<string, unknown> = new Proxy(
@@ -131,15 +131,67 @@ describe('SalesChart (BO-E03)', () => {
     expect(tooltipCallback).toBeDefined();
 
     if (typeof tooltipCallback === 'function') {
-      const mockContext = {
-        raw: 14000000,
-        dataset: { label: 'فروش (تومان)' },
+      // The revenue series: full Toman amount plus the unit.
+      const revenueContext = {
+        raw: 14_000_000,
+        dataset: { label: 'درآمد (میلیون تومان)', yAxisID: 'revenue' },
       } as unknown as Parameters<typeof tooltipCallback>[0];
 
-      const tooltipText = tooltipCallback.call({} as never, mockContext);
-      expect(tooltipText).toContain('۱۴٬۰۰۰٬۰۰۰');
-      expect(tooltipText).toContain('تومان');
+      const revenueText = tooltipCallback.call({} as never, revenueContext);
+      expect(revenueText).toContain('۱۴٬۰۰۰٬۰۰۰');
+      expect(revenueText).toContain('تومان');
+
+      // The order series: a count, and never the currency.
+      const ordersContext = {
+        raw: 19,
+        dataset: { label: 'تعداد سفارشات', yAxisID: 'orders' },
+      } as unknown as Parameters<typeof tooltipCallback>[0];
+
+      const ordersText = tooltipCallback.call({} as never, ordersContext);
+      expect(ordersText).toContain('۱۹');
+      expect(ordersText).not.toContain('تومان');
     }
+  });
+
+  it('draws two bars per period — orders and revenue — on separate axes', () => {
+    fixture.componentRef.setInput('data', SAMPLE_7_DAYS);
+    fixture.detectChanges();
+
+    const datasets = component.chartData().datasets;
+    expect(datasets).toHaveLength(2);
+
+    // Order matters: blue is the left bar of every group, like the reference.
+    expect(datasets[0].label).toBe('تعداد سفارشات');
+    expect(datasets[0].data).toEqual([8, 10, 12, 9, 16, 12, 19]);
+    expect(datasets[0].yAxisID).toBe('orders');
+
+    // Revenue stays in Toman; only the axis label divides by a million.
+    expect(datasets[1].label).toBe('درآمد (میلیون تومان)');
+    expect(datasets[1].data).toEqual(SAMPLE_7_DAYS.map((p) => p.value));
+    expect(datasets[1].yAxisID).toBe('revenue');
+
+    const scales = component.chartOptions().scales;
+    expect(scales?.['orders']?.position).toBe('left');
+    expect(scales?.['revenue']?.position).toBe('right');
+
+    // Exactly one axis draws grid lines, or the plot becomes a fence.
+    expect(scales?.['orders']?.grid?.display).not.toBe(false);
+    expect(scales?.['revenue']?.grid?.display).toBe(false);
+  });
+
+  it('prints revenue ticks in millions but order ticks as whole counts', () => {
+    fixture.componentRef.setInput('data', SAMPLE_7_DAYS);
+    fixture.detectChanges();
+
+    const scales = component.chartOptions().scales;
+    const revenueTick = scales?.['revenue']?.ticks?.callback as (v: unknown) => string;
+    const ordersTick = scales?.['orders']?.ticks?.callback as (v: unknown) => string;
+
+    expect(revenueTick(35_000_000)).toBe('۳۵');
+    expect(ordersTick(19)).toBe('۱۹');
+    // A count never grows a fractional tick.
+    const ordersTicks = scales?.['orders']?.ticks as { precision?: number } | undefined;
+    expect(ordersTicks?.precision).toBe(0);
   });
 
   it('declares responsive and maintainAspectRatio: false (tc 5)', () => {
@@ -149,6 +201,25 @@ describe('SalesChart (BO-E03)', () => {
     const options = component.chartOptions();
     expect(options.responsive).toBe(true);
     expect(options.maintainAspectRatio).toBe(false);
+  });
+
+  it('grows with its grid row instead of sitting at a fixed height', () => {
+    fixture.componentRef.setInput('data', SAMPLE_7_DAYS);
+    fixture.detectChanges();
+
+    // The card shares an `xl` row with the low-stock list. A fixed `h-72` made
+    // it the shorter of the two; `h-full` takes the row and `flex-1` on the
+    // plot wrapper hands the extra space to the CHART, not to a blank strip.
+    const card = fixture.nativeElement.querySelector(':scope > div') as HTMLElement;
+    expect(card.classList.contains('h-full')).toBe(true);
+    expect(card.classList.contains('flex-col')).toBe(true);
+
+    const plot = card.querySelector('.relative.flex-1') as HTMLElement;
+    expect(plot).toBeTruthy();
+    // The floor is a min-height, not a height — otherwise `flex-1` has nothing
+    // to grow into.
+    expect(plot.classList.contains('min-h-72')).toBe(true);
+    expect(plot.classList.contains('h-72')).toBe(false);
   });
 
   it('swaps colors for dark mode (tc 6)', () => {

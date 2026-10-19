@@ -71,6 +71,25 @@ describe('dashboard fixtures', () => {
         expect(point.date).toBe(new Date(FIXTURE_NOW - offset * DAY).toISOString().split('T')[0]);
       });
     });
+
+    it('gives every point an order count, so both bars of a group exist', () => {
+      // The chart draws two bars per day. A missing `orders` would not throw —
+      // Chart.js silently draws one bar and the legend lies about the other.
+      for (const point of getMockSalesChart(30)) {
+        expect(typeof point.orders).toBe('number');
+        expect(Number.isInteger(point.orders)).toBe(true);
+        expect(point.orders).toBeGreaterThan(0);
+      }
+    });
+
+    it('ties the order count to the revenue of the SAME day', () => {
+      // One series, two readings — a day the chart shows as a peak is a day
+      // with more orders. Two hand-written arrays could drift apart; these
+      // cannot.
+      for (const point of getMockSalesChart(7)) {
+        expect(point.orders).toBe(Math.max(1, Math.round(point.value / 1_800_000)));
+      }
+    });
   });
 
   describe('low stock', () => {

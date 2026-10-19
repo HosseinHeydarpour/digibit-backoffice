@@ -72,14 +72,14 @@ const dashboardServiceStub = {
     summary: () => of(STORY_SUMMARY),
     salesChart: () =>
       of([
-        { date: '2026-10-12', value: 14_000_000 },
-        { date: '2026-10-13', value: 18_500_000 },
-        { date: '2026-10-14', value: 22_000_000 },
-        { date: '2026-10-15', value: 16_000_000 },
-        { date: '2026-10-16', value: 29_000_000 },
-        { date: '2026-10-17', value: 31_200_000 },
+        { date: '2026-10-12', value: 14_000_000, orders: 8 },
+        { date: '2026-10-13', value: 18_500_000, orders: 10 },
+        { date: '2026-10-14', value: 22_000_000, orders: 12 },
+        { date: '2026-10-15', value: 16_000_000, orders: 9 },
+        { date: '2026-10-16', value: 29_000_000, orders: 16 },
+        { date: '2026-10-17', value: 31_200_000, orders: 17 },
         // Today's bar — must equal `STORY_SUMMARY.totalSales` (see above).
-        { date: '2026-10-18', value: 35_000_000 },
+        { date: '2026-10-18', value: 35_000_000, orders: 19 },
       ]),
     recentOrders: () =>
       of([
