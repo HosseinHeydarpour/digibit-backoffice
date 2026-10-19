@@ -323,8 +323,9 @@ and its `data`. Every feature page after it follows that shape.
 - **Why `loadChildren` and not a statically imported resolver.** A `resolve:` entry pointing
   at an imported resolver pulls the resolver, its service and `ApiService` into the MAIN
   bundle — every visitor downloads the dashboard's data layer to see the login page. With
-  `loadChildren`, the production build emits `dashboard-routes` as its own chunk (20.87 kB
-  raw), which is the real acceptance test for tc 4.
+  `loadChildren`, the production build emits `dashboard-routes` as its own chunk (20.87 kB raw
+  at BO-E01; 248.60 kB at BO-E05, most of it Chart.js and the four widgets), which is the real
+  acceptance test for tc 4.
 - **The route fetches, the page renders.** A page with a service call in `ngOnInit` cannot be
   re-resolved, has to invent its own loading state, and drags HTTP into every test of the
   page. A page reads `ActivatedRoute.data` (as a signal via `toSignal`, not a snapshot —
@@ -361,6 +362,41 @@ and its `data`. Every feature page after it follows that shape.
   `range$.pipe(switchMap(...))`. When the user rapidly toggles between 7 and 30 days,
   the previous HTTP request is cancelled automatically, avoiding race conditions.
 
+### Low-stock card, and the one-number rule (BO-E05)
+
+- **One threshold, exported once.** `LOW_STOCK_THRESHOLD` lives in
+  `features/dashboard/dashboard.config.ts` and is used by the service's query default
+  (`?threshold=`), the widget's `threshold` input default, and — mirrored as a local constant —
+  the mock fixture. Before the review there were three separate numbers (5 in the service, 5 in
+  the widget, **6** in `MOCK_LOW_STOCK`), so a stock-6 product was fetched, then silently
+  filtered out by the card. `fixtures.spec.ts` now pins the fixture to the constant.
+- **The card filters too, even though the API does.** `filteredItems()` re-applies
+  `stock <= threshold` and sorts ascending (tc 1, tc 9). A response that ignores the query
+  parameter must not be able to print a healthy product in a "running out" card.
+- **`null` and `[]` are different answers.** `null` is "no response yet" (skeleton); `[]` is
+  "the shelves are fine" (green check, tc 7). The card reads both through `showSkeleton()`;
+  rendering the empty state for `null` printed a false all-clear at every page load.
+- **The edit control is a `<button>` that emits, not a link that also emits.** It used to be
+  `<a [routerLink]="['/products', id]" (click)="onEdit(id)">` _and_ the page navigated in the
+  handler: one click, two navigations (the second arrives as `NavigationSkipped`) and two
+  analytics events the day anyone adds them. The widget emits `editClick`; the page routes.
+- **Self-fetching widgets refetch after a retry.** `Dashboard.reload$` is a `BehaviorSubject`
+  that emits at construction and again when the page observes `NavigationStart` → `NavigationEnd`.
+  Do not hang the fetch off `router.events` alone: the page is created _during_ the navigation
+  that resolves its route, so that stream either misses the creating `NavigationEnd` (no data at
+  all) or catches it and fetches twice on first paint.
+- **No runtime values in `features/*/models/`.** A model file must be types only. The table
+  columns were exported as a `const` from `models/dashboard.model.ts`, which made that file
+  reachable from both the lazy `dashboard-routes` chunk and the eager bundle; the bundler put it
+  in a shared async chunk and `RecentOrders` read the constant before it was initialised —
+  `undefined`, an empty `<thead>`, and BO-E04 tc 6 failing _only_ when the whole suite ran
+  together. The columns now live in `recent-orders.ts`, and the one shared number
+  (`LOW_STOCK_THRESHOLD`) moved to `dashboard.config.ts`.
+- **The dashboard has one sales number, not two.** «فروش امروز» (`summary.totalSales`) and the
+  last bar of «آمار فروش» answer the same question, so the fixtures derive both from one series
+  (`TODAY_SALES` in `core/mock/fixtures/index.ts`) and `salesChangePercent` from the last two
+  bars. They used to be written by hand, 1,284,500,000 against an 84,000,000 bar.
+
 ### Production environment is checked only by a production build
 
 `environment.prod.ts` is swapped in by `fileReplacements`, so nothing in `ng test`, `ng lint`,
@@ -370,10 +406,13 @@ not check the prod file. BO-B06 added `SITE_URL` to the model and to `environmen
 `ng build --configuration production` before merging anything that touches `environments/`.**
 
 Also note the current state of the bundle: the `initial` budget (500 kB warning / 750 kB error
-in `angular.json`) is already exceeded on main — 779.34 kB before BO-E01 and 782.53 kB after
-it, with 20.87 kB of dashboard code moved into a lazy chunk, so the split costs about 3 kB of
-module overhead up front. Raising the budget is a `build`-scoped decision; it should not be
-silenced by bumping the limit.
+in `angular.json`) is exceeded on main and has been for several tasks — **787.47 kB before
+BO-E05 and 788.61 kB after it** (the card itself lives in the lazy chunk, which went from 241.83
+to 248.60 kB). `npm run build` therefore exits non-zero on a budget error that predates the
+task, and it is the ONLY thing that fails: `npm test`, `npm run lint`, `format:check` and
+`build-storybook` are green. Raising the ceiling is a `build`-scoped decision; it should not be
+silenced by bumping the limit inside a feature task, and the numbers above are what a future
+`build` task should start from.
 
 ### Imports — let `lint:fix` decide
 
