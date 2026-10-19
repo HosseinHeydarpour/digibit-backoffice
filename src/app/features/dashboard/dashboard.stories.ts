@@ -10,18 +10,25 @@ import type { DashboardSummary } from './models/dashboard.model';
 import { DashboardService } from './services/dashboard';
 
 /**
- * The fixture the mock interceptor already serves for `dashboard/summary`
- * (`core/mock/fixtures/index.ts`), spelled out here so the story does not
- * import a module whose whole purpose is HTTP mocking.
+ * The fixture the mock interceptor serves for `dashboard/summary`, spelled out
+ * here so the story does not import a module whose whole purpose is HTTP
+ * mocking.
+ *
+ * `totalSales` is the LAST point of the chart below, not an unrelated number:
+ * «فروش امروز» and today's bar answer the same question, and the story used to
+ * show 1,284,500,000 in the tile against a 35,000,000 bar. `salesChangePercent`
+ * is (35.0 − 31.2) / 31.2, the last two bars.
  */
 const STORY_SUMMARY: DashboardSummary = {
-  totalSales: 1_284_500_000,
+  totalSales: 35_000_000,
   pendingOrders: 23,
   customerCount: 187,
   productCount: 96,
   orderCount: 342,
-  salesChangePercent: 12.4,
-  lowStockCount: 7,
+  salesChangePercent: 12.2,
+  // The three rows the low-stock stub below returns — the tile and the card
+  // count the same products, so they must not disagree in the story either.
+  lowStockCount: 3,
   newComments: 5,
 };
 
@@ -70,7 +77,8 @@ const dashboardServiceStub = {
         { date: '2026-10-14', value: 22_000_000 },
         { date: '2026-10-15', value: 16_000_000 },
         { date: '2026-10-16', value: 29_000_000 },
-        { date: '2026-10-17', value: 21_000_000 },
+        { date: '2026-10-17', value: 31_200_000 },
+        // Today's bar — must equal `STORY_SUMMARY.totalSales` (see above).
         { date: '2026-10-18', value: 35_000_000 },
       ]),
     recentOrders: () =>
@@ -85,6 +93,12 @@ const dashboardServiceStub = {
           itemCount: 2,
           createdAt: 1729684800000,
         },
+      ]),
+    lowStock: () =>
+      of([
+        { id: 'p1', name: 'کیبورد مکانیکی', stock: 0, price: 1_850_000, imageUrl: null },
+        { id: 'p2', name: 'ماوس گیمینگ', stock: 3, price: 920_000, imageUrl: null },
+        { id: 'p3', name: 'هدفون بلوتوث', stock: 5, price: 2_100_000, imageUrl: null },
       ]),
   },
 };

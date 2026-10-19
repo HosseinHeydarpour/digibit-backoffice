@@ -119,20 +119,38 @@
   </div>
 
   <div class="mt-6">
-    <app-sales-chart
-      [data]="salesChartData()"
-      [range]="chartRange()"
-      [loading]="chartLoading()"
-      (rangeChange)="onChartRangeChange($event)"
-    />
-  </div>
-
-  <div class="mt-6">
     <app-recent-orders
       [orders]="recentOrders()"
       [loading]="resolving()"
       (orderClick)="onOrderClick($event)"
     />
+  </div>
+
+  <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+    <div class="xl:col-span-2">
+      <app-sales-chart
+        [data]="salesChartData()"
+        [range]="chartRange()"
+        [loading]="chartLoading()"
+        (rangeChange)="onChartRangeChange($event)"
+      />
+    </div>
+    <div class="xl:col-span-1">
+      <!--
+        No `[threshold]` binding on purpose. The widget's own default IS
+        `LOW_STOCK_THRESHOLD` — the same constant this page sends as
+        `?threshold=` — so binding it would only be a second copy of one number
+        travelling through a third place (and a class field read from a template
+        is exactly the kind of wiring that breaks silently: an `undefined`
+        threshold makes `stock <= undefined` false for every row, and the card
+        renders «موجودی سالم» over a full list of low-stock products).
+      -->
+      <app-low-stock
+        [items]="lowStockItems()"
+        [loading]="resolving()"
+        (editClick)="onEditProduct($event)"
+      />
+    </div>
   </div>
 } @else {
   <!--

@@ -47,6 +47,18 @@ const NAMES = [
 export const FIXTURE_NOW = Date.UTC(2026, 9, 15);
 const DAY = 86_400_000;
 
+/**
+ * Stock levels, cycled across the catalogue.
+ *
+ * A deliberate spread rather than `(i + 1) * 3`: the old formula produced
+ * multiples of three only, so with a low-stock threshold of 5 the dashboard's
+ * «کالاهای کم‌موجودی» card could only ever show «ناموجود» rows and the yellow
+ * "almost out" badge (BO-E05 tc 3) was unreachable in mock mode. This pattern
+ * gives seven products at or below 5 — which is exactly the
+ * `lowStockCount` the summary reports — and healthy shelves everywhere else.
+ */
+const STOCK_LEVELS = [0, 12, 9, 3, 24, 7, 18, 1, 15, 5, 30, 11];
+
 export const MOCK_PRODUCTS: MockProduct[] = NAMES.map((name, i) => ({
   id: String(i + 1),
   name,
@@ -54,7 +66,7 @@ export const MOCK_PRODUCTS: MockProduct[] = NAMES.map((name, i) => ({
   categoryId: String((i % 4) + 1),
   brandId: String((i % 5) + 1),
   price: 250_000 + i * 137_000,
-  stock: i % 7 === 0 ? 0 : (i + 1) * 3,
+  stock: STOCK_LEVELS[i % STOCK_LEVELS.length],
   isActive: i % 5 !== 0,
   createdAt: FIXTURE_NOW - i * DAY,
 }));

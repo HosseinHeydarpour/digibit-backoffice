@@ -32,7 +32,16 @@ import type { OrderStatus } from '@shared/models/status-badge.model';
  * entity, so nothing in it can be edited or deleted.
  */
 export interface DashboardSummary {
-  /** Sales total, in Toman. */
+  /**
+   * TODAY's sales, in Toman — the number the «فروش امروز» tile prints.
+   *
+   * Not a period total, and not "all sales ever": the tile says «امروز», so
+   * this field has to mean the same day the sales chart ends on. The API and
+   * the mock fixtures both derive it from the last chart point for exactly
+   * that reason — see `core/mock/fixtures/index.ts`, where a hardcoded value
+   * used to disagree with the chart and the page showed two sales figures
+   * (1,284,500,000 in the tile, 84,000,000 in the last bar).
+   */
   readonly totalSales: number;
 
   /** Orders awaiting action — the reference dashboard's «سفارش‌های جدید». */
@@ -92,11 +101,25 @@ export interface OrderColumn {
   readonly header: string;
   readonly class?: string;
 }
-export const RECENT_ORDER_COLS: readonly OrderColumn[] = [
-  { field: 'code', header: 'شماره سفارش' },
-  { field: 'createdAt', header: 'تاریخ', class: 'hidden sm:table-cell' },
-  { field: 'customerName', header: 'مشتری' },
-  { field: 'total', header: 'مبلغ' },
-  { field: 'status', header: 'وضعیت' },
-  { field: 'actions', header: 'عملیات' },
-];
+
+/**
+ * One row of `GET /dashboard/low-stock` (BO-E05).
+ *
+ * Deliberately NOT the full product: the widget shows a name, a thumbnail, a
+ * price and a stock badge, so that is all it gets. A product row (variants,
+ * gallery, SEO fields) belongs to BO-F01 and would drag the products schema
+ * into the dashboard's chunk.
+ */
+export interface DashboardLowStockItem {
+  readonly id: string;
+  readonly name: string;
+
+  /** Units left. `0` means out of stock; anything `<= threshold` is listed. */
+  readonly stock: number;
+
+  /** Unit price in Toman, printed under the name by the `toman` pipe. */
+  readonly price: number;
+
+  /** Absolute URL, or `null` — the widget falls back to a box glyph. */
+  readonly imageUrl?: string | null;
+}

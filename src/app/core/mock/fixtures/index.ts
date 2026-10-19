@@ -175,31 +175,77 @@ export const MOCK_TICKETS = makeList(8, (i) => ({
   lastMessageAt: now - i * 7_200_000,
 }));
 
-export const MOCK_DASHBOARD_SUMMARY = {
-  totalSales: 1_284_500_000,
-  orderCount: 342,
-  customerCount: 187,
-  productCount: 96,
-  salesChangePercent: 12.4,
-  pendingOrders: 23,
-  lowStockCount: 7,
-  newComments: 5,
-};
+/**
+ * A week of daily sales, in Toman — `[today, yesterday, …]`.
+ *
+ * A fixed shape, not a formula, because two other fixtures are DERIVED from
+ * its last two entries: `totalSales` (today's bar) and `salesChangePercent`
+ * (today vs yesterday). A store's week is not a straight line, and the numbers
+ * only have to be stable, not realistic to the Rial.
+ */
+const WEEKLY_SALES = [
+  42_000_000, 37_400_000, 33_900_000, 36_200_000, 31_500_000, 34_800_000, 29_600_000,
+];
+
+/**
+ * Sales for `offset` days before the fixture clock (0 = today).
+ *
+ * Older weeks are scaled down by 5% each, so a 30-day chart still reads as a
+ * business that is growing instead of a flat wall of equal bars.
+ */
+function salesFor(offset: number): number {
+  const week = Math.floor(offset / WEEKLY_SALES.length);
+  return Math.round(WEEKLY_SALES[offset % WEEKLY_SALES.length] * (1 - week * 0.05));
+}
 
 export function getMockSalesChart(days = 7): { date: string; value: number }[] {
   const count = days === 30 ? 30 : 7;
   return Array.from({ length: count }, (_, i) => {
-    const d = new Date(now - (count - 1 - i) * DAY);
+    const offset = count - 1 - i;
     return {
-      date: d.toISOString().split('T')[0],
-      value: 12_000_000 + ((i * 47) % 19) * 4_500_000,
+      date: new Date(now - offset * DAY).toISOString().split('T')[0],
+      value: salesFor(offset),
     };
   });
 }
 
 export const MOCK_SALES_CHART = getMockSalesChart(7);
 
-export const MOCK_LOW_STOCK = MOCK_PRODUCTS.filter((p) => p.stock <= 6).slice(0, 8);
+/**
+ * Today's and yesterday's bars.
+ *
+ * These are the single source of truth for the two sales numbers on the
+ * dashboard, and that is the point. `totalSales` used to be a hand-written
+ * `1_284_500_000` while the chart drew its own series: the «فروش امروز» tile
+ * claimed 1.28 billion and the last bar of «آمار فروش» showed 84 million, on
+ * the same screen, in the same mock. Two numbers, one question — the fixtures
+ * have to be derived from one series, exactly as a real API would be.
+ */
+const TODAY_SALES = MOCK_SALES_CHART[MOCK_SALES_CHART.length - 1].value;
+const YESTERDAY_SALES = MOCK_SALES_CHART[MOCK_SALES_CHART.length - 2].value;
+
+/**
+ * Products at or below the dashboard's default threshold (BO-E05).
+ *
+ * The `5` is a local constant, not an import: `core/` must never depend on
+ * `features/` (AGENTS.md, "a feature may import from core, never the other way
+ * round"). It mirrors `LOW_STOCK_THRESHOLD` in `features/dashboard/dashboard.config.ts`, and the
+ * fixture spec pins the two together.
+ */
+const MOCK_LOW_STOCK_THRESHOLD = 5;
+
+export const MOCK_LOW_STOCK = MOCK_PRODUCTS.filter((p) => p.stock <= MOCK_LOW_STOCK_THRESHOLD);
+
+export const MOCK_DASHBOARD_SUMMARY = {
+  totalSales: TODAY_SALES,
+  orderCount: 342,
+  customerCount: 187,
+  productCount: MOCK_PRODUCTS.length,
+  salesChangePercent: Math.round(((TODAY_SALES - YESTERDAY_SALES) / YESTERDAY_SALES) * 1000) / 10,
+  pendingOrders: 23,
+  lowStockCount: MOCK_LOW_STOCK.length,
+  newComments: 5,
+};
 
 export const MOCK_SETTINGS = {
   store: { name: 'دیجیبیت مارکت', phone: '02112345678', email: 'info@digibit.market' },

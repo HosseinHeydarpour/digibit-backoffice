@@ -41,11 +41,19 @@
 // «پیشخوان» — where the user is already looking at the page. A first-paint
 // progress bar belongs to the app shell (BO-C05's loading interceptor).
 //
+// THE WIDGET ROW (BO-E03/E04/E05)
+// -------------------------------
+// Below the tiles: the recent-orders table, then a two-column row where the
+// sales chart takes two thirds and the low-stock card one third. Each widget
+// fetches its own data and owns its own three states, so one failing request
+// cannot take the page down with it (BO-E07 tc 8). This file only wires them:
+// chart range, order click, product edit click.
+//
 // WHAT IS DELIBERATELY NOT HERE
 // -----------------------------
-// No chart, no recent-orders table, no low-stock list: BO-E03/E04/E05 own those
-// and each arrives as its own widget with its own data. This file stays the
-// summary page.
+// No chart maths, no table markup, no threshold logic: BO-E03/E04/E05 own those
+// inside their own components. This file stays the page — the four tiles, the
+// layout, and the navigation each widget asks for.
 
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -61,10 +69,17 @@ import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
 import { BehaviorSubject, switchMap, tap } from 'rxjs';
 
+import { LOW_STOCK_THRESHOLD } from './dashboard.config';
 import { readSummary } from './dashboard.resolver';
 import { toKpiTrend } from './dashboard.trend';
-import type { DashboardSummary, SalesChartPoint, SalesChartRange } from './models/dashboard.model';
-import type { DashboardRecentOrder } from './models/dashboard.model';
+import { LowStock } from './low-stock/low-stock';
+import type {
+  DashboardLowStockItem,
+  DashboardRecentOrder,
+  DashboardSummary,
+  SalesChartPoint,
+  SalesChartRange,
+} from './models/dashboard.model';
 import { RecentOrders } from './recent-orders/recent-orders';
 import { SalesChart } from './sales-chart/sales-chart';
 import { DashboardService } from './services/dashboard';
@@ -80,6 +95,7 @@ import { DashboardService } from './services/dashboard';
     PersianDatePipe,
     PersianDigitsPipe,
     TomanPipe,
+    LowStock,
   ],
   templateUrl: './dashboard.html',
 })
@@ -89,6 +105,56 @@ export class Dashboard {
   private readonly router = inject(Router);
 
   private readonly dashboardService = inject(DashboardService);
+
+  /**
+   * The page's own reload trigger for widgets that fetch for themselves.
+   *
+   * A `BehaviorSubject`, so it emits once at construction (the first visit) and
+   * then only when the constructor's navigation watcher calls `next()` after a
+   * navigation this page watched start and finish.
+   */
+  private readonly reload$ = new BehaviorSubject<void>(undefined);
+
+  /**
+   * Low-stock rows: one fetch on creation, one more after every re-resolve
+   * (BO-E05).
+   *
+   * WHY NOT JUST `toSignal(service.lowStock())`
+   * -------------------------------------------
+   * Because the retry button would refresh the tiles and leave this card
+   * showing the stock levels of five minutes ago. `runGuardsAndResolvers:
+   * 'always'` re-runs the RESOLVER, but the component is REUSED, so a stream
+   * created once in a field initialiser never runs again.
+   *
+   * WHY NOT `router.events.pipe(filter(NavigationEnd), switchMap(...))`
+   * ------------------------------------------------------------------
+   * Because the component is created DURING the navigation that resolves its
+   * route — after `NavigationStart`, and in a test after `NavigationEnd` has
+   * already been dispatched (the outlet only creates the page on the first
+   * change detection). Depending on which of those two moments it lands in,
+   * that stream either fetches twice on first paint or not at all. `reload$`
+   * removes the race: it emits once immediately, and again only when this page
+   * has actually SEEN a navigation start and end (see the constructor).
+   *
+   * TRACE: first visit → `reload$` emits → `lowStock(5)` → 300 ms of mock
+   * delay → the card goes from skeleton (`items() === null`) to the list.
+   * Retry → NavigationStart (resolving = true) → NavigationEnd → `reload$`
+   * emits again → a second request → the card updates.
+   */
+  readonly lowStockItems = toSignal<readonly DashboardLowStockItem[] | null>(
+    this.reload$.pipe(switchMap(() => this.dashboardService.lowStock(LOW_STOCK_THRESHOLD))),
+    { initialValue: null },
+  );
+
+  /**
+   * Opens the product editor from the low-stock card.
+   *
+   * The widget emits and this page navigates — the widget deliberately carries
+   * no `routerLink` on that button, so one click is one navigation.
+   */
+  onEditProduct(productId: string): void {
+    void this.router.navigate(['/products', productId]);
+  }
 
   /**
    * Route data as a signal.
@@ -217,7 +283,16 @@ export class Dashboard {
         event instanceof NavigationCancel ||
         event instanceof NavigationError
       ) {
+        // Read BEFORE clearing: only a navigation this page watched start and
+        // finish re-ran the resolver, and only then is there anything new for
+        // the self-fetching widgets to ask for. A Cancel or an Error has no
+        // new data to show, so it just clears the skeleton.
+        const refetch = this.resolving() && event instanceof NavigationEnd;
         this.resolving.set(false);
+
+        if (refetch) {
+          this.reload$.next();
+        }
       }
     });
   }

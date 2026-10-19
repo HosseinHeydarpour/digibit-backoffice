@@ -6,8 +6,35 @@ import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
 
-import { RECENT_ORDER_COLS } from '../models/dashboard.model';
 import type { DashboardRecentOrder, OrderColumn } from '../models/dashboard.model';
+
+/**
+ * The table's columns, in render order — the one place their names and their
+ * responsive classes live (BO-E04's «ستون‌ها را در آرایهٔ cols تعریف کن»).
+ *
+ * WHY THIS ARRAY IS NOT IN `models/dashboard.model.ts`
+ * ---------------------------------------------------
+ * It used to be, and that cost a test suite. `models/dashboard.model.ts` is a
+ * runtime module only because of this constant: every other export is a type,
+ * which the compiler erases. With the constant in it, the model was reachable
+ * from BOTH the lazy `dashboard-routes` chunk and the eager test bundle, so the
+ * bundler hoisted it into a shared async chunk — and `RecentOrders`, built from
+ * the eager side, read `RECENT_ORDER_COLS` before that chunk had initialised.
+ * The value was `undefined`, `@for` over `undefined` renders nothing, and the
+ * table came out with an empty `<thead>` (BO-E04 tc 6) *only* when the whole
+ * suite ran together.
+ *
+ * Keeping it here makes the model type-only, which is what a model file should
+ * be, and puts the columns next to the template that reads them.
+ */
+const COLUMNS: readonly OrderColumn[] = [
+  { field: 'code', header: 'شماره سفارش' },
+  { field: 'createdAt', header: 'تاریخ', class: 'hidden sm:table-cell' },
+  { field: 'customerName', header: 'مشتری' },
+  { field: 'total', header: 'مبلغ' },
+  { field: 'status', header: 'وضعیت' },
+  { field: 'actions', header: 'عملیات' },
+];
 
 /**
  * Recent Orders Widget Component (BO-E04)
@@ -29,7 +56,7 @@ import type { DashboardRecentOrder, OrderColumn } from '../models/dashboard.mode
  *   ]
  *
  * 1. Columns Loop:
- *    - Iterates `cols` array (`RECENT_ORDER_COLS`).
+ *    - Iterates `cols` (`COLUMNS`, defined above).
  *    - Applies responsive hiding: `createdAt` column receives `hidden sm:table-cell`.
  *
  * 2. Row Formatting:
@@ -55,7 +82,7 @@ export class RecentOrders {
   readonly loading = input<boolean>(false);
   readonly orderClick = output<string>();
 
-  readonly cols: readonly OrderColumn[] = RECENT_ORDER_COLS;
+  readonly cols: readonly OrderColumn[] = COLUMNS;
 
   statusLabel(status: OrderStatus): string {
     return ORDER_STATUS_META[status]?.label ?? status;

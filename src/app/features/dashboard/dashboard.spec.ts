@@ -26,8 +26,10 @@ import type { Observable } from 'rxjs';
 
 import { routes as APP_ROUTES } from '../../app.routes';
 
+import { LOW_STOCK_THRESHOLD } from './dashboard.config';
 import { DASHBOARD_ROUTES } from './dashboard.routes';
 import type {
+  DashboardLowStockItem,
   DashboardRecentOrder,
   DashboardSummary,
   SalesChartPoint,
@@ -59,7 +61,19 @@ class RecordingDashboardService {
 
   salesChartCalls: number[] = [];
 
-  constructor(private readonly outcomes: (DashboardSummary | Error)[]) {}
+  /** Thresholds the page asked for, in order — one entry per request. */
+  lowStockCalls: number[] = [];
+
+  lowStockItems: DashboardLowStockItem[] = [];
+
+  constructor(
+    private readonly outcomes: (DashboardSummary | Error)[],
+    /** Handed in at construction, not mutated later: the page may create the
+     *  widget during `TestBed.createComponent`, before a later assignment runs. */
+    lowStockRows: DashboardLowStockItem[] = [],
+  ) {
+    this.lowStockItems = lowStockRows;
+  }
 
   summary(): Observable<DashboardSummary> {
     const outcome = this.outcomes[Math.min(this.calls, this.outcomes.length - 1)];
@@ -78,6 +92,11 @@ class RecordingDashboardService {
 
   recentOrders(): Observable<DashboardRecentOrder[]> {
     return of([]);
+  }
+
+  lowStock(threshold = LOW_STOCK_THRESHOLD): Observable<DashboardLowStockItem[]> {
+    this.lowStockCalls.push(threshold);
+    return of(this.lowStockItems);
   }
 }
 
@@ -105,8 +124,8 @@ const ROUTES = [
   },
 ];
 
-function setup(outcomes: (DashboardSummary | Error)[]) {
-  const service = new RecordingDashboardService(outcomes);
+function setup(outcomes: (DashboardSummary | Error)[], lowStockRows: DashboardLowStockItem[] = []) {
+  const service = new RecordingDashboardService(outcomes, lowStockRows);
 
   TestBed.configureTestingModule({
     imports: [Host],
@@ -390,5 +409,49 @@ describe('Dashboard KPI cards (BO-E02)', () => {
     await fixture.whenStable();
 
     expect(router.url).toBe('/products');
+  });
+});
+
+describe('Dashboard low-stock widget (BO-E05)', () => {
+  const ROWS: DashboardLowStockItem[] = [
+    { id: 'p1', name: 'کیبورد مکانیکی', stock: 0, price: 1_850_000, imageUrl: null },
+    { id: 'p2', name: 'ماوس گیمینگ', stock: 3, price: 920_000, imageUrl: null },
+  ];
+
+  const widget = (fixture: ComponentFixture<Host>): HTMLElement | null =>
+    fixture.nativeElement.querySelector('app-low-stock');
+
+  it('renders the rows the widget endpoint returns', async () => {
+    const { fixture, router } = setup([SUMMARY], ROWS);
+    await open(fixture, router);
+    fixture.detectChanges();
+
+    expect(widget(fixture)?.textContent).toContain('کیبورد مکانیکی');
+    expect(widget(fixture)?.textContent).toContain('ناموجود');
+  });
+
+  it('asks for the shared threshold, not a literal of its own', async () => {
+    // The request and the card's client-side filter must be the same number;
+    // they were two separate `5`s (and a `6` in the fixture) before the review.
+    const { fixture, router, service } = setup([SUMMARY]);
+    await open(fixture, router);
+
+    expect(service.lowStockCalls).toEqual([LOW_STOCK_THRESHOLD]);
+  });
+
+  it('refetches after the retry button, so the card is never stale', async () => {
+    // The page's data comes from the resolver, which `runGuardsAndResolvers:
+    // 'always'` re-runs on retry — but the COMPONENT is reused, so a stream
+    // created once in a field initialiser would keep the first response
+    // forever. The fetch hangs off `NavigationEnd` for exactly this reason.
+    const { fixture, router, service } = setup([new Error('boom'), SUMMARY]);
+    await open(fixture, router);
+    expect(service.lowStockCalls).toHaveLength(1);
+
+    (fixture.nativeElement.querySelector('[role="alert"] button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(service.lowStockCalls).toHaveLength(2);
   });
 });

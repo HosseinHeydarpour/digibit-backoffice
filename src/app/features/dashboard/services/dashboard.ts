@@ -1,6 +1,6 @@
 // src/app/features/dashboard/services/dashboard.ts
 //
-// The dashboard's API surface — one method today, one route.
+// The dashboard's API surface — four reads, one route.
 //
 // WHY A SERVICE AND NOT A COMPONENT FETCH
 // ---------------------------------------
@@ -27,7 +27,8 @@ import { Injectable, inject } from '@angular/core';
 import { ApiService } from '@core/services/api';
 import { Observable } from 'rxjs';
 
-import type { DashboardRecentOrder } from '../models/dashboard.model';
+import { LOW_STOCK_THRESHOLD } from '../dashboard.config';
+import type { DashboardLowStockItem, DashboardRecentOrder } from '../models/dashboard.model';
 import type { DashboardSummary, SalesChartPoint, SalesChartRange } from '../models/dashboard.model';
 
 /**
@@ -58,5 +59,18 @@ export class DashboardService {
 
   recentOrders(): Observable<DashboardRecentOrder[]> {
     return this.api.get<DashboardRecentOrder[]>('/dashboard/recent-orders');
+  }
+
+  /**
+   * `GET /dashboard/low-stock?threshold=5` → the products running out (BO-E05).
+   *
+   * The threshold is a QUERY PARAM, not a hardcoded server rule: the widget
+   * filters client-side with the same number, and a settings page will
+   * eventually own it. The default comes from `LOW_STOCK_THRESHOLD` so the two
+   * filters cannot disagree — see the constant's comment for what went wrong
+   * when they were three separate literals.
+   */
+  lowStock(threshold = LOW_STOCK_THRESHOLD): Observable<DashboardLowStockItem[]> {
+    return this.api.get<DashboardLowStockItem[]>('/dashboard/low-stock', { threshold });
   }
 }
