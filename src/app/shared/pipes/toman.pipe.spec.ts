@@ -7,7 +7,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import { TomanPipe } from './toman.pipe';
+import { formatToman, TomanPipe, TOMAN_UNIT } from './toman.pipe';
 
 describe('TomanPipe', () => {
   const pipe = new TomanPipe();
@@ -84,5 +84,28 @@ describe('TomanPipe', () => {
 
     const out = fixture.nativeElement.querySelector('[data-testid="out"]') as HTMLElement;
     expect(out.textContent).toBe('۲٬۵۰۰٬۰۰۰\u00A0تومان');
+  });
+
+  // ── BO-E06: the pipe is a wrapper, and the constant is the only spelling ──
+
+  it('exposes the one currency word every price reads (tc 4)', () => {
+    expect(TOMAN_UNIT).toBe('تومان');
+    expect(formatToman(1250000)).toContain(TOMAN_UNIT);
+  });
+
+  it('formatToman and the pipe return the same string for the same input', () => {
+    // The chart formats from TypeScript and the templates format through the
+    // pipe. Two implementations would let the same amount render two ways.
+    for (const value of [0, 950, 1250000, 35_000_000, -45000]) {
+      expect(new TomanPipe().transform(value)).toBe(formatToman(value));
+      expect(new TomanPipe().transform(value, { unit: false })).toBe(
+        formatToman(value, { unit: false }),
+      );
+    }
+  });
+
+  it('prints a fractional amount only when asked to', () => {
+    expect(formatToman(12.6, { unit: false })).toBe('۱۳');
+    expect(formatToman(12.6, { unit: false, fractionDigits: 1 })).toBe('۱۲٫۶');
   });
 });

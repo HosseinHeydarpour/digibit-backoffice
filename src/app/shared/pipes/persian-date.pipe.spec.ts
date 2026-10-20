@@ -8,7 +8,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import { PersianDatePipe } from './persian-date.pipe';
+import { formatPersianDate, PersianDatePipe } from './persian-date.pipe';
 
 describe('PersianDatePipe', () => {
   const pipe = new PersianDatePipe();
@@ -89,5 +89,26 @@ describe('PersianDatePipe', () => {
 
     const out = fixture.nativeElement.querySelector('[data-testid="out"]') as HTMLElement;
     expect(out.textContent).toBe('۱۴۰۴/۰۷/۰۱');
+  });
+
+  // ── BO-E06: the chart's x axis and the pipe share one formatter ───────────
+
+  it('renders day and month only, for a chart axis (tc 1, tc 2)', () => {
+    // 2025-09-23 is ۱ مهر ۱۴۰۴; the axis drops the year and keeps the day.
+    expect(formatPersianDate('2025-09-23', 'dayMonth')).toBe('۱ مهر');
+    expect(new PersianDatePipe().transform('2025-09-23', 'dayMonth')).toBe('۱ مهر');
+  });
+
+  it('formatPersianDate and the pipe agree for every style', () => {
+    for (const style of ['short', 'long', 'monthYear', 'dayMonth'] as const) {
+      expect(new PersianDatePipe().transform('2025-09-23', style)).toBe(
+        formatPersianDate('2025-09-23', style),
+      );
+    }
+  });
+
+  it('renders a broken date as a dash from the function too (tc 2)', () => {
+    expect(formatPersianDate('nope')).toBe('—');
+    expect(formatPersianDate(null)).toBe('');
   });
 });

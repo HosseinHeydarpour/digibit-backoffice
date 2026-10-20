@@ -1,5 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ThemeService } from '@core/services/theme';
+import { formatPersianDate } from '@shared/pipes/persian-date.pipe';
+import { formatDigits } from '@shared/pipes/persian-digits.pipe';
+import { formatToman } from '@shared/pipes/toman.pipe';
 
 import type { SalesChartPoint, SalesChartRange } from '../models/dashboard.model';
 
@@ -278,5 +281,25 @@ describe('SalesChart (BO-E03)', () => {
     } finally {
       console.error = originalError;
     }
+  });
+
+  it('labels its axis and tooltip with the shared formatters (BO-E06 tc 1, tc 7)', () => {
+    fixture.componentRef.setInput('data', SAMPLE_7_DAYS);
+    fixture.detectChanges();
+
+    // The x axis is the same function the persianDate pipe wraps — the chart
+    // used to build its own Intl.DateTimeFormat here.
+    expect(component.chartData().labels?.[0]).toBe(formatPersianDate('2026-10-12', 'dayMonth'));
+
+    const label = component.chartOptions().plugins?.tooltip?.callbacks?.label as (
+      ctx: unknown,
+    ) => string;
+
+    // Both units come from the shared functions, so the tooltip cannot print a
+    // count with a currency suffix, or an amount without one.
+    expect(label({ raw: 35_000_000, dataset: { yAxisID: 'revenue' } })).toBe(
+      `درآمد: ${formatToman(35_000_000)}`,
+    );
+    expect(label({ raw: 19, dataset: { yAxisID: 'orders' } })).toBe(`سفارشات: ${formatDigits(19)}`);
   });
 });

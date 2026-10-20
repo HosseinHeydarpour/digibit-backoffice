@@ -42,7 +42,9 @@
     or «کاربران» — the one tile with no footer — ended a line higher than the
     three beside it.
   -->
-  <div class="grid grid-cols-1 gap-6 min-[360px]:grid-cols-2 xl:grid-cols-4">
+  <div
+    class="grid grid-cols-1 gap-6 min-[360px]:grid-cols-2 xl:grid-cols-4 print:grid-cols-2 print:gap-4"
+  >
     <!--
       1 — SALES (tc 2, tc 4)
 
@@ -54,11 +56,12 @@
 
       The unit is a separate `StatCard` input because the reference prints it
       smaller beside the number — `[value]="… | toman: { unit: false }"` plus
-      `unit="تومان"` is that layout.
+      `[unit]="tomanUnit"` is that layout. `tomanUnit` is `TOMAN_UNIT` from the
+      `toman` pipe, so the word is spelled once in the whole app (BO-E06 tc 4).
     -->
     <app-stat-card
       [value]="summary.totalSales | toman: { unit: false }"
-      unit="تومان"
+      [unit]="tomanUnit"
       label="فروش امروز"
       icon="pi pi-dollar"
       tone="neutral"
@@ -132,7 +135,7 @@
     />
   </div>
 
-  <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+  <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3 print:mt-4 print:grid-cols-1 print:gap-4">
     <!--
       `block h-full` on both widget hosts, not a wrapper: a custom element is
       `display: inline` until told otherwise, and an inline box ignores the

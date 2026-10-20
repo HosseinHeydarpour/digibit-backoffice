@@ -396,6 +396,10 @@ and its `data`. Every feature page after it follows that shape.
   last bar of «آمار فروش» answer the same question, so the fixtures derive both from one series
   (`TODAY_SALES` in `core/mock/fixtures/index.ts`) and `salesChangePercent` from the last two
   bars. They used to be written by hand, 1,284,500,000 against an 84,000,000 bar.
+  The two WIDGETS stay — the tile is today's snapshot with a trend, the chart is the 7/30-day
+  series, and the reference template has both — but they can no longer disagree, because there
+  is only one series behind them. If a reader ever reports "two sales statistics", check the
+  numbers first: a mismatch means a fixture was hand-written again, not that a card is extra.
 
 ### Two bars per period, and cards that fill their cell (BO-E03/E05 layout pass)
 
@@ -424,6 +428,42 @@ and its `data`. Every feature page after it follows that shape.
   jsdom has no layout, so `stat-card.spec`, `low-stock.spec` (tc 8d) and `sales-chart.spec` pin
   these classes instead.
 
+### One formatter per kind of value, and a panel that prints (BO-E06)
+
+- **A pipe is a wrapper, not the implementation.** `persianDate`, `toman` and `persianDigits`
+  each delegate to an exported function — `formatPersianDate`, `formatToman`,
+  `formatDigits`. A pipe can only be used from a template, and the sales chart builds its axis
+  labels and tooltip lines in TypeScript, where a pipe cannot reach. Before BO-E06 that file
+  carried its own `Intl.DateTimeFormat` and called `toLocaleString('fa-IR')` three times: two
+  formatters, so one amount could render one way in a table and another way in a tooltip.
+  **Never write a third one.** From `.html` use the pipe, from `.ts` import the function, and
+  the specs pin `pipe.transform(x) === formatX(x)` so they cannot drift back apart.
+- **The currency word is spelled once.** `TOMAN_UNIT` in `toman.pipe.ts` feeds the `toman`
+  pipe, the chart's legend and axis title, and the KPI tile's `unit` input. It used to be the
+  literal «تومان» in four files — which is how one card ends up saying «تومان» and the next
+  «ریال» after somebody edits one of them.
+- **A component that re-exports a module constant must use a getter.** `protected get
+tomanUnit() { return TOMAN_UNIT; }`, never `readonly tomanUnit = TOMAN_UNIT`. A field
+  initialiser runs at construction, and `toman.pipe.ts` is reachable from both the eager spec
+  graph and the lazy `dashboard-routes` chunk, so the bundler hoists it into a shared async
+  chunk and the binding can still be unset — the tile rendered `۱٬۲۸۴٬۵۰۰٬۰۰۰` with no unit,
+  and only when the whole suite ran. Same hazard as `RECENT_ORDER_COLS`; see the note below.
+- **`dayMonth` exists for chart axes only.** `'short'` renders `۱۴۰۵/۰۷/۲۶`, which is a date,
+  not a label; a 7-day window has one year, so printing it seven times is noise. It is a
+  member of the closed `PersianDateStyle` union, not a free-form format string.
+- **`tabular-nums` on any column of amounts.** Persian numerals are not all the same width,
+  so a price column drifts without it. Long text cells get `max-w-40 truncate` plus
+  `[title]`, or a long customer name pushes the status badge out of the row.
+- **Printing is a layout mode, not an afterthought.** The shell is `flex h-screen
+overflow-hidden` with a scrolling `main`, which on paper is exactly one screenful. The
+  templates carry `print:hidden` on the aside/topbar/drawer and `print:block print:h-auto
+print:overflow-visible` on the root; grids carry `print:grid-cols-*`. What a utility cannot
+  say lives in the `@media print` block of `src/styles/tailwind.css`: `@page A4 margin 12mm`,
+  `print-color-adjust: exact` (without it Chrome drops the low-stock badges' tints, which is
+  the one piece of information that card carries), `thead { display: table-header-group }`
+  and `tr, article { break-inside: avoid }`. **Check it with Ctrl+P, not with a screenshot** —
+  jsdom has no pagination.
+
 ### Production environment is checked only by a production build
 
 `environment.prod.ts` is swapped in by `fileReplacements`, so nothing in `ng test`, `ng lint`,
@@ -434,8 +474,9 @@ not check the prod file. BO-B06 added `SITE_URL` to the model and to `environmen
 
 Also note the current state of the bundle: the `initial` budget (500 kB warning / 750 kB error
 in `angular.json`) is exceeded on main and has been for several tasks — **787.47 kB before
-BO-E05, 788.61 kB after it, 788.75 kB after the two-bar chart** (the dashboard lives in the lazy
-chunk, which went from 241.83 to 249.75 kB). `npm run build` therefore exits non-zero on a
+BO-E05, 788.61 kB after it, 788.75 kB after the two-bar chart, 790.22 kB after BO-E06** (the
+dashboard lives in the lazy chunk, which went from 241.83 to ~249.75 kB). `npm run build`
+therefore exits non-zero on a
 budget error that predates the task, and it is the ONLY thing that fails: `npm test`,
 `npm run lint`, `format:check` and `build-storybook` are green. Raising the ceiling is a
 `build`-scoped decision; it should not be silenced by bumping the limit inside a feature task,

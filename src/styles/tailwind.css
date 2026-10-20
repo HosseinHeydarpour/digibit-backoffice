@@ -51,3 +51,102 @@
 
   --font-sans: 'Payda', system-ui, sans-serif;
 }
+
+/* ============================================================================
+   PRINT / PDF (BO-E06 tc 9)
+
+   The panel is a screen application, so the shell is built to fill a viewport:
+   `flex h-screen overflow-hidden` with a `main` that scrolls. Printed as-is,
+   that clips everything below the first screen and puts the sidebar on the
+   paper. A dashboard is exactly the kind of page somebody prints for a weekly
+   meeting, so the rules below turn it back into a document.
+
+   Layout that can be expressed with utilities lives in the templates
+   (`print:hidden` on the shell chrome, `print:grid-cols-2` on the KPI grid).
+   What is here is what a utility cannot say: the page box, the header
+   repetition, and the colour adjustment.
+
+   TRACE / PRACTICAL USAGE EXAMPLE
+   -------------------------------
+   Ctrl+P on /dashboard, with the shell as it is built for the screen:
+
+   1. Chrome applies `@media print`, so the `print:` utilities in the templates
+      take over: the `aside`, `app-topbar` and `app-sidebar-drawer` get
+      `display: none`, and the root's `flex h-screen overflow-hidden` is
+      overridden to `block; height: auto; overflow: visible`.
+
+   2. Without step 1 the page box would be ONE viewport tall: `h-screen` is
+      100vh, and `overflow: hidden` on the root plus `overflow-y: auto` on
+      `main` means everything below the fold lives in a scroll container that
+      paper cannot scroll. The printout would be the first screenful and
+      nothing else.
+
+   3. The KPI grid's `print:grid-cols-2` puts four tiles in a 2x2 block instead
+      of a 4-across row, because an A4 content box at 12mm margins is ~186mm
+      wide and four 46mm tiles leave the numbers unreadable.
+
+   4. `print-color-adjust: exact` keeps the tints. Chrome's default is to drop
+      every background to save ink, which erases the low-stock card's red/amber
+      badges — the one piece of information that card exists to carry.
+
+   5. `thead { display: table-header-group }` reprints the recent-orders header
+      on page 2, and `tr, article { break-inside: avoid }` stops a card from
+      being cut in half at the page boundary.
+
+   6. The result is a multi-page A4 document: header, 2x2 KPIs, the orders
+      table, then the chart and the stock list stacked (`print:grid-cols-1`).
+   ========================================================================== */
+@media print {
+  /* A4 with a real margin, rather than the browser's default header/footer
+     band eating the top of the first card. */
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* The shell is a `h-screen overflow-hidden` flex box. On paper there is no
+     viewport to fill, and `overflow: hidden` would cut the page off after the
+     first screenful. */
+  .h-screen,
+  main {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Backgrounds, badges and the chart's coloured bars are information, not
+     decoration. Without this, Chrome prints every tint as white and the
+     low-stock card loses its red/yellow distinction. */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* A table that scrolls sideways on screen must print in full. */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  /* Repeat the header on every page, and never split a row or a card across
+     two of them. */
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  article {
+    break-inside: avoid;
+  }
+
+  /* Links are not clickable on paper; the href after them is noise, but the
+     colour must stay readable when the tint is dropped. */
+  a {
+    text-decoration: none;
+  }
+}

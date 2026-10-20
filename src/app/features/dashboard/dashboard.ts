@@ -66,7 +66,7 @@ import { StatCard } from '@shared/components/stat-card/stat-card';
 import type { Tone } from '@shared/components/stat-card/stat-card';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
-import { TomanPipe } from '@shared/pipes/toman.pipe';
+import { TOMAN_UNIT, TomanPipe } from '@shared/pipes/toman.pipe';
 import { BehaviorSubject, switchMap, tap } from 'rxjs';
 
 import { LOW_STOCK_THRESHOLD } from './dashboard.config';
@@ -183,6 +183,30 @@ export class Dashboard {
    * midnight would be a change nobody asked for. The pipe turns it Jalali (tc 3).
    */
   protected readonly today = new Date();
+
+  /**
+   * The currency word, handed to the sales tile's `unit` input (BO-E06 tc 4).
+   *
+   * A class member rather than the literal `unit="تومان"` in the template: the
+   * unit is spelled once, in `TOMAN_UNIT`, and every place that prints a price
+   * — this tile, the `toman` pipe, the chart's tooltip and its axis title —
+   * reads that one constant. A second literal is how a panel ends up with
+   * «تومان» on one card and «ریال» on the next.
+   *
+   * WHY A GETTER AND NOT `readonly tomanUnit = TOMAN_UNIT`
+   * -----------------------------------------------------
+   * A field initialiser runs when the COMPONENT is constructed, and in the test
+   * bundle `toman.pipe.ts` is reachable from both the eager spec graph and the
+   * lazy `dashboard-routes` chunk — so the bundler hoists it into a shared async
+   * chunk and the binding can still be unset at construction. The tile then
+   * rendered «۱٬۲۸۴٬۵۰۰٬۰۰۰» with no unit, and only when the whole suite ran.
+   * A getter reads at change-detection time, by which point the module is
+   * evaluated. (The same hazard is why a feature's `models/` folder holds no
+   * runtime values — see AGENTS.md.)
+   */
+  protected get tomanUnit(): string {
+    return TOMAN_UNIT;
+  }
 
   /** The sales tile's arrow, colour and sentence, or `null` when there is no change. */
   protected readonly salesTrend = computed(() => toKpiTrend(this.summary()?.salesChangePercent));

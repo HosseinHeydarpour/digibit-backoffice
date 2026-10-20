@@ -7,7 +7,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import { PersianDigitsPipe } from './persian-digits.pipe';
+import { formatDigits, PersianDigitsPipe } from './persian-digits.pipe';
 
 describe('PersianDigitsPipe', () => {
   const pipe = new PersianDigitsPipe();
@@ -54,5 +54,14 @@ describe('PersianDigitsPipe', () => {
 
     const out = fixture.nativeElement.querySelector('[data-testid="out"]') as HTMLElement;
     expect(out.textContent).toBe('کد ۱۰۴۲');
+  });
+
+  // ── BO-E06: the chart's count axis uses the same digit formatter ──────────
+
+  it('exposes the same mapping as a function, for TypeScript callers (tc 7)', () => {
+    expect(formatDigits('کد 1042')).toBe('کد ۱۰۴۲');
+    expect(formatDigits(19)).toBe('۱۹');
+    expect(formatDigits(null)).toBe('');
+    expect(new PersianDigitsPipe().transform(19)).toBe(formatDigits(19));
   });
 });

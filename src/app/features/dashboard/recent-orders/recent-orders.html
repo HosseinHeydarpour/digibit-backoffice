@@ -84,16 +84,22 @@
                 {{ order.createdAt | persianDate }}
               </td>
 
-              <!-- نام مشتری -->
+              <!-- نام مشتری — truncated, because a long name must not push the
+                   status badge out of the row (BO-E06 tc 8). `title` keeps the
+                   full value reachable on hover; `max-w-40` is what makes
+                   `truncate` work on a table cell at all. -->
               <td
-                class="whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 dark:text-gray-400"
+                class="max-w-40 truncate whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 dark:text-gray-400"
+                [title]="order.customerName ?? ''"
               >
                 {{ order.customerName ?? 'مشتری نامشخص' }}
               </td>
 
-              <!-- مبلغ -->
+              <!-- مبلغ — `tabular-nums` so the digits of one row sit under the
+                   digits of the next. Without it a column of Persian numerals
+                   drifts, because the glyphs are not all the same width. -->
               <td
-                class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium text-gray-900 dark:text-white"
+                class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium tabular-nums text-gray-900 dark:text-white"
               >
                 {{ order.total | toman }}
               </td>

@@ -65,6 +65,37 @@ protected readonly noUnit = { unit: false };
 <td>{{ order.total | toman: noUnit }}</td>
 ```
 
+### پایپ یا تابع؟ / Pipe or function?
+
+هر سه پایپ فقط یک **پوستهٔ نازک** روی یک تابع صادرشده‌اند:
+
+| پایپ            | تابع                | برای چه کسی                          |
+| --------------- | ------------------- | ------------------------------------ |
+| `persianDate`   | `formatPersianDate` | template (پایپ) / نمودار و TS (تابع) |
+| `toman`         | `formatToman`       | template (پایپ) / نمودار و TS (تابع) |
+| `persianDigits` | `formatDigits`      | template (پایپ) / نمودار و TS (تابع) |
+
+نمودار نمی‌تواند از پایپ استفاده کند: برچسب محور و tooltip جزء آبجکت آپشن‌های Chart.js
+هستند و در TypeScript ساخته می‌شوند. قبلاً `sales-chart.ts` خودش یک
+`Intl.DateTimeFormat` می‌ساخت و سه بار `toLocaleString('fa-IR')` صدا می‌زد — یعنی یک
+فرمت‌کنندهٔ دوم که می‌توانست با پایپ اختلاف پیدا کند. حالا هر دو مسیر به یک تابع می‌رسند.
+
+```ts
+import { formatToman, TOMAN_UNIT } from '@shared/pipes/toman.pipe';
+
+// محور راست نمودار: فقط برچسب به میلیون است، دادهٔ اصلی تومانِ دقیق می‌ماند
+formatToman(35_000_000 / 1_000_000, { unit: false }); // '۳۵'
+
+// عنوان محور و legend از همان یک کلمهٔ واحد می‌آید
+const revenueTitle = `درآمد (میلیون ${TOMAN_UNIT})`; // 'درآمد (میلیون تومان)'
+```
+
+**قانون:** هیچ‌جا `toLocaleString('fa-IR')` یا `Intl.DateTimeFormat` دستی ننویس. اگر
+جایی به فرمت نیاز داری که پایپ در دسترس نیست، تابع را import کن.
+
+**Rule:** never write a third formatter. If you need one where a pipe cannot reach,
+import the function.
+
 <Canvas of={PersianPipesStories.Dates} />
 
 ---
@@ -132,8 +163,8 @@ API تاریخ را `YYYY-MM-DD` می‌فرستد. `new Date('2025-09-23')` ا�
 
 ### چه چیزی عمداً اینجا نیست
 
-- **نه یک pipe برای هر فرمت تاریخ.** سه شکل (`short` / `long` / `monthYear`) یک union
-  بسته‌اند، پس غلط تایپی خطای کامپایل است، نه یک تاریخ خاموش‌شده.
+- **نه یک pipe برای هر فرمت تاریخ.** چهار شکل (`short` / `long` / `monthYear` / `dayMonth`)
+  یک union بسته‌اند، پس غلط تایپی خطای کامپایل است، نه یک تاریخ خاموش‌شده.
 - **نه تبدیل معکوس.** شمسی به میلادی کار `jalali-ts` و لایهٔ فرم است؛ اینجا فقط نمایش.
 - **نه آگاهی از تم یا اندازهٔ فونت.** این‌ها پایپ‌اند؛ ظاهر کار Tailwind و والد است.
 
@@ -192,10 +223,18 @@ row every time and the memoisation is thrown away. Hold the options on the compo
 
 <Canvas of={PersianPipesStories.InContext} />
 
+### همان مقادیر، از سمت نمودار
+
+نمودار پیشخوان همین توابع را صدا می‌زند، نه یک فرمت‌کنندهٔ جدا. هر سلول جدول زیر از
+`formatPersianDate` / `formatToman` / `formatDigits` می‌آید — اگر روزی یکی از این‌ها
+تغییر کند، هر دو طرف با هم تغییر می‌کنند.
+
+<Canvas of={PersianPipesStories.ChartLabels} />
+
 ### What is deliberately not here
 
-- **No pipe per date format.** The three styles (`short` / `long` / `monthYear`) are a
-  closed union, so a typo is a compile error rather than a silently mis-formatted date.
+- **No pipe per date format.** The four styles (`short` / `long` / `monthYear` / `dayMonth`)
+  are a closed union, so a typo is a compile error rather than a silently mis-formatted date.
 - **No reverse conversion.** Jalali to Gregorian is `jalali-ts` and the form layer's job;
   this is display only.
 - **No theme or font-size awareness.** These are pipes; appearance is Tailwind and the

@@ -1,24 +1,29 @@
-<div class="flex h-screen overflow-hidden bg-light dark:bg-background-dark">
+<div
+  class="flex h-screen overflow-hidden bg-light dark:bg-background-dark print:block print:h-auto print:overflow-visible print:bg-white"
+>
   <!--
     The desktop sidebar's width lives here, on the aside, not on the sidebar
     itself. The sidebar is reused inside the mobile drawer, where it must fill
     the panel instead — a `w-72` on the component left a gap whenever the
     `w-[80%] sm:w-100` panel was wider than 288px. `shrink-0` keeps the 288px
     from collapsing under the main content's `flex-1`.
+
+    `print:hidden` — navigation is not content (BO-E06 tc 9). A printed
+    dashboard with a sidebar down the side wastes a third of the paper.
   -->
-  <aside class="hidden w-72 shrink-0 lg:flex">
+  <aside class="hidden w-72 shrink-0 lg:flex print:hidden">
     <app-sidebar />
   </aside>
 
-  <div class="flex flex-col flex-1 overflow-hidden">
+  <div class="flex flex-col flex-1 overflow-hidden print:overflow-visible">
     <!--
       `menuToggle` is the only link between the topbar and the drawer: the
       topbar announces "the user wants the menu", and this shell decides that
       means "open the drawer". Neither component knows about the other.
     -->
-    <app-topbar (menuToggle)="openDrawer()" />
+    <app-topbar class="print:hidden" (menuToggle)="openDrawer()" />
 
-    <main class="flex-1 overflow-y-auto p-6">
+    <main class="flex-1 overflow-y-auto p-6 print:overflow-visible print:p-0">
       <router-outlet />
     </main>
   </div>
@@ -28,5 +33,5 @@
     keeping it a sibling of the `overflow-hidden` root avoids any chance of the
     slide-in being clipped during the transition.
   -->
-  <app-sidebar-drawer />
+  <app-sidebar-drawer class="print:hidden" />
 </div>
