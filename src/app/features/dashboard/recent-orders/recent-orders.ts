@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ErrorState } from '@shared/components/error-state/error-state';
 import { ORDER_STATUS_META } from '@shared/models/status-badge.model';
 import type { OrderStatus } from '@shared/models/status-badge.model';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
@@ -7,6 +8,7 @@ import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
 
 import type { DashboardRecentOrder, OrderColumn } from '../models/dashboard.model';
+import type { WidgetState } from '../models/widget-state';
 
 /**
  * The table's columns, in render order — the one place their names and their
@@ -37,9 +39,12 @@ const COLUMNS: readonly OrderColumn[] = [
 ];
 
 /**
- * Recent Orders Widget Component (BO-E04)
+ * Recent Orders Widget Component (BO-E04, states hardened in BO-E07)
  *
- * Displays the 8 latest orders matching the Arino theme specification.
+ * Displays the 8 latest orders matching the Arino theme specification, and now
+ * cycles through ONE `state()` — loading / error / empty / data — so the three
+ * outcomes a fetch can have are rendered from a single switch instead of three
+ * ad-hoc `@if`s scattered across the table (BO-E07 tc 7).
  *
  * TRACE / PRACTICAL USAGE EXAMPLE:
  * ---------------------------------
@@ -54,12 +59,15 @@ const COLUMNS: readonly OrderColumn[] = [
  *       createdAt: 1723456789000
  *     }
  *   ]
+ * Input `loading`: false   Input `error`: null
  *
- * 1. Columns Loop:
+ * 1. `state()` resolves to 'data' (no error, not loading, one row).
+ *
+ * 2. Columns Loop:
  *    - Iterates `cols` (`COLUMNS`, defined above).
  *    - Applies responsive hiding: `createdAt` column receives `hidden sm:table-cell`.
  *
- * 2. Row Formatting:
+ * 3. Row Formatting:
  *    - Code: '#ORD-14001' -> Persian digits -> '#ORD-۱۴۰۰۱'
  *    - Date: 1723456789000 -> persianDate pipe -> '۱۴۰۳/۰۵/۲۲'
  *    - Total: 1250000 -> toman pipe -> '۱٬۲۵۰٬۰۰۰ تومان'
@@ -67,22 +75,67 @@ const COLUMNS: readonly OrderColumn[] = [
  *      - `statusLabel('delivered')` -> 'تحویلشده'
  *      - `statusBadgeClass('delivered')` -> 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
  *
- * 3. User Interaction:
+ * 4. User Interaction:
  *    - Clicking anywhere on the row emits `orderClick('1')` and navigates to `/orders/1`.
  *    - Clicking "مشاهده همه" navigates to `/orders`.
+ *
+ * 5. Failure path — `error` arrives instead of `orders`:
+ *    - The page caught the rejected request and handed this widget
+ *      `[error]="'خطا در دریافت سفارشات'"`.
+ *    - `state()` resolves to 'error' BEFORE it could fall through to 'loading'
+ *      (a `null` payload) or 'empty', so the table shows the retry block, never
+ *      a silent «هیچ سفارشی یافت نشد».
+ *    - Clicking «تلاش دوباره» emits `retry`, and the page re-runs the fetch.
  */
 @Component({
   selector: 'app-recent-orders',
-  imports: [RouterLink, PersianDatePipe, PersianDigitsPipe, TomanPipe],
+  imports: [RouterLink, PersianDatePipe, PersianDigitsPipe, TomanPipe, ErrorState],
   templateUrl: './recent-orders.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RecentOrders {
   readonly orders = input<readonly DashboardRecentOrder[] | null>(null);
   readonly loading = input<boolean>(false);
+
+  /**
+   * A non-null message means the page's fetch rejected (BO-E07 tc 2).
+   *
+   * Checked FIRST in `state()`: a failure that also left `orders` `null` must
+   * read as an error, not as "still loading" — otherwise a dead request looks
+   * like a slow one, or like an empty list.
+   */
+  readonly error = input<string | null>(null);
+
   readonly orderClick = output<string>();
 
+  /** Emits when the user asks to re-run the failed fetch (BO-E07 tc 3). */
+  readonly retry = output<void>();
+
   readonly cols: readonly OrderColumn[] = COLUMNS;
+
+  /**
+   * The single source of truth for which block the template draws (BO-E07 tc 7).
+   *
+   * `error` wins over everything; `loading` covers both the explicit flag and a
+   * `null` payload that simply has not answered yet (so the table never flashes
+   * its "nothing found" row at a user whose request is still in flight); `empty`
+   * is a real "no rows" answer; `data` is the rest.
+   */
+  readonly state = computed<WidgetState>(() => {
+    if (this.error()) {
+      return 'error';
+    }
+
+    if (this.loading() || this.orders() === null) {
+      return 'loading';
+    }
+
+    if (!this.orders() || this.orders()!.length === 0) {
+      return 'empty';
+    }
+
+    return 'data';
+  });
 
   statusLabel(status: OrderStatus): string {
     return ORDER_STATUS_META[status]?.label ?? status;

@@ -46,6 +46,15 @@ const meta: Meta<SalesChart> = {
           'bars per day** — order count on the left axis, revenue on the right — built on PrimeNG',
           'UIChart with Jalali date labels and RTL/FaNum formatting.',
           '',
+          '**BO-E07 — one `state()` for all four outcomes.** The card reads a single `state()`',
+          'computed resolving to `loading | error | empty | data` (tc 7). Priority: `error` wins',
+          '(a rejected sales request shows the retry block, never a blank canvas), then the explicit',
+          '`loading` flag (the chart’s OWN in-flight request), then a `null` OR `[]` payload',
+          '(`empty` — a chart treats "no points" and "missing array" the same), then `data`. On',
+          '`error` the card renders the SAME `<app-error-state>` the page and the other widgets draw',
+          '(tc 8); «تلاش دوباره» emits `retry`, and the page re-runs the sales request for the same',
+          'range.',
+          '',
           '**Use case** — the dashboard\u2019s «آمار فروش» card, and nowhere else yet. Reach for it when',
           'two numbers share a period and have to be read against each other; do NOT reach for it',
           'when only one series exists — two axes for one metric is a chart that lies about its',
@@ -122,5 +131,31 @@ export const Empty: Story = {
     data: [],
     range: 7,
     loading: false,
+  },
+};
+
+/**
+ * The sales request rejected (BO-E07 tc 2 / tc 8).
+ *
+ * `error` is non-null, so `state()` resolves to `'error'` BEFORE the `null`
+ * payload could fall through to `'empty'` — the chart area shows the retry
+ * block, never a blank canvas or a stray axis. «تلاش دوباره» emits `retry` for
+ * the same `range`.
+ */
+export const Error: Story = {
+  args: {
+    data: null,
+    range: 7,
+    loading: false,
+    error: 'دریافت نمودار فروش ناموفق بود',
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The card hands the message to `<app-error-state>`: a red alert with `role="alert"`, the ' +
+          'text «دریافت نمودار فروش ناموفق بود», and a «تلاش دوباره» button whose only job is `retry.emit()`.',
+      },
+    },
   },
 };

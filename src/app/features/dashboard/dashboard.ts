@@ -60,6 +60,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import type { Data } from '@angular/router';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart } from '@angular/router';
+import { ErrorState } from '@shared/components/error-state/error-state';
 import { LoadingBlock } from '@shared/components/loading-block/loading-block';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import { StatCard } from '@shared/components/stat-card/stat-card';
@@ -67,7 +68,7 @@ import type { Tone } from '@shared/components/stat-card/stat-card';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TOMAN_UNIT, TomanPipe } from '@shared/pipes/toman.pipe';
-import { BehaviorSubject, switchMap, tap } from 'rxjs';
+import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
 
 import { LOW_STOCK_THRESHOLD } from './dashboard.config';
 import { readSummary } from './dashboard.resolver';
@@ -92,6 +93,7 @@ import { DashboardService } from './services/dashboard';
     LoadingBlock,
     SalesChart,
     RecentOrders,
+    ErrorState,
     PersianDatePipe,
     PersianDigitsPipe,
     TomanPipe,
@@ -117,7 +119,7 @@ export class Dashboard {
 
   /**
    * Low-stock rows: one fetch on creation, one more after every re-resolve
-   * (BO-E05).
+   * (BO-E05), and a retry on failure (BO-E07).
    *
    * WHY NOT JUST `toSignal(service.lowStock())`
    * -------------------------------------------
@@ -136,13 +138,34 @@ export class Dashboard {
    * removes the race: it emits once immediately, and again only when this page
    * has actually SEEN a navigation start and end (see the constructor).
    *
+   * THE ERROR PATH (BO-E07)
+   * -----------------------
+   * `catchError` keeps a rejected request from tearing down the component
+   * (`toSignal` rethrows an uncaught error) and hands the widget an `error`
+   * string via `lowStockError` — so the card shows the retry block instead of a
+   * skeleton that spins forever. `tap` clears the error on the next success.
+   *
    * TRACE: first visit → `reload$` emits → `lowStock(5)` → 300 ms of mock
    * delay → the card goes from skeleton (`items() === null`) to the list.
    * Retry → NavigationStart (resolving = true) → NavigationEnd → `reload$`
-   * emits again → a second request → the card updates.
+   * emits again → a second request → the card updates. A failed request →
+   * `lowStockError` is set → the card shows «تلاش دوباره» → `retryLowStock()`
+   * calls `reload$.next()` → the same re-fetch runs.
    */
+  readonly lowStockError = signal<string | null>(null);
+
   readonly lowStockItems = toSignal<readonly DashboardLowStockItem[] | null>(
-    this.reload$.pipe(switchMap(() => this.dashboardService.lowStock(LOW_STOCK_THRESHOLD))),
+    this.reload$.pipe(
+      switchMap(() =>
+        this.dashboardService.lowStock(LOW_STOCK_THRESHOLD).pipe(
+          tap({
+            next: () => this.lowStockError.set(null),
+            error: () => this.lowStockError.set('دریافت کالاهای کم‌موجودی ناموفق بود'),
+          }),
+          catchError(() => of(null)),
+        ),
+      ),
+    ),
     { initialValue: null },
   );
 
@@ -265,15 +288,24 @@ export class Dashboard {
    */
   private readonly range$ = new BehaviorSubject<SalesChartRange>(7);
 
+  readonly salesChartError = signal<string | null>(null);
+
   readonly salesChartData = toSignal<readonly SalesChartPoint[] | null>(
     this.range$.pipe(
       tap(() => this.chartLoading.set(true)),
       switchMap((range) =>
         this.dashboardService.salesChart(range).pipe(
           tap({
-            next: () => this.chartLoading.set(false),
-            error: () => this.chartLoading.set(false),
+            next: () => {
+              this.chartLoading.set(false);
+              this.salesChartError.set(null);
+            },
+            error: () => {
+              this.chartLoading.set(false);
+              this.salesChartError.set('دریافت نمودار فروش ناموفق بود');
+            },
           }),
+          catchError(() => of(null)),
         ),
       ),
     ),
@@ -286,8 +318,62 @@ export class Dashboard {
     this.range$.next(range);
   }
 
+  /**
+   * Re-runs the recent-orders fetch after it failed (BO-E07 tc 3).
+   *
+   * The widget's «تلاش دوباره» button emits `retry`, which lands here; this
+   * re-triggers the SAME stream the first paint used, so a partial failure
+   * recovers without disturbing the widgets that loaded fine.
+   */
+  retryRecentOrders(): void {
+    this.recentReload$.next();
+  }
+
+  /**
+   * Re-runs the sales-chart fetch for the currently selected range (BO-E07 tc 3).
+   *
+   * `range$.next(chartRange())` — not a hard-coded 7 or 30 — so a retry never
+   * silently flips the chart between ranges.
+   */
+  retrySalesChart(): void {
+    this.range$.next(this.chartRange());
+  }
+
+  /**
+   * Re-runs the low-stock fetch after it failed (BO-E07 tc 3).
+   *
+   * `reload$.next()` is the same trigger a re-resolve uses, so the card behaves
+   * identically whether the user retried the whole page or just this widget.
+   */
+  retryLowStock(): void {
+    this.reload$.next();
+  }
+
+  /**
+   * Recent orders: one fetch on creation, retry on failure (BO-E07).
+   *
+   * A `BehaviorSubject` drives it (like `reload$`): it emits once at
+   * construction so the first paint starts a fetch immediately, and `next()` is
+   * what a failed request's «تلاش دوباره» button calls. The catchError keeps a
+   * rejection from crashing the page and records `recentOrdersError` so the
+   * widget shows its retry block instead of a skeleton that never clears.
+   */
+  private readonly recentReload$ = new BehaviorSubject<void>(undefined);
+
+  readonly recentOrdersError = signal<string | null>(null);
+
   readonly recentOrders = toSignal<readonly DashboardRecentOrder[] | null>(
-    this.dashboardService.recentOrders(),
+    this.recentReload$.pipe(
+      switchMap(() =>
+        this.dashboardService.recentOrders().pipe(
+          tap({
+            next: () => this.recentOrdersError.set(null),
+            error: () => this.recentOrdersError.set('دریافت سفارشات اخیر ناموفق بود'),
+          }),
+          catchError(() => of(null)),
+        ),
+      ),
+    ),
     { initialValue: null },
   );
 

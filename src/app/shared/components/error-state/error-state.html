@@ -1,0 +1,36 @@
+<!-- src/app/shared/components/error-state/error-state.html -->
+<!--
+  The inline failure block — one look for every widget and the page.
+
+  `role="alert"`: this replaced content the user was waiting on, so it is
+  announced when it appears, not when a screen reader happens to reach it.
+
+  The same red alert the dashboard's own error branch used to draw inline; the
+  styling (border, bubble, button) is copied verbatim so the two cannot drift.
+-->
+<div
+  role="alert"
+  class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  <div class="flex items-start gap-4">
+    <div
+      class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-100 text-2xl text-red-600 dark:bg-red-900/30 dark:text-red-400"
+    >
+      <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+    </div>
+
+    <div class="min-w-0">
+      <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ title() }}</h2>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ description() }}</p>
+
+      <button
+        type="button"
+        (click)="retry.emit()"
+        class="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
+      >
+        <i class="pi pi-refresh" aria-hidden="true"></i>
+        {{ retryLabel() }}
+      </button>
+    </div>
+  </div>
+</div>

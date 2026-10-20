@@ -52,8 +52,20 @@ const meta: Meta<LowStock> = {
   parameters: {
     docs: {
       description: {
-        component:
-          'Low-stock widget (BO-E05). Lists the products at or below the stock threshold, lowest first, with a red «ناموجود» badge at zero and a yellow «n عدد» badge below the threshold. The pencil emits the product id and the page navigates; «مشاهده همه» goes to the products list.',
+        component: [
+          'Low-stock widget (BO-E05). Lists the products at or below the stock threshold, lowest',
+          'first, with a red «ناموجود» badge at zero and a yellow «n عدد» badge below the threshold.',
+          'The pencil emits the product id and the page navigates; «مشاهده همه» goes to the products',
+          'list.',
+          '',
+          '**BO-E07 — one `state()` for all four outcomes.** The card reads a single `state()`',
+          'computed resolving to `loading | error | empty | data` (tc 7). Priority: `error` wins over',
+          'everything — a dead request must NEVER look like the green «موجودی انبار در وضعیت سالم است»',
+          'block, which is the genuine `empty` answer — then `loading` / a `null` payload (skeleton),',
+          'then a real `[]` (`empty`, the good-news check), then `data`. On `error` the card renders',
+          'the SAME `<app-error-state>` the page and the other widgets draw (tc 8); «تلاش دوباره» emits',
+          '`retry`, and the page re-runs the low-stock request.',
+        ].join('\n'),
       },
     },
   },
@@ -81,6 +93,31 @@ export const Filtered: Story = {
 /** The skeleton: no response yet. Four placeholder rows, no count badge. */
 export const Loading: Story = {
   args: { items: null, loading: false },
+};
+
+/**
+ * The low-stock request rejected (BO-E07 tc 2 / tc 8).
+ *
+ * `error` is non-null, so `state()` resolves to `'error'` BEFORE the `null`
+ * payload could fall through to the skeleton OR the green «انبار سالم است»
+ * block — a dead request must never look like a healthy warehouse. The retry
+ * block is the SAME `<app-error-state>` the page and the other widgets draw.
+ */
+export const Error: Story = {
+  args: {
+    items: null,
+    loading: false,
+    error: 'دریافت کالاهای کم‌موجودی ناموفق بود',
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The card hands the message to `<app-error-state>`: a red alert with `role="alert"`, the ' +
+          'text «دریافت کالاهای کم‌موجودی ناموفق بود», and a «تلاش دوباره» button whose only job is `retry.emit()`.',
+      },
+    },
+  },
 };
 
 /**

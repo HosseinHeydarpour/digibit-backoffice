@@ -23,6 +23,13 @@
 // `formatToman` and `formatDigits` — the same functions the pipes wrap — and
 // reads the currency word from `TOMAN_UNIT`.
 //
+// THE FOUR STATES (BO-E07)
+// ------------------------
+// The card now reads a single `state()` — loading / error / empty / data — so a
+// rejected fetch shows the same retry block as the other widgets instead of
+// falling through to the chart with no data, and the loading spinner is the
+// FIRST branch, never an afterthought.
+//
 // TRACE / PRACTICAL USAGE EXAMPLE
 // -------------------------------
 // Input `data`:
@@ -30,41 +37,50 @@
 //     { date: '2026-10-17', value: 21_000_000, orders: 12 },
 //     { date: '2026-10-18', value: 35_000_000, orders: 19 },
 //   ]
-// Input `range`: 7     Input `loading`: false
+// Input `range`: 7     Input `loading`: false     Input `error`: null
 //
-// 1. Labels — `formatPersianDate('2026-10-17', 'dayMonth')` → «۲۵ مهر»,
+// 1. `state()` → 'data' (no error, not loading, two points).
+//
+// 2. Labels — `formatPersianDate('2026-10-17', 'dayMonth')` → «۲۵ مهر»,
 //    «۲۶ مهر». The date-only string is parsed as a CALENDAR date (local), so a
 //    viewer in a negative offset does not see the previous day; an unparseable
 //    value renders «—» rather than «Invalid Date».
 //
-// 2. Datasets — TWO, in this order (the reference's own order, so blue is
+// 3. Datasets — TWO, in this order (the reference's own order, so blue is
 //    always the left bar of a group):
 //      [0] «تعداد سفارشات»  data [12, 19]        yAxisID 'orders'  (left)
 //      [1] «درآمد (میلیون تومان)» data [21e6, 35e6] yAxisID 'revenue' (right)
 //
-// 3. Axes — `orders` counts from 0 with `precision: 0` (a tick at ۱۲٫۵ orders
+// 4. Axes — `orders` counts from 0 with `precision: 0` (a tick at ۱۲٫۵ orders
 //    would be nonsense) and labels its ticks with `formatDigits`; `revenue`
 //    also starts at 0 but its tick CALLBACK divides by 1e6 and formats through
 //    `formatToman(…, { unit: false })`, so the axis reads ۰ / ۱۰ / ۲۰ / ۳۰
 //    while the underlying value stays exact Toman.
 //
-// 4. Tooltip — the callback branches on `dataset.yAxisID`, so hovering the blue
+// 5. Tooltip — the callback branches on `dataset.yAxisID`, so hovering the blue
 //    bar prints «سفارشات: ۱۹» and the green one prints
 //    «درآمد: ۳۵٬۰۰۰٬۰۰۰ تومان». One formatter per unit, and the currency word
 //    comes from `TOMAN_UNIT` — a count can never be printed with «تومان».
 //
-// 5. Bar width — `barThickness` is 22px for a 7-day range and 8px for 30, so 30
+// 6. Bar width — `barThickness` is 22px for a 7-day range and 8px for 30, so 30
 //    groups of two bars still fit a phone. `borderRadius` follows it down, or an
 //    8px bar becomes a 6px pill with two flat sides.
+//
+// 7. Failure path — `error` arrives instead of `data`:
+//    `state()` resolves to 'error' BEFORE 'loading' (a `null` payload), so the
+//    chart area shows the retry block, never a blank canvas. «تلاش دوباره»
+//    emits `retry`, and the page re-runs the sales request for the same range.
 //
 // WHAT THIS COMPONENT DOES NOT DO
 // -------------------------------
 // It does not fetch (the page does, through `DashboardService.salesChart`) and
 // it does not know what a "day" costs. `rangeChange` reports the button the user
-// pressed; the page decides what to request.
+// pressed; the page decides what to request. `retry` does the same for a failed
+// fetch.
 
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { ThemeService } from '@core/services/theme';
+import { ErrorState } from '@shared/components/error-state/error-state';
 import { formatPersianDate } from '@shared/pipes/persian-date.pipe';
 import { formatDigits } from '@shared/pipes/persian-digits.pipe';
 import { formatToman, TOMAN_UNIT } from '@shared/pipes/toman.pipe';
@@ -72,6 +88,7 @@ import type { ChartData, ChartOptions } from 'chart.js';
 import { UIChart } from 'primeng/chart';
 
 import type { SalesChartPoint, SalesChartRange } from '../models/dashboard.model';
+import type { WidgetState } from '../models/widget-state';
 
 /**
  * The reference chart's palette: blue for the count, green for the money.
@@ -104,7 +121,7 @@ const REVENUE_LABEL = `درآمد (میلیون ${TOMAN_UNIT})`;
 
 @Component({
   selector: 'app-sales-chart',
-  imports: [UIChart],
+  imports: [UIChart, ErrorState],
   templateUrl: './sales-chart.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -114,11 +131,50 @@ export class SalesChart {
   readonly data = input<readonly SalesChartPoint[] | null>(null);
   readonly range = input<SalesChartRange>(7);
   readonly loading = input<boolean>(false);
+
+  /**
+   * A non-null message means the page's sales request rejected (BO-E07 tc 2).
+   *
+   * Checked FIRST in `state()`: a failure that also left `data` `null` must read
+   * as an error, not as a blank chart.
+   */
+  readonly error = input<string | null>(null);
+
   readonly rangeChange = output<SalesChartRange>();
+
+  /** Emits when the user asks to re-run the failed fetch (BO-E07 tc 3). */
+  readonly retry = output<void>();
 
   readonly hasData = computed(() => {
     const d = this.data();
     return Boolean(d && d.length > 0);
+  });
+
+  /**
+   * The single render-state for the card body (BO-E07 tc 7).
+   *
+   * `error` wins; then the explicit `loading` flag (the page sets it true while
+   * the chart's OWN request is in flight — `chartLoading` — so a null payload
+   * that simply has not answered yet reads as "loading", not "empty"); then a
+   * `null` OR empty payload reads as `empty` (a real "no points" answer);
+   * then `data`. `null` is empty rather than loading here because the page
+   * already owns the spinner via `loading`, and an empty array and a missing
+   * array are the same "nothing to draw" outcome for a chart.
+   */
+  readonly state = computed<WidgetState>(() => {
+    if (this.error()) {
+      return 'error';
+    }
+
+    if (this.loading()) {
+      return 'loading';
+    }
+
+    if (!this.hasData()) {
+      return 'empty';
+    }
+
+    return 'data';
   });
 
   readonly chartData = computed<ChartData<'bar'>>(() => {

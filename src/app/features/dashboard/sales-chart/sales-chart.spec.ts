@@ -302,4 +302,59 @@ describe('SalesChart (BO-E03)', () => {
     );
     expect(label({ raw: 19, dataset: { yAxisID: 'orders' } })).toBe(`سفارشات: ${formatDigits(19)}`);
   });
+
+  // ─── BO-E07: the error path a failed fetch takes ──────────────────────────
+
+  it('tc 2: shows the error block (not the chart) when the error input is set', () => {
+    fixture.componentRef.setInput('data', null);
+    fixture.componentRef.setInput('error', 'دریافت نمودار فروش ناموفق بود');
+    fixture.detectChanges();
+
+    const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement;
+    expect(alert).toBeTruthy();
+    expect(alert.textContent).toContain('دریافت نمودار فروش ناموفق بود');
+    expect(fixture.nativeElement.querySelector('p-chart')).toBeNull();
+  });
+
+  it('tc 3: emits retry from the error block', () => {
+    fixture.componentRef.setInput('data', null);
+    fixture.componentRef.setInput('error', 'دریافت نمودار فروش ناموفق بود');
+    fixture.detectChanges();
+
+    let retries = 0;
+    component.retry.subscribe(() => {
+      retries += 1;
+    });
+
+    (fixture.nativeElement.querySelector('[role="alert"] button') as HTMLButtonElement).click();
+    expect(retries).toBe(1);
+  });
+
+  it('tc 7: state() resolves error > loading > empty > data', () => {
+    fixture.componentRef.setInput('error', 'x');
+    fixture.componentRef.setInput('loading', true);
+    fixture.detectChanges();
+    expect(component.state()).toBe('error');
+
+    fixture.componentRef.setInput('error', null);
+    fixture.componentRef.setInput('loading', true);
+    fixture.detectChanges();
+    expect(component.state()).toBe('loading');
+
+    fixture.componentRef.setInput('loading', false);
+    fixture.componentRef.setInput('data', null);
+    // `null` reads as EMPTY here, not loading — the page already owns the
+    // spinner through `loading`, and an empty array and a missing array are the
+    // same "nothing to draw" outcome for a chart.
+    fixture.detectChanges();
+    expect(component.state()).toBe('empty');
+
+    fixture.componentRef.setInput('data', []);
+    fixture.detectChanges();
+    expect(component.state()).toBe('empty');
+
+    fixture.componentRef.setInput('data', SAMPLE_7_DAYS);
+    fixture.detectChanges();
+    expect(component.state()).toBe('data');
+  });
 });

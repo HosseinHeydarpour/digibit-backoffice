@@ -131,7 +131,9 @@
     <app-recent-orders
       [orders]="recentOrders()"
       [loading]="resolving()"
+      [error]="recentOrdersError()"
       (orderClick)="onOrderClick($event)"
+      (retry)="retryRecentOrders()"
     />
   </div>
 
@@ -149,7 +151,9 @@
         [data]="salesChartData()"
         [range]="chartRange()"
         [loading]="chartLoading()"
+        [error]="salesChartError()"
         (rangeChange)="onChartRangeChange($event)"
+        (retry)="retrySalesChart()"
       />
     </div>
     <div class="xl:col-span-1">
@@ -166,7 +170,9 @@
         class="block h-full"
         [items]="lowStockItems()"
         [loading]="resolving()"
+        [error]="lowStockError()"
         (editClick)="onEditProduct($event)"
+        (retry)="retryLowStock()"
       />
     </div>
   </div>
@@ -179,36 +185,11 @@
     normal, and reusing the empty state would tell the user the dashboard has
     no sales when what actually happened is that the request failed.
 
-    `role="alert"` because this is not a page the user asked for: it replaced
-    content they were waiting on, so it is announced when it appears rather
-    than when a screen reader happens to reach it.
+    `app-error-state` is the SAME red block the widgets draw for their own
+    failures (BO-E07 tc 8): one failure, one look, everywhere — page or widget.
   -->
-  <div
-    role="alert"
-    class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
-  >
-    <div class="flex items-start gap-4">
-      <div
-        class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-100 text-2xl text-red-600 dark:bg-red-900/30 dark:text-red-400"
-      >
-        <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
-      </div>
-
-      <div class="min-w-0">
-        <h2 class="text-lg font-bold text-gray-900 dark:text-white">دریافت اطلاعات ناموفق بود</h2>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          خلاصهٔ پیشخوان از سرور گرفته نشد. لطفاً دوباره تلاش کنید.
-        </p>
-
-        <button
-          type="button"
-          (click)="retry()"
-          class="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
-        >
-          <i class="pi pi-refresh" aria-hidden="true"></i>
-          تلاش دوباره
-        </button>
-      </div>
-    </div>
-  </div>
+  <app-error-state
+    [description]="'خلاصهٔ پیشخوان از سرور گرفته نشد. لطفاً دوباره تلاش کنید.'"
+    (retry)="retry()"
+  />
 }

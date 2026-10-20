@@ -59,15 +59,17 @@
 
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ErrorState } from '@shared/components/error-state/error-state';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
 
 import { LOW_STOCK_THRESHOLD } from '../dashboard.config';
 import type { DashboardLowStockItem } from '../models/dashboard.model';
+import type { WidgetState } from '../models/widget-state';
 
 @Component({
   selector: 'app-low-stock',
-  imports: [RouterLink, PersianDigitsPipe, TomanPipe],
+  imports: [RouterLink, PersianDigitsPipe, TomanPipe, ErrorState],
   templateUrl: './low-stock.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -81,8 +83,44 @@ export class LowStock {
   /** The page's own loading state (a re-resolve in flight). */
   readonly loading = input<boolean>(false);
 
+  /**
+   * A non-null message means the page's low-stock request rejected (BO-E07 tc 2).
+   *
+   * Checked FIRST in `state()`: a failure that also left `items` `null` must
+   * read as an error, not as the green "everything is fine" block — a dead
+   * request must never look like a healthy warehouse.
+   */
+  readonly error = input<string | null>(null);
+
   /** Emits the product id; the page owns the navigation. */
   readonly editClick = output<string>();
+
+  /** Emits when the user asks to re-run the failed fetch (BO-E07 tc 3). */
+  readonly retry = output<void>();
+
+  /**
+   * The single render-state for the card body (BO-E07 tc 7).
+   *
+   * `error` > `loading` (the existing `showSkeleton`, which is `loading || items
+   * === null`) > `empty` (a real "nothing is low" answer — the green check) >
+   * `data`. Order matters: `null` items must never fall through to the green
+   * "warehouse is healthy" block before the request has even answered.
+   */
+  readonly state = computed<WidgetState>(() => {
+    if (this.error()) {
+      return 'error';
+    }
+
+    if (this.showSkeleton()) {
+      return 'loading';
+    }
+
+    if (this.filteredItems().length === 0) {
+      return 'empty';
+    }
+
+    return 'data';
+  });
 
   /**
    * True while there is nothing trustworthy to show yet.

@@ -4,11 +4,13 @@
   with the Arino underline, same «مشاهده همه» link — because on an `xl` screen
   the two sit one above the other and any difference reads as a mistake.
 
-  THREE STATES, ONE `@if` CHAIN
-  -----------------------------
-  skeleton → empty (healthy) → list. The order matters: `showSkeleton()` is
-  checked FIRST, so a `null` response (no answer yet) can never fall through to
-  the green "everything is fine" block.
+  ONE SWITCH, FOUR STATES (BO-E07 tc 7)
+  -------------------------------------
+  `state()` decides the rows: skeleton → error → empty (healthy) → list. The
+  order is the contract — `error` is first, then `loading` (the existing
+  `showSkeleton()`), then `empty`, then `data` — so a `null` response (no answer
+  yet) or a failed response can never fall through to the green "everything is
+  fine" block.
 
   THE CARD FILLS ITS ROW
   ----------------------
@@ -54,105 +56,130 @@
     </a>
   </div>
 
-  <!-- Rows: skeleton, empty, or the list itself. `flex-1` so the divider and
-       the card's bottom edge reach the row's height (see the header note). -->
-  <div class="flex-1 divide-y divide-gray-200 dark:divide-gray-700">
-    @if (showSkeleton()) {
-      <!--
-        Four pulse rows, matching a real row's height and column rhythm
-        (thumbnail, two text lines, badge) so the card does not jump when the
-        data lands.
-      -->
-      @for (i of [1, 2, 3, 4]; track i) {
-        <div class="flex animate-pulse items-center justify-between p-4">
-          <div class="flex items-center gap-3">
-            <div class="size-11 rounded-lg bg-gray-200 dark:bg-gray-700"></div>
-            <div class="space-y-2">
-              <div class="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700"></div>
-              <div class="h-3 w-16 rounded bg-gray-200 dark:bg-gray-700"></div>
+  <!-- Rows: ONE switch over `state()`. `flex-1` so the divider and the card's
+       bottom edge reach the row's height (see the header note). -->
+  @switch (state()) {
+    @case ('loading') {
+      <div class="flex-1 divide-y divide-gray-200 dark:divide-gray-700">
+        <!--
+          Four pulse rows, matching a real row's height and column rhythm
+          (thumbnail, two text lines, badge) so the card does not jump when the
+          data lands.
+        -->
+        @for (i of [1, 2, 3, 4]; track i) {
+          <div class="flex animate-pulse items-center justify-between p-4">
+            <div class="flex items-center gap-3">
+              <div class="size-11 rounded-lg bg-gray-200 dark:bg-gray-700"></div>
+              <div class="space-y-2">
+                <div class="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700"></div>
+                <div class="h-3 w-16 rounded bg-gray-200 dark:bg-gray-700"></div>
+              </div>
             </div>
+            <div class="h-6 w-14 rounded-full bg-gray-200 dark:bg-gray-700"></div>
           </div>
-          <div class="h-6 w-14 rounded-full bg-gray-200 dark:bg-gray-700"></div>
-        </div>
-      }
-    } @else if (filteredItems().length === 0) {
-      <!--
-        Empty is GOOD NEWS here, not an error (tc 7): nothing to fix. Green
-        check, not a warning triangle — this is the one empty state in the panel
-        that is a success message.
-      -->
-      <div class="flex h-full flex-col items-center justify-center p-8 text-center">
-        <div
-          class="flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-        >
-          <i class="pi pi-check text-xl" aria-hidden="true"></i>
-        </div>
-        <p class="mt-3 text-sm font-medium text-gray-900 dark:text-white">
-          موجودی انبار در وضعیت سالم است
-        </p>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          هیچ کالایی زیر آستانهٔ تعیین‌شده قرار ندارد.
-        </p>
+        }
       </div>
-    } @else {
-      @for (item of filteredItems(); track item.id) {
-        <div
-          class="flex items-center justify-between gap-2 p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700/50"
-        >
-          <!-- Thumbnail (or a box glyph) + name + price. -->
-          <div class="flex min-w-0 items-center gap-3">
-            <div
-              class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
-            >
-              @if (item.imageUrl) {
-                <img [src]="item.imageUrl" [alt]="item.name" class="size-11 object-cover" />
-              } @else {
-                <i class="pi pi-box text-lg" aria-hidden="true"></i>
-              }
-            </div>
-
-            <div class="min-w-0 flex-1">
-              <!-- `min-w-0` on the parent + `truncate` here: a long product name
-                   must ellipsize, never push the badge out of the card. -->
-              <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
-                {{ item.name }}
-              </p>
-              <p class="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">
-                {{ item.price | toman }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Stock badge + edit button, both shrink-0 so the name yields space. -->
-          <div class="flex shrink-0 items-center gap-2">
-            <span
-              class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold"
-              [class]="stockBadgeClass(item.stock)"
-            >
-              @if (isOutOfStock(item.stock)) {
-                ناموجود
-              } @else {
-                {{ item.stock | persianDigits }} عدد
-              }
-            </span>
-
-            <!--
-              A BUTTON, not a link: it emits and the page navigates. `size-8` on
-              desktop, 44px on a phone (BO-B17's touch-target rule) — a 32px
-              pencil is a coin flip on a touchscreen.
-            -->
-            <button
-              type="button"
-              (click)="onEdit(item.id)"
-              class="flex size-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary-light"
-              title="ویرایش محصول"
-              [attr.aria-label]="'ویرایش محصول ' + item.name"
-            >
-              <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
-            </button>
-          </div>
-        </div>
-      }
     }
-  </div>
+
+    @case ('error') {
+      <!--
+        A rejected fetch (BO-E07 tc 2). The SAME red block as the other widgets
+        (tc 8): one widget breaking looks exactly like another. Retry re-runs
+        only this widget's request.
+      -->
+      <div class="flex flex-1 items-center justify-center p-6">
+        <app-error-state
+          [title]="error()!"
+          [description]="'لطفاً دوباره تلاش کنید.'"
+          (retry)="retry.emit()"
+        />
+      </div>
+    }
+
+    @case ('empty') {
+      <div class="flex flex-1 divide-y divide-gray-200 dark:divide-gray-700">
+        <!--
+          Empty is GOOD NEWS here, not an error (tc 7): nothing to fix. Green
+          check, not a warning triangle — this is the one empty state in the
+          panel that is a success message.
+        -->
+        <div class="flex h-full w-full flex-col items-center justify-center p-8 text-center">
+          <div
+            class="flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+          >
+            <i class="pi pi-check text-xl" aria-hidden="true"></i>
+          </div>
+          <p class="mt-3 text-sm font-medium text-gray-900 dark:text-white">
+            موجودی انبار در وضعیت سالم است
+          </p>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            هیچ کالایی زیر آستانهٔ تعیین‌شده قرار ندارد.
+          </p>
+        </div>
+      </div>
+    }
+
+    @default {
+      <div class="flex-1 divide-y divide-gray-200 dark:divide-gray-700">
+        @for (item of filteredItems(); track item.id) {
+          <div
+            class="flex items-center justify-between gap-2 p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700/50"
+          >
+            <!-- Thumbnail (or a box glyph) + name + price. -->
+            <div class="flex min-w-0 items-center gap-3">
+              <div
+                class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
+              >
+                @if (item.imageUrl) {
+                  <img [src]="item.imageUrl" [alt]="item.name" class="size-11 object-cover" />
+                } @else {
+                  <i class="pi pi-box text-lg" aria-hidden="true"></i>
+                }
+              </div>
+
+              <div class="min-w-0 flex-1">
+                <!-- `min-w-0` on the parent + `truncate` here: a long product name
+                     must ellipsize, never push the badge out of the card. -->
+                <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                  {{ item.name }}
+                </p>
+                <p class="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                  {{ item.price | toman }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Stock badge + edit button, both shrink-0 so the name yields space. -->
+            <div class="flex shrink-0 items-center gap-2">
+              <span
+                class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold"
+                [class]="stockBadgeClass(item.stock)"
+              >
+                @if (isOutOfStock(item.stock)) {
+                  ناموجود
+                } @else {
+                  {{ item.stock | persianDigits }} عدد
+                }
+              </span>
+
+              <!--
+                A BUTTON, not a link: it emits and the page navigates. `size-8` on
+                desktop, 44px on a phone (BO-B17's touch-target rule) — a 32px
+                pencil is a coin flip on a touchscreen.
+              -->
+              <button
+                type="button"
+                (click)="onEdit(item.id)"
+                class="flex size-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary-light"
+                title="ویرایش محصول"
+                [attr.aria-label]="'ویرایش محصول ' + item.name"
+              >
+                <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
 </div>

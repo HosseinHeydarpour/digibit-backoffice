@@ -196,4 +196,55 @@ describe('RecentOrders (BO-E04)', () => {
     const skeletonRows = fixture.nativeElement.querySelectorAll('tbody tr.animate-pulse');
     expect(skeletonRows.length).toBe(4);
   });
+
+  // ─── BO-E07: the error path a failed fetch takes ──────────────────────────
+
+  it('tc 2: shows the error block (not the table) when the error input is set', () => {
+    fixture.componentRef.setInput('error', 'دریافت سفارشات اخیر ناموفق بود');
+    fixture.detectChanges();
+
+    const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement;
+    expect(alert).toBeTruthy();
+    expect(alert.textContent).toContain('دریافت سفارشات اخیر ناموفق بود');
+    // The table must not render behind the failure — a dead request must never
+    // look like "no orders" or "still loading".
+    expect(fixture.nativeElement.querySelector('tbody tr')).toBeNull();
+  });
+
+  it('tc 3: emits retry from the error block', () => {
+    fixture.componentRef.setInput('error', 'دریافت سفارشات اخیر ناموفق بود');
+    fixture.detectChanges();
+
+    let retries = 0;
+    component.retry.subscribe(() => {
+      retries += 1;
+    });
+
+    (fixture.nativeElement.querySelector('[role="alert"] button') as HTMLButtonElement).click();
+    expect(retries).toBe(1);
+  });
+
+  it('tc 7: state() resolves error > loading > empty > data', () => {
+    fixture.componentRef.setInput('error', 'x');
+    fixture.componentRef.setInput('orders', null);
+    fixture.componentRef.setInput('loading', true);
+    expect(component.state()).toBe('error');
+
+    fixture.componentRef.setInput('error', null);
+    fixture.componentRef.setInput('loading', true);
+    expect(component.state()).toBe('loading');
+
+    fixture.componentRef.setInput('loading', false);
+    fixture.componentRef.setInput('orders', null);
+    // A `null` payload that simply has not answered yet reads as "loading", not
+    // "empty" — otherwise the table flashes «هیچ سفارشی یافت نشد» at a user whose
+    // request is still in flight.
+    expect(component.state()).toBe('loading');
+
+    fixture.componentRef.setInput('orders', []);
+    expect(component.state()).toBe('empty');
+
+    fixture.componentRef.setInput('orders', MOCK_8_ORDERS);
+    expect(component.state()).toBe('data');
+  });
 });

@@ -48,6 +48,7 @@ describe('LowStock (BO-E05)', () => {
       items?: readonly DashboardLowStockItem[] | null;
       threshold?: number;
       loading?: boolean;
+      error?: string | null;
     } = {},
   ): Promise<void> {
     await TestBed.configureTestingModule({
@@ -69,6 +70,9 @@ describe('LowStock (BO-E05)', () => {
     }
     if (inputs.loading !== undefined) {
       fixture.componentRef.setInput('loading', inputs.loading);
+    }
+    if (inputs.error !== undefined) {
+      fixture.componentRef.setInput('error', inputs.error);
     }
 
     fixture.detectChanges();
@@ -285,5 +289,47 @@ describe('LowStock (BO-E05)', () => {
 
     expect(el.querySelector('img')).toBeNull();
     expect(el.querySelector('.pi-box')).toBeTruthy();
+  });
+
+  // ─── BO-E07: the error path a failed fetch takes ──────────────────────────
+
+  it('tc 2: shows the error block (not the healthy warehouse) when the error input is set', async () => {
+    await setup({ items: null, error: 'دریافت کالاهای کم‌موجودی ناموفق بود' });
+
+    const alert = el.querySelector('[role="alert"]') as HTMLElement;
+    expect(alert).toBeTruthy();
+    expect(alert.textContent).toContain('دریافت کالاهای کم‌موجودی ناموفق بود');
+    // A dead request must never read as the green "everything is fine" block.
+    expect(el.textContent).not.toContain('موجودی انبار در وضعیت سالم است');
+  });
+
+  it('tc 3: emits retry from the error block', async () => {
+    await setup({ items: null, error: 'x' });
+
+    const emitted: string[] = [];
+    component.retry.subscribe(() => emitted.push('retry'));
+
+    (el.querySelector('[role="alert"] button') as HTMLButtonElement).click();
+    expect(emitted).toEqual(['retry']);
+  });
+
+  it('tc 7: state() resolves error > loading > empty > data', async () => {
+    await setup({ items: null, error: 'x', loading: true });
+    expect(component.state()).toBe('error');
+
+    fixture.componentRef.setInput('error', null);
+    fixture.componentRef.setInput('loading', true);
+    expect(component.state()).toBe('loading');
+
+    fixture.componentRef.setInput('loading', false);
+    // `null` items that have not answered yet read as "loading", never the green
+    // healthy block.
+    expect(component.state()).toBe('loading');
+
+    fixture.componentRef.setInput('items', []);
+    expect(component.state()).toBe('empty');
+
+    fixture.componentRef.setInput('items', ITEMS);
+    expect(component.state()).toBe('data');
   });
 });

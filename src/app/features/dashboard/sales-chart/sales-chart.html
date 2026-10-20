@@ -12,6 +12,12 @@
   `min-h-72` is the floor, not the height: on a phone the row is single-column
   and there is no sibling to stretch against, so the card keeps the 288px the
   chart needs to be legible.
+
+  ONE SWITCH, FOUR STATES (BO-E07 tc 7)
+  -------------------------------------
+  `state()` decides the whole body: loading shows a spinner, error shows the
+  retry block, empty shows a centred message, data shows the chart. The header
+  (title + range toggle) is always visible so the card keeps its shape.
 -->
 <div
   class="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
@@ -50,29 +56,50 @@
     </div>
   </div>
 
-  @if (loading()) {
-    <div class="flex min-h-72 w-full flex-1 items-center justify-center">
-      <i class="pi pi-spin pi-spinner text-2xl text-primary" aria-label="بارگذاری"></i>
-    </div>
-  } @else if (!hasData()) {
-    <div
-      class="flex min-h-72 w-full flex-1 items-center justify-center text-sm text-gray-500 dark:text-gray-400"
-    >
-      داده‌ای نیست
-    </div>
-  } @else {
-    <!--
-      The wrapper is the element Chart.js measures. It must have a height the
-      browser can resolve, which `flex-1` + `min-h-72` provides; `maintainAspectRatio: false`
-      then makes the canvas fill it exactly.
-    -->
-    <div class="relative min-h-72 w-full flex-1">
-      <p-chart
-        type="bar"
-        [data]="chartData()"
-        [options]="chartOptions()"
-        class="block h-full w-full"
-      />
-    </div>
+  @switch (state()) {
+    @case ('loading') {
+      <div class="flex min-h-72 w-full flex-1 items-center justify-center">
+        <i class="pi pi-spin pi-spinner text-2xl text-primary" aria-label="بارگذاری"></i>
+      </div>
+    }
+
+    @case ('error') {
+      <!--
+        The SAME red block as the other widgets (BO-E07 tc 8). Re-running the
+        fetch uses the last-selected range, so the retry never silently flips
+        between ۷ and ۳۰ روز.
+      -->
+      <div class="flex min-h-72 w-full flex-1 items-center justify-center p-6">
+        <app-error-state
+          [title]="error()!"
+          [description]="'لطفاً دوباره تلاش کنید.'"
+          (retry)="retry.emit()"
+        />
+      </div>
+    }
+
+    @case ('empty') {
+      <div
+        class="flex min-h-72 w-full flex-1 items-center justify-center text-sm text-gray-500 dark:text-gray-400"
+      >
+        داده‌ای نیست
+      </div>
+    }
+
+    @default {
+      <!--
+        The wrapper is the element Chart.js measures. It must have a height the
+        browser can resolve, which `flex-1` + `min-h-72` provides;
+        `maintainAspectRatio: false` then makes the canvas fill it exactly.
+      -->
+      <div class="relative min-h-72 w-full flex-1">
+        <p-chart
+          type="bar"
+          [data]="chartData()"
+          [options]="chartOptions()"
+          class="block h-full w-full"
+        />
+      </div>
+    }
   }
 </div>
