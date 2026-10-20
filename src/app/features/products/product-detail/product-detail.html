@@ -1,0 +1,27 @@
+<app-page-header title="جزئیات محصول" description="کالای انتخاب‌شده">
+  <button
+    page-header-actions
+    type="button"
+    routerLink="/products"
+    class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+  >
+    بازگشت
+  </button>
+</app-page-header>
+
+<div
+  class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  <div class="p-6">
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+      @if (productId(); as id) {
+        <span
+          >جزئیات محصول «<span class="font-mono">{{ id }}</span
+          >» در تسک‌های بعدی صف F ساخته می‌شود.</span
+        >
+      } @else {
+        <span>شناسهٔ محصول خوانده نشد.</span>
+      }
+    </p>
+  </div>
+</div>

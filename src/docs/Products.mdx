@@ -1,0 +1,50 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Features/Products" />
+
+# ماژول محصولات / Products module
+
+مسیرها و اسکلت ماژول محصولات (BO-F01). صفحه‌ها فعلاً **placeholder** هستند: جدول لیست در
+BO-F02 و فرم ایجاد مطابق قالب `admin-panel-add-product.html` در BO-F07 ساخته می‌شوند.
+
+The routes and scaffold of the products module (BO-F01). The pages are placeholders for
+now: the list table arrives in BO-F02 and the create form (matching
+`admin-panel-add-product.html`) in BO-F07.
+
+## Use case
+
+این صفحه **چرا و چگونه** مسیرها ساخته شده‌اند را مستند می‌کند، نه یک کامپوننت بصری — صفحه‌های
+placeholder هنوز برای story لزوماً آماده نیستند. برای دیدن مسیرِ یک URL در router، کامنت
+`TRACE` در `products.routes.ts` را بخوان.
+
+This page documents **why and how** the routes are wired, not a visual component — the
+placeholder pages are not story-worthy yet. To trace a URL through the router, read the
+`TRACE` comment in `products.routes.ts`.
+
+## How to use
+
+| Route                | Page            | Real content           |
+| -------------------- | --------------- | ---------------------- |
+| `/products`          | `ProductList`   | list table — BO-F02    |
+| `/products/new`      | `ProductCreate` | create form — BO-F07   |
+| `/products/:id/edit` | `ProductEdit`   | edit form — BO-F07     |
+| `/products/:id`      | `ProductDetail` | detail — later F tasks |
+
+هر route در `products.routes.ts` اعلام شده و `loadChildren` آن را lazy می‌کند (chunk
+`products-routes`). هر route `data.title` (عنوان topbar)، `data.breadcrumb` و
+`data.permission: 'products.view'` را دارد.
+
+Every route is declared in `products.routes.ts` and `loadChildren` loads it lazily (the
+`products-routes` chunk). Each carries `data.title` (topbar heading), `data.breadcrumb`
+and `data.permission: 'products.view'`.
+
+## Logic
+
+حرف اول `new` پیش از `:id` می‌آید تا به‌عنوان یک id گرفته نشود؛ `:id/edit` دو بخش دارد و هرگز
+با `:id` (یک بخش) تداخل نمی‌کند، چون شمار بخش‌ها فرق دارد. گیتینگ مجوز روی route هنوز اعمال
+نمی‌شود — guard مربوطه BO-D07 است؛ `data.permission` فقط ثابتِ آماده برای آن است.
+
+The literal `new` precedes `:id` so it is never captured as an id; `:id/edit` has two
+segments and can never be shadowed by `:id`, because the segment counts differ. Route
+permission gating is not enforced yet — the guard is BO-D07, and `data.permission` is only
+the constant it will read.

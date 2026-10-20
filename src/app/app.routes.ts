@@ -11,16 +11,16 @@ import { ErrorPage } from '@shared/components/error-page/error-page';
  *   does not type this, so it is read through `route.snapshot.data['title']`.
  * - `title` is Angular's built-in document-title setter for the browser tab.
  *
- * Routes are currently **component-less**: the feature folders under
- * `src/app/features/*` are still empty, and each page arrives in a later task
- * (BO-F*, BO-H*, …). A component-less route still matches and still resolves
- * `data.title`, so the topbar heading switches correctly the moment navigation
- * happens — but the routed area renders nothing until the page components land.
+ * The remaining routes are **component-less** placeholders (categories, brands,
+ * orders, …): each still matches and still resolves `data.title`, so the topbar
+ * heading switches the moment navigation happens — but the routed area renders
+ * nothing until their page components land (BO-F*, BO-H*, …).
  *
  * BO-E01 is the exception that sets the pattern: `/dashboard` is a
- * `loadChildren` route that owns its definition in `features/dashboard/`, so
- * from here on a feature brings its own page, resolver and `data` with it, and
- * this file stays a shell: the layout, the error pages and one line per feature.
+ * `loadChildren` route that owns its definition in `features/dashboard/`, and
+ * BO-F01 made `/products` the second one. From here on a feature brings its own
+ * page, resolver and `data` with it, and this file stays a shell: the layout,
+ * the error pages and one line per feature.
  */
 export const routes: Routes = [
   {
@@ -56,11 +56,14 @@ export const routes: Routes = [
           import('@features/dashboard/dashboard.routes').then((m) => m.DASHBOARD_ROUTES),
       },
 
+      // Products is the second module to own its routes this way (BO-F01). Same
+      // contract as the dashboard — the route here is a single pointer, and the
+      // pages (list / new / :id / :id/edit) plus their `data` live in
+      // `features/products/products.routes.ts` and arrive as one lazy chunk.
       {
         path: 'products',
-        data: { title: 'محصولات', breadcrumb: 'محصولات' },
-        title: 'محصولات',
-        children: [],
+        loadChildren: () =>
+          import('@features/products/products.routes').then((m) => m.PRODUCTS_ROUTES),
       },
       {
         path: 'categories',
