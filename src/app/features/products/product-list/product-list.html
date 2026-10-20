@@ -13,10 +13,235 @@
 <div
   class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
 >
-  <div class="p-6">
-    <p class="text-sm text-gray-500 dark:text-gray-400">
-      فهرست محصولات با جدول، فیلتر و صفحه‌بندی در تسک
-      <span class="font-mono">BO-F02</span> ساخته می‌شود.
-    </p>
-  </div>
+  <!--
+    ONE SWITCH, FOUR STATES (BO-E07 tc 7, carried into BO-F02).
+
+    `state()` is the only branch condition. `error` is checked first — a failed
+    fetch must never look like "still loading" or like an empty shop — then
+    `loading` (a `null` payload that has not answered yet), then a real `[]`
+    (`empty`), then `data`.
+  -->
+  @switch (state()) {
+    @case ('loading') {
+      <!--
+        SKELETON (tc 9). Four placeholder rows, one bar per COLUMN, so the
+        skeleton has the real table's shape and nothing jumps when the rows
+        arrive. `role="status"` + `aria-busy` announce the region once, the way
+        `app-loading-block` does, because the bars themselves are silent.
+      -->
+      <div
+        class="overflow-x-auto"
+        role="status"
+        aria-busy="true"
+        aria-label="در حال بارگذاری محصولات"
+      >
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <tr>
+              @for (col of cols; track col.field) {
+                <th
+                  scope="col"
+                  [class]="
+                    'px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 ' +
+                    (col.class ?? '')
+                  "
+                >
+                  {{ col.header }}
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+            @for (i of [1, 2, 3, 4]; track i) {
+              <tr class="animate-pulse">
+                @for (col of cols; track col.field) {
+                  <td
+                    class="px-6 py-4 text-start"
+                    [class]="'whitespace-nowrap ' + (col.class ?? '')"
+                  >
+                    @if (col.field === 'status') {
+                      <div class="h-6 w-16 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                    } @else {
+                      <div class="h-4 max-w-24 rounded bg-gray-200 dark:bg-gray-700"></div>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('error') {
+      <div class="p-6">
+        <app-error-state
+          [title]="itemsError()!"
+          [description]="'لطفاً دوباره تلاش کنید.'"
+          (retry)="retry()"
+        />
+      </div>
+    }
+
+    @case ('empty') {
+      <!--
+        EMPTY (tc 8). The shared block — same one every list uses — with the
+        products wording, and its action button wired to the create form.
+      -->
+      <app-empty-state
+        icon="pi pi-inbox"
+        title="هنوز محصولی ثبت نشده"
+        description="اولین کالای فروشگاه را اضافه کنید."
+        actionLabel="افزودن محصول"
+        (action)="openCreateForm()"
+      />
+    }
+
+    @default {
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <tr>
+              @for (col of cols; track col.field) {
+                <th
+                  scope="col"
+                  [style.width]="col.width ?? null"
+                  [class]="
+                    'px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 ' +
+                    (col.class ?? '')
+                  "
+                >
+                  {{ col.header }}
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+            @for (item of items(); track item.id) {
+              <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <!-- نام محصول — truncated with the full value on hover, because a
+                     long name must not push the actions out of the row. -->
+                <td
+                  class="max-w-40 truncate whitespace-nowrap px-6 py-4 text-start text-sm font-medium text-gray-900 dark:text-white"
+                  [title]="item.name"
+                >
+                  {{ item.name }}
+                </td>
+
+                <td
+                  class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 sm:table-cell dark:text-gray-400"
+                >
+                  {{ item.categoryName }}
+                </td>
+
+                <td
+                  class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 lg:table-cell dark:text-gray-400"
+                >
+                  {{ item.brandName }}
+                </td>
+
+                <!-- قیمت (tc 3) — the `toman` pipe already prints Persian digits
+                     and the thousands separators, so it never needs
+                     `persianDigits` after it. `tabular-nums` keeps one row's
+                     digits under the next row's. -->
+                <td
+                  class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium tabular-nums text-gray-900 dark:text-white"
+                >
+                  {{ item.price | toman }}
+                </td>
+
+                <!-- موجودی — zero is red: «۰» in a healthy shop is news, not a
+                     number. -->
+                <td
+                  class="whitespace-nowrap px-6 py-4 text-start text-sm tabular-nums"
+                  [class]="
+                    item.stock === 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-gray-900 dark:text-white'
+                  "
+                >
+                  {{ item.stock | persianDigits }}
+                </td>
+
+                <!-- وضعیت (tc 4) — the coloured pill. -->
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  <span
+                    class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+                    [class]="statusBadgeClass(item.status)"
+                  >
+                    {{ statusLabel(item.status) }}
+                  </span>
+                </td>
+
+                <!-- تاریخ ثبت — Solar date, hidden below `md`. -->
+                <td
+                  class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 md:table-cell dark:text-gray-400"
+                >
+                  {{ item.createdAt | persianDate }}
+                </td>
+
+                <!--
+                  اکشن‌ها (tc 5) — ویرایش / تغییر وضعیت / حذف.
+
+                  ویرایش is a real link: the edit route exists (BO-F01), so one
+                  click is one navigation and the middle/ctrl-click "open in new
+                  tab" behaviour comes for free from the router. The other two
+                  are buttons whose CRUD arrives in F05/F06; until then they say
+                  so through a toast instead of doing nothing silently.
+
+                  Every control carries an `aria-label`, because three icons in
+                  a row with no text is otherwise three unlabelled buttons to a
+                  screen reader.
+                -->
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  <div class="flex items-center gap-2">
+                    <a
+                      [routerLink]="['/products', item.id, 'edit']"
+                      class="inline-flex items-center gap-1 text-primary transition hover:text-primary-dark"
+                      aria-label="ویرایش محصول"
+                    >
+                      <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+                      <span class="text-sm">ویرایش</span>
+                    </a>
+                    <button
+                      type="button"
+                      (click)="toggleStatus(item)"
+                      class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                      aria-label="تغییر وضعیت"
+                    >
+                      <i class="pi pi-power-off text-sm" aria-hidden="true"></i>
+                      <span>وضعیت</span>
+                    </button>
+                    <button
+                      type="button"
+                      (click)="removeProduct(item)"
+                      class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                      aria-label="حذف"
+                    >
+                      <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+                      <span>حذف</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!--
+        FOOTER (tc 10) — the result count, under the table and inside the card,
+        so it scrolls with the rows instead of floating. `persianDigits` keeps
+        the panel's numerals consistent.
+      -->
+      <div
+        class="border-t border-gray-200 px-6 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+      >
+        <span class="font-medium text-gray-900 dark:text-white">
+          {{ total() | persianDigits }}
+        </span>
+        محصول
+      </div>
+    }
+  }
 </div>

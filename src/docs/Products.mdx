@@ -4,22 +4,21 @@ import { Meta } from '@storybook/addon-docs/blocks';
 
 # ماژول محصولات / Products module
 
-مسیرها و اسکلت ماژول محصولات (BO-F01). صفحه‌ها فعلاً **placeholder** هستند: جدول لیست در
-BO-F02 و فرم ایجاد مطابق قالب `admin-panel-add-product.html` در BO-F07 ساخته می‌شوند.
+مسیرها و اسکلت ماژول محصولات (BO-F01). صفحهٔ لیست در BO-F02 ساخته شد؛ فرم ایجاد مطابق قالب
+`admin-panel-add-product.html` در BO-F07 ساخته می‌شود.
 
-The routes and scaffold of the products module (BO-F01). The pages are placeholders for
-now: the list table arrives in BO-F02 and the create form (matching
-`admin-panel-add-product.html`) in BO-F07.
+The routes and scaffold of the products module (BO-F01). The list page has been built (BO-F02);
+the create form (matching `admin-panel-add-product.html`) arrives in BO-F07.
 
 ## Use case
 
-این صفحه **چرا و چگونه** مسیرها ساخته شده‌اند را مستند می‌کند، نه یک کامپوننت بصری — صفحه‌های
-placeholder هنوز برای story لزوماً آماده نیستند. برای دیدن مسیرِ یک URL در router، کامنت
-`TRACE` در `products.routes.ts` را بخوان.
+این صفحه **چرا و چگونه** مسیرها ساخته شده‌اند را مستند می‌کند، نه یک کامپوننت بصری — برای دیدن
+جدول محصولات، story `Features/Products/ProductList` را باز کنید. برای دنبال‌کردن مسیرِ یک URL در
+router، کامنت `TRACE` در `products.routes.ts` را بخوان.
 
-This page documents **why and how** the routes are wired, not a visual component — the
-placeholder pages are not story-worthy yet. To trace a URL through the router, read the
-`TRACE` comment in `products.routes.ts`.
+This page documents **why and how** the routes are wired, not a visual component — for the products
+table itself, open the `Features/Products/ProductList` story. To trace a URL through the router,
+read the `TRACE` comment in `products.routes.ts`.
 
 ## How to use
 
@@ -44,7 +43,18 @@ and `data.permission: 'products.view'`.
 با `:id` (یک بخش) تداخل نمی‌کند، چون شمار بخش‌ها فرق دارد. گیتینگ مجوز روی route هنوز اعمال
 نمی‌شود — guard مربوطه BO-D07 است؛ `data.permission` فقط ثابتِ آماده برای آن است.
 
-The literal `new` precedes `:id` so it is never captured as an id; `:id/edit` has two
-segments and can never be shadowed by `:id`, because the segment counts differ. Route
-permission gating is not enforced yet — the guard is BO-D07, and `data.permission` is only
-the constant it will read.
+The literal `new` precedes `:id` so it is never captured as an id; `:id/edit` has two segments and
+can never be shadowed by `:id`, because the segment counts differ. Route permission gating is not
+enforced yet — the guard is BO-D07, and `data.permission` is only the constant it will read.
+
+## The list page (BO-F02)
+
+ستون‌ها در یک آرایهٔ `cols` با `field/header/width/sortable` تعریف شده‌اند و داده با signal از
+`ProductsService` می‌آید، بنابراین فیلترهای BO-F03 بدون رفرش صفحه اعمال می‌شوند. خروجی fetch از
+یک `state()` می‌گذرد — `error > loading > empty > data` (BO-E07) — و صفحهٔ خالی همان
+`<app-empty-state>` مشترک را با دکمهٔ «افزودن محصول» نشان می‌دهد.
+
+Columns are declared in a `cols` array carrying `field/header/width/sortable` and data arrives as a
+signal from `ProductsService`, so BO-F03's filters apply without a page refresh. The fetch's outcome
+goes through one `state()` — `error > loading > empty > data` (BO-E07) — and the empty shop renders
+the shared `<app-empty-state>` with an «افزودن محصول» action.

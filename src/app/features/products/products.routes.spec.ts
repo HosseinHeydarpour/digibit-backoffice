@@ -10,6 +10,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, RouterOutlet, type Route, type Routes } from '@angular/router';
+import { MessageService } from 'primeng/api';
 
 import { routes as APP_ROUTES } from '../../app.routes';
 
@@ -31,7 +32,13 @@ class Host {}
 const ROUTES: Routes = [{ path: '', children: [{ path: 'products', children: PRODUCTS_ROUTES }] }];
 
 function setup(): { fixture: ReturnType<typeof TestBed.createComponent<Host>>; router: Router } {
-  TestBed.configureTestingModule({ imports: [Host], providers: [provideRouter(ROUTES)] });
+  TestBed.configureTestingModule({
+    imports: [Host],
+    // `MessageService` because `ProductList` (BO-F02) injects `ToastService`,
+    // which is root-provided but is not itself a root provider of PrimeNG's
+    // message bus. Same provider `app.config.ts` registers.
+    providers: [provideRouter(ROUTES), MessageService],
+  });
 
   const fixture = TestBed.createComponent(Host);
   const router = TestBed.inject(Router);
