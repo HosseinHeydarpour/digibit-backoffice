@@ -27,6 +27,7 @@
 
 import { Routes } from '@angular/router';
 
+import { unsavedProductChangesGuard } from './guards/unsaved-product-changes.guard';
 import { ProductCreate } from './product-create/product-create';
 import { ProductDetail } from './product-detail/product-detail';
 import { ProductEdit } from './product-edit/product-edit';
@@ -72,6 +73,7 @@ export const PRODUCTS_ROUTES: Routes = [
     path: 'new',
     component: ProductCreate,
     title: 'افزودن محصول',
+    canDeactivate: [unsavedProductChangesGuard],
     data: { title: 'افزودن محصول', breadcrumb: 'افزودن محصول', permission: PRODUCTS_PERMISSION },
   },
 

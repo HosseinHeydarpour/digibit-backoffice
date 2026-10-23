@@ -434,6 +434,33 @@ and its `data`. Every feature page after it follows that shape.
   stub), because the page injects the confirm service. `ProductList` also reads `PERMISSIONS`; its
   default is empty, so action tests must provide `['products.view']`.
 
+### Create form: one group, four tabs (BO-F07)
+
+- **One `FormGroup`, four tabs.** `ProductCreate.form` owns every field and both `FormArray`s
+  (`variants`, `images`); switching `activeTab` never swaps a control. Inventory edits `stock`/
+  `lowStockThreshold` now; variants/gallery are placeholders until BO-F10/F11, but the arrays
+  already exist so the payload shape is stable.
+- **Tab validation is per-tab.** `next()`/`selectTab()` validate only the controls the current tab
+  owns and `markAsTouched` them; an invalid main tab cannot be skipped (tc 4). BO-F08 adds the
+  complete validator set.
+- **`slugify` is pure and dictionary-backed.** `product-slug.ts` maps common Persian words
+  (`لپ‌تاپ` → `laptop`, `ایسوس` → `asus`) and falls back to a character map, producing
+  `[a-z0-9-]` only. A manual slug edit sets `slugEdited` and stops the name→slug sync; uniqueness
+  is BO-F16.
+- **Leaving a dirty create page asks first.** `unsavedProductChangesGuard` implements
+  `CanDeactivate` through `ConfirmService`; `ProductCreate.hasUnsavedChanges()` is
+  `hasChanges() || form.dirty` (a `valueChanges` flag catches programmatic edits too). The route
+  also has a `beforeunload` listener for refresh/close (tc 7). The guard is written against the
+  small `HasUnsavedChanges` interface so BO-F14 can reuse it.
+- **The save button is honest, not broken.** BO-F13 owns the POST; until then `save()` marks all
+  controls touched, reports errors, and otherwise says the submit arrives in BO-F13.
+- **Storybook title is `Features/Products/Create` with `autodocs`.** It is a child of the
+  `Features/Products` docs page, not embedded as a `Canvas`: two CSF files cannot share the
+  `Features/Products` title, and the docs page already owns it.
+- **Any route spec that navigates to `/products/new` now needs `provideHttpClientTesting`.** The
+  page injects `ProductsService` for the category/brand lookups at construction; without an HTTP
+  backend the test fails with `No provider for HttpClient`.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

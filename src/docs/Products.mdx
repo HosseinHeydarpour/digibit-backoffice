@@ -319,6 +319,43 @@ a phone they collapse into one kebab menu. The menu is a single shared instance 
 - The optimistic overlays live above `page().items`, so the server response stays the source
   of truth and a failed request is a clean rollback.
 
+## فرم ایجاد محصول / Create form (BO-F07)
+
+مسیر `/products/new` یک فرم چهارتبی است: **اطلاعات اصلی**، **واریانت‌ها**، **گالری تصاویر**
+و **موجودی**. هر چهار تب روی **یک `FormGroup` مرکزی** کار می‌کنند؛ جابه‌جایی تب فقط
+`activeTab` را عوض می‌کند و مقدارها را جابه‌جا نمی‌کند. `variants` و `images` از همین حالا
+`FormArray` هستند تا BO-F10/F11 فقط ردیف‌ها را اضافه کنند.
+
+The `/products/new` route is a four-tab form: main info, variants, gallery and inventory. All
+four tabs share one `FormGroup`; switching only changes `activeTab`, so no value is lost. The
+`variants` and `images` arrays exist now so BO-F10/F11 only add rows.
+
+### رفتارها / Behaviour
+
+- **نام → slug:** تابع خالص `slugify` در `product-slug.ts` نام فارسی/لاتین را به slug
+  انگلیسی تبدیل می‌کند (`لپ‌تاپ ایسوس` → `laptop-asus`). ویرایش دستی slug، sync را متوقف
+  می‌کند. یکتایی و پیشنهاد جایگزین در BO-F16 می‌آید.
+- **اعتبارسنجی تب:** `next()` و کلیک روی تب بعدی فقط کنترل‌های همان تب را بررسی و
+  `markAsTouched` می‌کنند؛ تب ناقص باز می‌ماند (tc 4). اعتبارسنجی کامل در BO-F08.
+- **خروج:** `unsavedProductChangesGuard` روی route نشسته و اگر `form.dirty` باشد با
+  `ConfirmService` می‌پرسد. رفرش/بستن مرورگر با `beforeunload` پوشش داده می‌شود (tc 7).
+- **ذخیره:** BO-F13 هنوز POST را ندارد؛ دکمه همهٔ کنترل‌ها را touched می‌کند و اگر فرم
+  معتبر باشد پیام «در BO-F13 فعال می‌شود» می‌دهد.
+- **تب‌های بعدی:** واریانت‌ها (F10) و گالری (F11) placeholder دارند؛ موجودی (F12) از همین
+  حالا `stock` و `lowStockThreshold` را ویرایش می‌کند.
+
+<a href="?path=/story/features-products-create--default" target="_top">
+  مشاهدهٔ فرم ایجاد محصول در Storybook
+</a>
+
+- **Name → slug:** the pure `slugify` in `product-slug.ts` maps Persian/Latin names to an
+  English slug. A manual slug edit stops the sync; uniqueness belongs to BO-F16.
+- **Tab validation:** `next()` validates only the current tab's controls and marks them touched;
+  an invalid tab stays open. Full rules land in BO-F08.
+- **Leaving:** `unsavedProductChangesGuard` asks via `ConfirmService` when the form is dirty;
+  refresh/close is covered by `beforeunload`.
+- **Save:** BO-F13 owns the POST; the button validates and reports missing fields for now.
+
 ## حالت‌های صفحه / Page states
 
 سه حالت غیر دادهٔ صفحه: در حال بارگذاری، خالی و خطا. هر سه از یک `state()` می‌آیند و

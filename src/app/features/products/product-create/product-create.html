@@ -1,21 +1,438 @@
-<app-page-header title="افزودن محصول" description="یک کالای جدید به فروشگاه اضافه کنید">
-  <button
+<app-page-header title="افزودن محصول" description="محصول جدید را به فروشگاه اضافه کنید">
+  <a
     page-header-actions
-    type="button"
     routerLink="/products"
     class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
   >
+    <i class="pi pi-arrow-right" aria-hidden="true"></i>
     بازگشت
+  </a>
+
+  <button
+    page-header-actions
+    type="button"
+    (click)="save()"
+    class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+  >
+    <i class="pi pi-check" aria-hidden="true"></i>
+    ذخیره محصول
   </button>
 </app-page-header>
 
-<div
-  class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
->
-  <div class="p-6">
-    <p class="text-sm text-gray-500 dark:text-gray-400">
-      فرم تب‌دار ایجاد محصول مطابق قالب «افزودن محصول» در تسک
-      <span class="font-mono">BO-F07</span> ساخته می‌شود.
-    </p>
+<form [formGroup]="form" (submit)="$event.preventDefault(); save()" class="space-y-6">
+  <div
+    class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+  >
+    <!--
+      The tab strip is data-driven (TABS in the component). The panels stay in
+      the same FormGroup, so switching never loses a value (tc 3).
+    -->
+    <div
+      class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700"
+      role="tablist"
+      aria-label="بخش‌های فرم محصول"
+    >
+      @for (tab of tabs; track tab.id) {
+        <button
+          type="button"
+          role="tab"
+          [attr.data-tab]="tab.id"
+          [attr.aria-selected]="activeTab() === tab.id"
+          [attr.aria-controls]="'panel-' + tab.id"
+          (click)="selectTab(tab.id)"
+          [class]="
+            activeTab() === tab.id
+              ? 'border-primary text-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+          "
+          class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-5 py-4 text-sm font-medium transition"
+        >
+          <i [class]="tab.icon" aria-hidden="true"></i>
+          {{ tab.label }}
+        </button>
+      }
+    </div>
+
+    @if (activeTab() === 'main') {
+      <div id="panel-main" role="tabpanel" class="p-6">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <!-- Left: the Arino "basic info" card. -->
+          <section
+            class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800 lg:col-span-2"
+            aria-labelledby="basic-info-title"
+          >
+            <h2 id="basic-info-title" class="mb-6 text-lg font-bold text-gray-900 dark:text-white">
+              اطلاعات پایه محصول
+            </h2>
+
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <label
+                  for="product-name"
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  نام محصول <span class="text-red-500">*</span>
+                </label>
+                <input
+                  id="product-name"
+                  type="text"
+                  formControlName="name"
+                  placeholder="نام محصول"
+                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+                @if (form.controls.name.touched && form.controls.name.invalid) {
+                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                    نام محصول باید بین ۳ تا ۲۰۰ کاراکتر باشد.
+                  </p>
+                }
+              </div>
+
+              <div>
+                <label
+                  for="product-sku"
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  کد محصول (SKU)
+                </label>
+                <input
+                  id="product-sku"
+                  type="text"
+                  formControlName="sku"
+                  placeholder="کد انبارداری (اختیاری)"
+                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div class="md:col-span-2">
+                <label
+                  for="product-slug"
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  نامک (slug) <span class="text-red-500">*</span>
+                </label>
+                <input
+                  id="product-slug"
+                  type="text"
+                  formControlName="slug"
+                  (input)="onSlugInput()"
+                  dir="ltr"
+                  placeholder="product-slug"
+                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left font-mono text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  از نام محصول ساخته می‌شود و قابل ویرایش است؛ فقط حروف انگلیسی، عدد و خط تیره.
+                </p>
+                @if (form.controls.slug.touched && form.controls.slug.invalid) {
+                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                    نامک باید با حروف انگلیسی، عدد یا خط تیره باشد.
+                  </p>
+                }
+              </div>
+
+              <div>
+                <label
+                  for="product-category"
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  دسته‌بندی <span class="text-red-500">*</span>
+                </label>
+                <select
+                  id="product-category"
+                  formControlName="categoryId"
+                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">انتخاب دسته‌بندی</option>
+                  @for (category of categories(); track category.id) {
+                    <option [value]="category.id">{{ category.name }}</option>
+                  }
+                </select>
+                @if (form.controls.categoryId.touched && form.controls.categoryId.invalid) {
+                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                    دسته‌بندی را انتخاب کنید.
+                  </p>
+                }
+              </div>
+
+              <div>
+                <label
+                  for="product-brand"
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  برند
+                </label>
+                <select
+                  id="product-brand"
+                  formControlName="brandId"
+                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">بدون برند</option>
+                  @for (brand of brands(); track brand.id) {
+                    <option [value]="brand.id">{{ brand.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="md:col-span-2">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <label
+                    for="product-short-description"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    توضیح کوتاه
+                  </label>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ form.controls.shortDescription.value.length | persianDigits }} /
+                    {{ shortDescriptionMax | persianDigits }}
+                  </span>
+                </div>
+                <textarea
+                  id="product-short-description"
+                  rows="2"
+                  formControlName="shortDescription"
+                  [attr.maxlength]="shortDescriptionMax"
+                  placeholder="یک جملهٔ کوتاه برای معرفی محصول"
+                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                ></textarea>
+                @if (form.controls.shortDescription.invalid) {
+                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                    توضیح کوتاه حداکثر {{ shortDescriptionMax | persianDigits }} کاراکتر است.
+                  </p>
+                }
+              </div>
+
+              <div class="md:col-span-2">
+                <label
+                  for="product-description"
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  توضیحات محصول
+                </label>
+                <textarea
+                  id="product-description"
+                  rows="5"
+                  formControlName="description"
+                  placeholder="توضیحات کامل محصول"
+                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                ></textarea>
+              </div>
+            </div>
+          </section>
+
+          <!-- Right: publish + price, matching the Arino side column. -->
+          <aside class="space-y-6">
+            <section
+              class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+              aria-labelledby="publish-title"
+            >
+              <h2 id="publish-title" class="mb-6 text-lg font-bold text-gray-900 dark:text-white">
+                انتشار و قیمت
+              </h2>
+
+              <div class="space-y-4">
+                <div>
+                  <label
+                    for="product-status"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    وضعیت انتشار
+                  </label>
+                  <select
+                    id="product-status"
+                    formControlName="status"
+                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  >
+                    @for (option of statusOptions; track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    for="product-price"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    قیمت اصلی (تومان) <span class="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="product-price"
+                    type="number"
+                    min="1"
+                    formControlName="price"
+                    placeholder="قیمت اصلی"
+                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                  @if (form.controls.price.touched && form.controls.price.invalid) {
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                      قیمت باید بزرگ‌تر از صفر باشد.
+                    </p>
+                  }
+                </div>
+
+                @if (form.controls.slug.value) {
+                  <p class="break-all text-xs text-gray-500 dark:text-gray-400" dir="ltr">
+                    /products/{{ form.controls.slug.value }}
+                  </p>
+                }
+              </div>
+            </section>
+
+            <section
+              class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-200"
+              aria-label="راهنما"
+            >
+              بعد از ذخیرهٔ محصول می‌توانید واریانت‌ها، گالری و موجودی را کامل کنید. این بخش‌ها در
+              تسک‌های بعدی فعال می‌شوند.
+            </section>
+          </aside>
+        </div>
+      </div>
+    }
+
+    @if (activeTab() === 'variants') {
+      <div id="panel-variants" role="tabpanel" class="p-6">
+        <div
+          class="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center dark:border-gray-600"
+        >
+          <i class="pi pi-box text-3xl text-gray-400" aria-hidden="true"></i>
+          <h2 class="mt-4 text-lg font-bold text-gray-900 dark:text-white">واریانت‌های محصول</h2>
+          <p class="mx-auto mt-2 max-w-lg text-sm text-gray-500 dark:text-gray-400">
+            ویرایشگر واریانت در BO-F10 اضافه می‌شود. ساختار FormArray از همین حالا در فرم مرکزی
+            آماده است.
+          </p>
+          <p class="mt-3 text-xs text-gray-400 dark:text-gray-500">
+            تعداد فعلی: {{ variants.length | persianDigits }} ردیف
+          </p>
+        </div>
+      </div>
+    }
+
+    @if (activeTab() === 'gallery') {
+      <div id="panel-gallery" role="tabpanel" class="p-6">
+        <div
+          class="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center dark:border-gray-600"
+        >
+          <i class="pi pi-images text-3xl text-gray-400" aria-hidden="true"></i>
+          <h2 class="mt-4 text-lg font-bold text-gray-900 dark:text-white">گالری تصاویر</h2>
+          <p class="mx-auto mt-2 max-w-lg text-sm text-gray-500 dark:text-gray-400">
+            آپلود چندتایی، پیش‌نمایش، انتخاب تصویر شاخص و تغییر ترتیب در BO-F11 اضافه می‌شود.
+          </p>
+          <button
+            type="button"
+            disabled
+            class="mt-4 inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-400 dark:border-gray-600 dark:text-gray-500"
+          >
+            <i class="pi pi-upload" aria-hidden="true"></i>
+            آپلود تصویر
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (activeTab() === 'inventory') {
+      <div id="panel-inventory" role="tabpanel" class="p-6">
+        <section
+          class="max-w-2xl rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+          aria-labelledby="inventory-title"
+        >
+          <h2 id="inventory-title" class="mb-2 text-lg font-bold text-gray-900 dark:text-white">
+            موجودی و آستانهٔ هشدار
+          </h2>
+          <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+            محاسبهٔ مجموع موجودی از روی واریانت‌ها و هشدار کم‌موجودی در BO-F12 کامل می‌شود.
+          </p>
+
+          <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <label
+                for="product-stock"
+                class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                موجودی
+              </label>
+              <input
+                id="product-stock"
+                type="number"
+                min="0"
+                inputmode="numeric"
+                formControlName="stock"
+                class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+              @if (form.controls.stock.touched && form.controls.stock.invalid) {
+                <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                  موجودی نمی‌تواند منفی باشد.
+                </p>
+              }
+            </div>
+
+            <div>
+              <label
+                for="product-low-stock"
+                class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                آستانهٔ کم‌موجودی
+              </label>
+              <input
+                id="product-low-stock"
+                type="number"
+                min="0"
+                inputmode="numeric"
+                formControlName="lowStockThreshold"
+                class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+              @if (
+                form.controls.lowStockThreshold.touched && form.controls.lowStockThreshold.invalid
+              ) {
+                <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                  آستانه نمی‌تواند منفی باشد.
+                </p>
+              }
+            </div>
+          </div>
+        </section>
+      </div>
+    }
   </div>
-</div>
+
+  <!-- Wizard footer: next validates the current tab; the last step saves. -->
+  <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <button
+      type="button"
+      (click)="previous()"
+      [disabled]="activeIndex() === 0"
+      class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+    >
+      <i class="pi pi-arrow-right" aria-hidden="true"></i>
+      قبلی
+    </button>
+
+    <div class="flex flex-col-reverse gap-2 sm:flex-row">
+      <a
+        routerLink="/products"
+        class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+      >
+        انصراف
+      </a>
+
+      @if (isLastTab()) {
+        <button
+          type="submit"
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        >
+          <i class="pi pi-check" aria-hidden="true"></i>
+          ذخیره محصول
+        </button>
+      } @else {
+        <button
+          type="button"
+          (click)="next()"
+          data-next
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        >
+          ادامه
+          <i class="pi pi-arrow-left" aria-hidden="true"></i>
+        </button>
+      }
+    </div>
+  </div>
+</form>

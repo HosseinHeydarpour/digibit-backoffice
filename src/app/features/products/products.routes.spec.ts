@@ -7,6 +7,8 @@
 // page, and each route carries the metadata the topbar/breadcrumb/permission
 // services read.
 
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, RouterOutlet, type Route, type Routes } from '@angular/router';
@@ -37,7 +39,13 @@ function setup(): { fixture: ReturnType<typeof TestBed.createComponent<Host>>; r
     // `MessageService` because `ProductList` (BO-F02) injects `ToastService`,
     // which is root-provided but is not itself a root provider of PrimeNG's
     // message bus. Same provider `app.config.ts` registers.
-    providers: [provideRouter(ROUTES), MessageService, ConfirmationService],
+    providers: [
+      provideRouter(ROUTES),
+      provideHttpClient(),
+      provideHttpClientTesting(),
+      MessageService,
+      ConfirmationService,
+    ],
   });
 
   const fixture = TestBed.createComponent(Host);
