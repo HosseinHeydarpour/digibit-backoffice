@@ -10,21 +10,162 @@
   </button>
 </app-page-header>
 
+<!--
+  FILTER BAR (BO-F03) — the Arino card surface, one row on desktop and stacked
+  on a phone. Every field writes to the URL through the component; nothing here
+  filters a local array. The labels are real <label for> pairs, so a screen
+  reader announces each control and a click on the text focuses the input.
+-->
+<section
+  class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+  aria-labelledby="filters-title"
+>
+  <div class="mb-4 flex items-center justify-between gap-3">
+    <h2 id="filters-title" class="text-sm font-bold text-gray-900 dark:text-white">
+      فیلتر محصولات
+    </h2>
+
+    @if (hasFilters()) {
+      <span class="text-xs text-gray-500 dark:text-gray-400">فیلتر فعال</span>
+    }
+  </div>
+
+  <form
+    class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6 xl:items-end"
+    (submit)="$event.preventDefault()"
+  >
+    <!-- Search — the only debounced control (300 ms in the component). -->
+    <div class="sm:col-span-2">
+      <label
+        for="product-search"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        جستجو
+      </label>
+
+      <div class="relative">
+        <i
+          class="pi pi-search pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"
+          aria-hidden="true"
+        ></i>
+        <input
+          id="product-search"
+          type="search"
+          [formControl]="searchControl"
+          placeholder="نام یا SKU محصول…"
+          class="w-full rounded-lg border border-gray-300 bg-white py-2 ps-10 pe-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+    </div>
+
+    <div>
+      <label
+        for="filter-category"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        دسته‌بندی
+      </label>
+      <select
+        id="filter-category"
+        (change)="setCategory($event)"
+        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+      >
+        <option value="" [selected]="filters().category === ''">همه دسته‌ها</option>
+        @for (category of categories(); track category.id) {
+          <option [value]="category.id" [selected]="category.id === filters().category">
+            {{ category.name }}
+          </option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <label
+        for="filter-brand"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        برند
+      </label>
+      <select
+        id="filter-brand"
+        (change)="setBrand($event)"
+        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+      >
+        <option value="" [selected]="filters().brand === ''">همه برندها</option>
+        @for (brand of brands(); track brand.id) {
+          <option [value]="brand.id" [selected]="brand.id === filters().brand">
+            {{ brand.name }}
+          </option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <label
+        for="filter-status"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        وضعیت
+      </label>
+      <select
+        id="filter-status"
+        (change)="setStatus($event)"
+        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+      >
+        <option value="" [selected]="filters().status === ''">همه وضعیت‌ها</option>
+        @for (option of statusOptions; track option.value) {
+          <option [value]="option.value" [selected]="option.value === filters().status">
+            {{ option.label }}
+          </option>
+        }
+      </select>
+    </div>
+
+    <div class="flex items-end">
+      <button
+        id="clear-filters"
+        type="button"
+        (click)="clearFilters()"
+        [disabled]="!hasFilters()"
+        class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+      >
+        <i class="pi pi-filter-slash" aria-hidden="true"></i>
+        پاک کردن فیلترها
+      </button>
+    </div>
+  </form>
+</section>
+
 <div
   class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
 >
   <!--
-    ONE SWITCH, FOUR STATES (BO-E07 tc 7, carried into BO-F02).
+    A filter change keeps the previous rows visible while the next request is in
+    flight (unlike the first load, which shows the skeleton). This thin bar is
+    the only feedback needed; there is no layout jump.
+  -->
+  @if (isFetching() && page() !== null) {
+    <div
+      class="h-1 w-full overflow-hidden bg-primary/10"
+      role="progressbar"
+      aria-label="در حال به‌روزرسانی محصولات"
+    >
+      <div class="h-full w-1/3 animate-pulse rounded-full bg-primary"></div>
+    </div>
+  }
+
+  <!--
+    ONE SWITCH, FOUR STATES (BO-E07 tc 7, carried into BO-F02/BO-F03).
 
     `state()` is the only branch condition. `error` is checked first — a failed
     fetch must never look like "still loading" or like an empty shop — then
-    `loading` (a `null` payload that has not answered yet), then a real `[]`
-    (`empty`), then `data`.
+    `loading` (a `null` payload that has not answered yet), then a real empty
+    list, then `data`.
   -->
   @switch (state()) {
     @case ('loading') {
       <!--
-        SKELETON (tc 9). Four placeholder rows, one bar per COLUMN, so the
+        SKELETON (BO-F02 tc 9). Four placeholder rows, one bar per COLUMN, so the
         skeleton has the real table's shape and nothing jumps when the rows
         arrive. `role="status"` + `aria-busy` announce the region once, the way
         `app-loading-block` does, because the bars themselves are silent.
@@ -85,16 +226,27 @@
 
     @case ('empty') {
       <!--
-        EMPTY (tc 8). The shared block — same one every list uses — with the
-        products wording, and its action button wired to the create form.
+        EMPTY (BO-F02 tc 8, BO-F03 tc 9). A filtered empty is NOT "the shop has
+        no products": the copy names the filters and the action clears them,
+        instead of offering to create a product that may already exist.
       -->
-      <app-empty-state
-        icon="pi pi-inbox"
-        title="هنوز محصولی ثبت نشده"
-        description="اولین کالای فروشگاه را اضافه کنید."
-        actionLabel="افزودن محصول"
-        (action)="openCreateForm()"
-      />
+      @if (hasFilters()) {
+        <app-empty-state
+          icon="pi pi-search"
+          title="محصولی با این فیلترها پیدا نشد"
+          description="فیلترها را تغییر دهید یا همه را پاک کنید."
+          actionLabel="پاک کردن فیلترها"
+          (action)="clearFilters()"
+        />
+      } @else {
+        <app-empty-state
+          icon="pi pi-inbox"
+          title="هنوز محصولی ثبت نشده"
+          description="اولین کالای فروشگاه را اضافه کنید."
+          actionLabel="افزودن محصول"
+          (action)="openCreateForm()"
+        />
+      }
     }
 
     @default {
@@ -140,8 +292,8 @@
                   {{ item.brandName }}
                 </td>
 
-                <!-- قیمت (tc 3) — the `toman` pipe already prints Persian digits
-                     and the thousands separators, so it never needs
+                <!-- قیمت (BO-F02 tc 3) — the `toman` pipe already prints Persian
+                     digits and thousands separators, so it never needs
                      `persianDigits` after it. `tabular-nums` keeps one row's
                      digits under the next row's. -->
                 <td
@@ -163,7 +315,7 @@
                   {{ item.stock | persianDigits }}
                 </td>
 
-                <!-- وضعیت (tc 4) — the coloured pill. -->
+                <!-- وضعیت (BO-F02 tc 4) — the coloured pill. -->
                 <td class="whitespace-nowrap px-6 py-4 text-start">
                   <span
                     class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
@@ -181,12 +333,12 @@
                 </td>
 
                 <!--
-                  اکشن‌ها (tc 5) — ویرایش / تغییر وضعیت / حذف.
+                  اکشن‌ها (BO-F02 tc 5) — ویرایش / تغییر وضعیت / حذف.
 
                   ویرایش is a real link: the edit route exists (BO-F01), so one
                   click is one navigation and the middle/ctrl-click "open in new
                   tab" behaviour comes for free from the router. The other two
-                  are buttons whose CRUD arrives in F05/F06; until then they say
+                  are buttons whose CRUD arrives in F06/F15; until then they say
                   so through a toast instead of doing nothing silently.
 
                   Every control carries an `aria-label`, because three icons in
@@ -230,17 +382,26 @@
       </div>
 
       <!--
-        FOOTER (tc 10) — the result count, under the table and inside the card,
-        so it scrolls with the rows instead of floating. `persianDigits` keeps
-        the panel's numerals consistent.
+        FOOTER (BO-F02 tc 10) — the result count, under the table and inside the
+        card, so it scrolls with the rows instead of floating. `persianDigits`
+        keeps the panel's numerals consistent.
       -->
       <div
-        class="border-t border-gray-200 px-6 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+        class="flex items-center justify-between gap-3 border-t border-gray-200 px-6 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
       >
-        <span class="font-medium text-gray-900 dark:text-white">
-          {{ total() | persianDigits }}
+        <span>
+          <span class="font-medium text-gray-900 dark:text-white">
+            {{ total() | persianDigits }}
+          </span>
+          محصول
         </span>
-        محصول
+
+        @if (isFetching()) {
+          <span class="inline-flex items-center gap-2 text-xs">
+            <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+            در حال به‌روزرسانی…
+          </span>
+        }
       </div>
     }
   }

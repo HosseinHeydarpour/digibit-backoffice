@@ -4,11 +4,12 @@ import { Meta } from '@storybook/addon-docs/blocks';
 
 # ماژول محصولات / Products module
 
-مسیرها و اسکلت ماژول محصولات (BO-F01). صفحهٔ لیست در BO-F02 ساخته شد؛ فرم ایجاد مطابق قالب
-`admin-panel-add-product.html` در BO-F07 ساخته می‌شود.
+مسیرها و اسکلت ماژول محصولات (BO-F01). صفحهٔ لیست در BO-F02 ساخته شد، فیلترهای URL در BO-F03
+اضافه شدند؛ فرم ایجاد مطابق قالب `admin-panel-add-product.html` در BO-F07 ساخته می‌شود.
 
-The routes and scaffold of the products module (BO-F01). The list page has been built (BO-F02);
-the create form (matching `admin-panel-add-product.html`) arrives in BO-F07.
+The routes and scaffold of the products module (BO-F01). The list page was built in BO-F02 and the
+URL filters arrived in BO-F03; the create form (matching `admin-panel-add-product.html`) arrives in
+BO-F07.
 
 ## Use case
 
@@ -117,3 +118,78 @@ travels with a `sort`.
   `status: 'published' | 'draft' | 'inactive'`.
 - **Errors keep the global contract.** `ApiService` normalises every failure to `ApiError`; `get`
   with an unknown id yields `status: 404` and the server's Persian message.
+
+## فیلترها و URL / Filters in the URL (BO-F03)
+
+چهار فیلتر بالای جدول قرار دارند: جستجوی متنی (نام/SKU)، دسته، برند و وضعیت. وضعیت آن‌ها در
+URL نگه داشته می‌شود، نه فقط در کامپوننت:
+
+```
+/products?query=سونی&category=3&brand=5&status=draft
+```
+
+The table exposes four filters: text (name/SKU), category, brand and status. Their state lives in
+the URL, not only in the component:
+
+```
+/products?query=سونی&category=3&brand=5&status=draft
+```
+
+### نام‌ها / Names
+
+| در URL     | در API       | توضیح                                                                   |
+| ---------- | ------------ | ----------------------------------------------------------------------- |
+| `query`    | `query`      | متن جستجو؛ `buildQuery` آن را trim می‌کند.                              |
+| `category` | `categoryId` | شناسهٔ دسته؛ نگاشت در `filtersToQuery`.                                 |
+| `brand`    | `brandId`    | شناسهٔ برند؛ نگاشت در `filtersToQuery`.                                 |
+| `status`   | `status`     | فقط `published`/`draft`/`inactive`؛ مقدار ناشناخته نادیده گرفته می‌شود. |
+
+The URL is the human-readable name (`category`), the API is the typed name (`categoryId`); the
+mapping lives in one pure module, not in the template.
+
+### یک تعامل، مرحله‌به‌مرحله / One interaction, traced
+
+ورودی: کاربر در `/products` عبارت «سونی» را تایپ می‌کند و سپس دستهٔ ۳ را انتخاب می‌کند.
+
+| گام | چه اتفاقی می‌افتد                                                                                                                 |
+| --- | --------------------------------------------------------------------------------------------------------------------------------- |
+| ۱   | `input` → `searchControl.valueChanges`                                                                                            |
+| ۲   | `debounceTime(300)`؛ تایپ سریع فقط آخرین مقدار را نگه می‌دارد.                                                                    |
+| ۳   | `applyFilters` مقدار را در `filters$` می‌گذارد و URL را با `replaceUrl` به `?query=سونی` تغییر می‌دهد.                            |
+| ۴   | `combineLatest(reload$, filters$)` → `switchMap` درخواست قبلی را لغو و `list({ query: 'سونی', … })` را صدا می‌زند.                |
+| ۵   | mock فیلتر را روی `name + slug + sku` اعمال می‌کند و `Page` برمی‌گرداند.                                                          |
+| ۶   | `page()` به‌روز می‌شود؛ `items()` جدول و `total()` فوتر را می‌سازند.                                                              |
+| ۷   | انتخاب دسته همان مسیر را با `categoryId: '3'` تکرار می‌کند؛ URL به `?query=سونی&category=3` می‌رسد.                               |
+| ۸   | «پاک کردن فیلترها» هر چهار کلید را `null` می‌کند؛ `queryParamsHandling: 'merge'` پارامترهای BO-F04 (`page`/`sort`) را حفظ می‌کند. |
+| ۹   | رفرش یا لینک مشترک: `route.snapshot.queryParamMap` → مقدار اولیهٔ `filters$` → اولین درخواست همان فیلترشده است.                   |
+| ۱۰  | Back/Forward: اشتراک `route.queryParamMap` وضعیت را همگام می‌کند، بدون ناوبری دوباره.                                             |
+
+The same path in English: input → 300 ms debounce → `applyFilters` writes `filters$` and the URL →
+`switchMap` cancels the in-flight request and calls `list()` → the mock filters → `page()` redraws
+the table. Picking a category repeats it with `categoryId`, and clearing writes four `null`s while
+`merge` preserves BO-F04's `page`/`sort`.
+
+### قاعده‌ها / Rules
+
+- **یک منبع حقیقت برای URL.** `product-filters.ts` تنها جایی است که `query/category/brand/status`
+  را می‌خواند، به API نگاشت می‌کند و به `queryParams` برمی‌گرداند. `product-filters.spec.ts`
+  همهٔ این قواعد را بدون `TestBed` تست می‌کند.
+- **جستجو debounce دارد، انتخاب‌ها ندارند.** تایپ ۳۰۰ms صبر می‌کند؛ select بلافاصله اعمال
+  می‌شود، چون یک انتخاب عمدی است.
+- **`replaceUrl` تاریخ مرورگر را شلوغ نمی‌کند.** فیلترها state موقت‌اند، نه صفحهٔ جدید.
+- **خالیِ فیلترشده با فروشگاه خالی فرق دارد.** اگر فیلتری فعال باشد، پیام «محصولی با این
+  فیلترها پیدا نشد» و دکمهٔ «پاک کردن فیلترها» می‌آید؛ نه «افزودن محصول».
+- **گزینه‌های دسته/برند از سرویس می‌آیند.** `ProductsService.categories()`/`brands()` صفحهٔ
+  lookup را می‌خوانند و گزینهٔ `isActive === false` را حذف می‌کنند؛ هیچ لیستی در کامپوننت
+  hardcode نشده است.
+
+- **One source of truth for the URL.** `product-filters.ts` is the only place that reads
+  `query/category/brand/status`, maps them to the API and writes them back. Its spec covers every
+  rule without a `TestBed`.
+- **Search is debounced; selects are not.** Typing waits 300 ms; a select applies immediately,
+  because it is one deliberate choice.
+- **`replaceUrl` keeps history clean.** Filters are transient state, not a new page.
+- **A filtered empty is not an empty shop.** With an active filter the copy says «محصولی با این
+  فیلترها پیدا نشد» and offers «پاک کردن فیلترها», not «افزودن محصول».
+- **Category/brand options come from the service.** `categories()`/`brands()` read the lookup
+  endpoints and drop `isActive === false`; no list is hard-coded in the component.

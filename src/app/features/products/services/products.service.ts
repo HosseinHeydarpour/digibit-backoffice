@@ -28,6 +28,8 @@ import { Observable, map } from 'rxjs';
 import type {
   CreateProductDto,
   Product,
+  ProductBrandOption,
+  ProductCategoryOption,
   ProductListItem,
   ProductQuery,
   ProductStatus,
@@ -35,6 +37,13 @@ import type {
 } from '../models/product.model';
 
 const PRODUCTS_PATH = '/products';
+
+/**
+ * A lookup list (categories/brands) is small and is not paginated in the UI.
+ * The real endpoints still use the standard envelope, so `getPage` is the
+ * correct reader; 100 is comfortably above the phase-1 catalogue.
+ */
+const LOOKUP_PAGE_SIZE = 100;
 
 /**
  * Serialise the list state into the query string the API expects.
@@ -133,6 +142,27 @@ export class ProductsService {
    */
   list(query: ProductQuery = {}): Observable<Page<ProductListItem>> {
     return this.api.getPage<ProductListItem>(PRODUCTS_PATH, buildQuery(query));
+  }
+
+  /**
+   * `GET /categories?pageSize=100` → the options for the category filter.
+   *
+   * A lookup, not a feature page: the products module only needs id + name, and
+   * filters out a category the API marks inactive (`isActive === false`) so a
+   * retired option cannot be selected. `undefined` is treated as active for
+   * backward compatibility with older payloads.
+   */
+  categories(): Observable<readonly ProductCategoryOption[]> {
+    return this.api
+      .getPage<ProductCategoryOption>('/categories', { pageSize: LOOKUP_PAGE_SIZE })
+      .pipe(map((page) => page.items.filter((category) => category.isActive !== false)));
+  }
+
+  /** `GET /brands?pageSize=100` → the options for the brand filter (same rules). */
+  brands(): Observable<readonly ProductBrandOption[]> {
+    return this.api
+      .getPage<ProductBrandOption>('/brands', { pageSize: LOOKUP_PAGE_SIZE })
+      .pipe(map((page) => page.items.filter((brand) => brand.isActive !== false)));
   }
 
   /** `GET /products/:id` → the full record, variants and gallery included. */

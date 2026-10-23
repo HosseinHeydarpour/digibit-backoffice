@@ -71,6 +71,43 @@ describe('mockInterceptor', () => {
     expect(meta.total).toBe(20);
   });
 
+  it('filters products by Persian name and by Latin SKU (BO-F03 tc 1, tc 10)', async () => {
+    const byName = await firstValueFrom(
+      http.get<ApiResponse<{ name: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { query: 'هدفون' },
+      }),
+    );
+
+    expect(byName.data).toHaveLength(1);
+    expect(byName.data[0].name).toContain('هدفون');
+
+    const bySku = await firstValueFrom(
+      http.get<ApiResponse<{ sku: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { query: 'SKU-1004' },
+      }),
+    );
+
+    expect(bySku.data).toHaveLength(1);
+    expect(bySku.data[0].sku).toBe('SKU-1004');
+  });
+
+  it('combines category and status filters (BO-F03 tc 3, tc 4)', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ categoryId: string; status: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { categoryId: '4', status: 'inactive' },
+      }),
+    );
+
+    expect(body.data.length).toBeGreaterThan(0);
+    for (const row of body.data) {
+      expect(row.categoryId).toBe('4');
+      expect(row.status).toBe('inactive');
+    }
+  });
+
   it('applies the configured artificial delay', async () => {
     // A loading state is only trustworthy if the response is genuinely async.
     // Awaiting the observable proves the delay elapses instead of resolving inline.

@@ -3,7 +3,11 @@ import type { Page } from '@shared/models';
 import { applicationConfig, Meta, StoryObj } from '@storybook/angular';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
-import type { ProductListItem } from '../models/product.model';
+import type {
+  ProductBrandOption,
+  ProductCategoryOption,
+  ProductListItem,
+} from '../models/product.model';
 import { ProductsService } from '../services/products.service';
 
 import { ProductList } from './product-list';
@@ -56,18 +60,40 @@ function pageOf(rows: readonly ProductListItem[]): Page<ProductListItem> {
   return { items: [...rows], total: rows.length, page: 1, pageSize: 20 };
 }
 
+/** The filter bar's options — same fixture style as the rows. */
+const SAMPLE_CATEGORIES: readonly ProductCategoryOption[] = [
+  { id: '1', name: 'لوازم جانبی' },
+  { id: '2', name: 'صوتی' },
+  { id: '3', name: 'نمایشگر' },
+];
+
+const SAMPLE_BRANDS: readonly ProductBrandOption[] = [
+  { id: '1', name: 'ریزر' },
+  { id: '2', name: 'لاجیتک' },
+  { id: '3', name: 'سونی' },
+  { id: '4', name: 'ال‌جی' },
+];
+
 /** The default story's data source — deterministic, and never touches the network. */
-class StaticProductsService implements Pick<ProductsService, 'list'> {
+class StaticProductsService implements Pick<ProductsService, 'list' | 'categories' | 'brands'> {
   list(): Observable<Page<ProductListItem>> {
     return of(pageOf(SAMPLE_PRODUCTS));
+  }
+
+  categories(): Observable<readonly ProductCategoryOption[]> {
+    return of(SAMPLE_CATEGORIES);
+  }
+
+  brands(): Observable<readonly ProductBrandOption[]> {
+    return of(SAMPLE_BRANDS);
   }
 }
 
 /** A service that refuses once, then answers — so «تلاش دوباره» has somewhere to go. */
-class FlakyProductsService implements Pick<ProductsService, 'list'> {
+class FlakyProductsService extends StaticProductsService {
   private failed = false;
 
-  list(): Observable<Page<ProductListItem>> {
+  override list(): Observable<Page<ProductListItem>> {
     if (this.failed) {
       return of(pageOf(SAMPLE_PRODUCTS));
     }
@@ -103,6 +129,11 @@ const meta: Meta<ProductList> = {
           'The `cols` array carries `field/header/width/sortable`; the sort click itself is BO-F04.',
           'BO-F05 changed the service to return a `Page`, so the footer can print the server total',
           'rather than the number of rows currently on screen.',
+          '',
+          '**BO-F03 adds the filter bar.** Search (name/SKU), category, brand and status are written',
+          'to the URL (`?query=&category=&brand=&status=`); the text box is debounced by 300 ms and',
+          'the other three apply on change. A refresh or a shared link restores the same filters,',
+          'and the filtered empty state offers «پاک کردن فیلترها» instead of «افزودن محصول».',
         ].join('\n'),
       },
     },
@@ -111,6 +142,12 @@ const meta: Meta<ProductList> = {
 
 export default meta;
 type Story = StoryObj<ProductList>;
+
+/** The two lookup calls every story's stub needs (the filter bar asks at construction). */
+const LOOKUP_STUBS = {
+  categories: () => of(SAMPLE_CATEGORIES),
+  brands: () => of(SAMPLE_BRANDS),
+} as const;
 
 export const Default: Story = {
   render: () => ({
@@ -137,6 +174,7 @@ export const ServerTotal: Story = {
         {
           provide: ProductsService,
           useValue: {
+            ...LOOKUP_STUBS,
             list: () => of({ items: [...SAMPLE_PRODUCTS], total: 137, page: 1, pageSize: 20 }),
           },
         },
@@ -149,7 +187,9 @@ export const ServerTotal: Story = {
 export const Loading: Story = {
   render: () => ({
     template: '<app-product-list />',
-    moduleMetadata: { providers: [{ provide: ProductsService, useValue: { list: () => NEVER } }] },
+    moduleMetadata: {
+      providers: [{ provide: ProductsService, useValue: { ...LOOKUP_STUBS, list: () => NEVER } }],
+    },
   }),
 };
 
@@ -161,7 +201,10 @@ export const Empty: Story = {
       providers: [
         {
           provide: ProductsService,
-          useValue: { list: () => of({ items: [], total: 0, page: 1, pageSize: 20 }) },
+          useValue: {
+            ...LOOKUP_STUBS,
+            list: () => of({ items: [], total: 0, page: 1, pageSize: 20 }),
+          },
         },
       ],
     },

@@ -371,6 +371,25 @@ and its `data`. Every feature page after it follows that shape.
   `list({ query: 'سونی', page: 2, … })` through `buildQuery` → `ApiService` → `mockInterceptor` →
   `Page` → the component, for the next reader who needs to know what a call actually does.
 
+### URL is the filter state (BO-F03)
+
+- **Filters live in the URL** (`?query=&category=&brand=&status=`), not only in component state.
+  `features/products/product-list/product-filters.ts` is the single translator: `filtersFromParams`
+  reads the URL, `filtersToQuery` maps `category`/`brand` to `categoryId`/`brandId` for the API, and
+  `filtersToQueryParams` writes the keys back. Its spec needs no `TestBed`.
+- **Text is debounced 300 ms; selects apply immediately.** `applyFilters` writes `filters$` and the
+  URL with `replaceUrl: true`, so typing does not fill the browser history.
+  `queryParamsHandling: 'merge'` is deliberate — clearing four filter keys must not erase BO-F04's
+  future `page`/`sort`.
+- **Back/Forward is mirrored, not re-navigated.** The `route.queryParamMap` subscription updates
+  `filters`/`filters$` only when `filtersEqual` says the URL differs; our own navigation is a no-op.
+- **A filtered empty is not an empty shop.** When `hasFilters()` is true the shared empty state says
+  «محصولی با این فیلترها پیدا نشد» and clears the filters; only the unfiltered case offers
+  «افزودن محصول».
+- **Lookups come from the API.** `ProductsService.categories()`/`brands()` read the lookup endpoints
+  and drop `isActive === false`; do not hard-code a category or brand list in the component. The
+  lookup page size is 100, enough for the phase-1 catalogue.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

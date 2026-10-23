@@ -108,6 +108,21 @@ export interface ProductListItem {
   readonly createdAt: number;
 }
 
+/** A category choice for the list filter (BO-F03) and the product form (BO-F09). */
+export interface ProductCategoryOption {
+  readonly id: EntityId;
+  readonly name: string;
+  readonly isActive?: boolean;
+}
+
+/** A brand choice for the list filter (BO-F03) and the product form (BO-F09). */
+export interface ProductBrandOption {
+  readonly id: EntityId;
+  readonly name: string;
+  readonly logo?: string | null;
+  readonly isActive?: boolean;
+}
+
 /**
  * The filter + paging state BO-F03/F04 keep in the URL and hand to `list()`.
  *

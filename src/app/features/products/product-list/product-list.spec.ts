@@ -4,7 +4,11 @@ import type { Page } from '@shared/models';
 import { MessageService } from 'primeng/api';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
-import type { ProductListItem } from '../models/product.model';
+import type {
+  ProductBrandOption,
+  ProductCategoryOption,
+  ProductListItem,
+} from '../models/product.model';
 import { ProductsService } from '../services/products.service';
 
 import { ProductList } from './product-list';
@@ -80,6 +84,15 @@ class ProductsServiceStub {
     return this.failWith === null
       ? of({ items: [...this.rows], total: this.rows.length, page: 1, pageSize: 20 })
       : throwError(() => new Error(this.failWith ?? 'request failed'));
+  }
+
+  /** BO-F03's filter bar asks for these at construction; the F02 cases need none. */
+  categories(): Observable<readonly ProductCategoryOption[]> {
+    return of([]);
+  }
+
+  brands(): Observable<readonly ProductBrandOption[]> {
+    return of([]);
   }
 }
 

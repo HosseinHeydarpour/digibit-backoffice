@@ -229,4 +229,43 @@ describe('ProductsService (BO-F05)', () => {
 
     await resultPromise;
   });
+
+  it('F03: categories() reads the lookup page and hides an inactive option', async () => {
+    const resultPromise = firstValueFrom(service.categories());
+
+    const req = httpMock.expectOne(
+      (request) => request.url === `${environment.API_BASE_URL}/categories`,
+    );
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('pageSize')).toBe('100');
+
+    req.flush({
+      data: [
+        { id: '3', name: 'لوازم برقی', isActive: true },
+        { id: '9', name: 'دستهٔ حذف‌شده', isActive: false },
+      ],
+      meta: { page: 1, pageSize: 100, total: 2 },
+    });
+
+    expect(await resultPromise).toEqual([{ id: '3', name: 'لوازم برقی', isActive: true }]);
+  });
+
+  it('F03: brands() reads the lookup page and hides an inactive option', async () => {
+    const resultPromise = firstValueFrom(service.brands());
+
+    const req = httpMock.expectOne(
+      (request) => request.url === `${environment.API_BASE_URL}/brands`,
+    );
+    expect(req.request.params.get('pageSize')).toBe('100');
+
+    req.flush({
+      data: [
+        { id: '5', name: 'سونی', isActive: true },
+        { id: '9', name: 'برند حذف‌شده', isActive: false },
+      ],
+      meta: { page: 1, pageSize: 100, total: 2 },
+    });
+
+    expect(await resultPromise).toEqual([{ id: '5', name: 'سونی', isActive: true }]);
+  });
 });
