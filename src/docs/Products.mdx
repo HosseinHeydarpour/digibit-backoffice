@@ -1,4 +1,6 @@
-import { Meta } from '@storybook/addon-docs/blocks';
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as ProductListStories from '../app/features/products/product-list/product-list.stories';
 
 <Meta title="Features/Products" />
 
@@ -10,6 +12,14 @@ import { Meta } from '@storybook/addon-docs/blocks';
 The routes and scaffold of the products module (BO-F01). The list page was built in BO-F02 and the
 URL filters arrived in BO-F03; the create form (matching `admin-panel-add-product.html`) arrives in
 BO-F07.
+
+## پیش‌نمایش / Preview
+
+<p align="right">جدول محصولات و نوار فیلترها، همان‌طور که در پنل رندر می‌شوند (BO-F02/F03).</p>
+
+<Canvas of={ProductListStories.Default} />
+
+The products table and filter bar as they render in the panel (BO-F02/F03).
 
 ## Use case
 
@@ -59,6 +69,12 @@ Columns are declared in a `cols` array carrying `field/header/width/sortable` an
 signal from `ProductsService`, so BO-F03's filters apply without a page refresh. The fetch's outcome
 goes through one `state()` — `error > loading > empty > data` (BO-E07) — and the empty shop renders
 the shared `<app-empty-state>` with an «افزودن محصول» action.
+
+<p align="right">فوتر، «تعداد کل سرور» را نشان می‌دهد نه تعداد ردیف‌های همین صفحه (BO-F05).</p>
+
+<Canvas of={ProductListStories.ServerTotal} />
+
+The footer prints the server's total, not the number of rows on this page (BO-F05).
 
 ## لایهٔ داده / The data layer (BO-F05)
 
@@ -193,3 +209,17 @@ the table. Picking a category repeats it with `categoryId`, and clearing writes 
   فیلترها پیدا نشد» and offers «پاک کردن فیلترها», not «افزودن محصول».
 - **Category/brand options come from the service.** `categories()`/`brands()` read the lookup
   endpoints and drop `isActive === false`; no list is hard-coded in the component.
+
+## حالت‌های صفحه / Page states
+
+سه حالت غیر دادهٔ صفحه: در حال بارگذاری، خالی و خطا. هر سه از یک `state()` می‌آیند و
+دکمهٔ «تلاش دوباره» همان درخواست را دوباره اجرا می‌کند.
+
+The three non-data states — loading, empty and error — all come from one `state()`; the retry button
+re-runs the same request.
+
+<Canvas of={ProductListStories.Loading} />
+
+<Canvas of={ProductListStories.Empty} />
+
+<Canvas of={ProductListStories.RequestFailed} />
