@@ -210,6 +210,73 @@ the table. Picking a category repeats it with `categoryId`, and clearing writes 
 - **Category/brand options come from the service.** `categories()`/`brands()` read the lookup
   endpoints and drop `isActive === false`; no list is hard-coded in the component.
 
+## صفحه‌بندی و سورت / Paging and sort (BO-F04)
+
+پایین جدول سه کنترل دارد: بازهٔ نمایش (مثلاً «نمایش ۲۱ تا ۴۰ از ۱۳۷ محصول»)، انتخاب
+تعداد در صفحه (۱۰/۲۰/۵۰) و شماره‌های صفحه. هدرهای «نام محصول»، «قیمت» و «تاریخ ثبت»
+کلیک‌پذیرند و جهت سورت را بین صعودی/نزولی عوض می‌کنند.
+
+The footer carries the visible range, a 10/20/50 size select and the page numbers. The
+name, price and createdAt headers are clickable and toggle asc/desc.
+
+<Canvas of={ProductListStories.Paginated} />
+
+### نام‌ها / Names
+
+| در URL | در API     | پیش‌فرض | توضیح                                         |
+| ------ | ---------- | ------- | --------------------------------------------- |
+| `page` | `page`     | ۱       | ۱-based؛ `page=3` یعنی صفحهٔ سوم.             |
+| `size` | `pageSize` | ۲۰      | فقط ۱۰/۲۰/۵۰؛ مقدار دیگر نادیده گرفته می‌شود. |
+| `sort` | `sort`     | —       | فقط `name`/`price`/`stock`/`createdAt`.       |
+| `dir`  | `dir`      | `asc`   | فقط همراه با `sort`؛ `desc` یا `asc`.         |
+
+مقادیر پیش‌فرض از URL حذف می‌شوند: `/products` یعنی صفحهٔ ۱ با ۲۰ ردیف و بدون سورت،
+نه `?page=1&size=20`. `replaceUrl` هم باعث می‌شود جابه‌جایی سریع صفحه‌ها history را
+شلوغ نکند.
+
+Defaults are omitted from the URL (`/products` means page 1, size 20, no sort) and
+`replaceUrl` keeps rapid page changes out of the history.
+
+### یک تعامل، مرحله‌به‌مرحله / One interaction, traced
+
+ورودی: کاربر در `/products` روی صفحهٔ ۲ می‌رود، سایز را ۱۰ می‌کند و روی «قیمت» دوبار کلیک می‌کند.
+
+| گام | چه اتفاقی می‌افتد                                                                                                                    |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| ۱   | `onPageChange(2)` عدد را به بازهٔ مجاز clamp می‌کند و `applyPaging({ page: 2, … })` را صدا می‌زند.                                   |
+| ۲   | `writeState` یک‌بار `state$` را به‌روز و URL را با `replaceUrl` به `?page=2` تغییر می‌دهد.                                           |
+| ۳   | `combineLatest(reload$, state$)` → `switchMap` درخواست قبلی را لغو و `list({ page: 2, pageSize: 20, …filters })` را صدا می‌زند.      |
+| ۴   | mock ردیف‌های ۲۱–۴۰ را برمی‌گرداند؛ فوتر «۲۱ تا ۴۰ از ۱۳۷» و دکمهٔ صفحهٔ ۲ `aria-current="page"` می‌گیرد.                            |
+| ۵   | انتخاب سایز ۱۰ → `onPageSizeChange` صفحه را ۱ می‌کند و `size=10` را در URL می‌نویسد؛ ۱۰ ردیف و ۱۴ صفحه.                              |
+| ۶   | کلیک اول «قیمت» → `sort=price&dir=asc&page=1`؛ کلیک دوم → `dir=desc`. mock قیمت را **عددی** سورت می‌کند.                             |
+| ۷   | `pageWindow` برای مجموعه‌های بلند فقط اول، آخر و صفحهٔ فعال ±۱ را نگه می‌دارد؛ در موبایل شماره‌ها با «صفحهٔ ۲ از ۷» جایگزین می‌شوند. |
+| ۸   | رفرش: `pagingFromParams` از `route.snapshot` همان page/size/sort را قبل از اولین درخواست بازمی‌گرداند.                               |
+
+The mock sorts numbers (including `createdAt` as UTC millis) before slicing, so page 2 of
+a price sort is the true 21st–40th cheapest row, not a string sort of the first 40.
+
+### قاعده‌ها / Rules
+
+- **`product-paging.ts` تنها مترجم این چهار پارامتر است.** `pagingFromParams` مقادیر
+  نامعتبر را به پیش‌فرض برمی‌گرداند، `pagingToQuery` نام `size` را به `pageSize` نگاشت
+  می‌کند و `pagingToQueryParams` پیش‌فرض‌ها را حذف می‌کند.
+- **تغییر فیلتر صفحه را ۱ می‌کند.** فیلتری که نتیجه را کوچک می‌کند نباید کاربر را در
+  صفحهٔ ۵ رهاشده نگه دارد.
+- **کلیک دوباره روی صفحهٔ فعلی درخواست نمی‌سازد.** `pagingEqual` جلوی ناوبری تکراری را
+  می‌گیرد (tc 7).
+- **ستون غیرقابل‌سورت دکمه ندارد.** `sortBy` هم با `isSortField` محافظت شده؛ حتی فراخوانی
+  مستقیم آن با `categoryName` هیچ تغییری نمی‌دهد (tc 10).
+- **`aria-sort` روی `<th>` و `aria-current="page"` روی دکمهٔ فعال** قرار می‌گیرد، نه روی
+  یک `<span>` تزئینی.
+
+- **`product-paging.ts` is the only translator.** Invalid values fall back, `size` maps to
+  `pageSize`, and defaults are omitted from the URL.
+- **A filter change resets page 1**, so a narrower result set cannot leave the user on a
+  page that no longer exists.
+- **Clicking the active page is a no-op** (`pagingEqual`), and a non-sortable column has no
+  button and is rejected by `isSortField`.
+- **`aria-sort` sits on the `<th>` and `aria-current="page"` on the active button.**
+
 ## حالت‌های صفحه / Page states
 
 سه حالت غیر دادهٔ صفحه: در حال بارگذاری، خالی و خطا. هر سه از یک `state()` می‌آیند و

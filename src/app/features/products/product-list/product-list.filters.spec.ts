@@ -143,7 +143,7 @@ describe('ProductList filters (BO-F03)', () => {
     await mount();
 
     expect(service.queries).toHaveLength(1);
-    expect(lastQuery()).toEqual({
+    expect(lastQuery()).toMatchObject({
       query: undefined,
       categoryId: null,
       brandId: null,
@@ -210,7 +210,7 @@ describe('ProductList filters (BO-F03)', () => {
     await mount('/products?query=هدفون&category=3&brand=5&status=draft');
 
     expect(service.queries).toHaveLength(1);
-    expect(lastQuery()).toEqual({
+    expect(lastQuery()).toMatchObject({
       query: 'هدفون',
       categoryId: '3',
       brandId: '5',
@@ -239,7 +239,7 @@ describe('ProductList filters (BO-F03)', () => {
     await settle();
 
     expect(service.queries.length).toBe(before + 1);
-    expect(lastQuery()).toEqual({
+    expect(lastQuery()).toMatchObject({
       query: undefined,
       categoryId: null,
       brandId: null,

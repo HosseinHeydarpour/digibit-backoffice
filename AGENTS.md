@@ -390,6 +390,27 @@ and its `data`. Every feature page after it follows that shape.
   and drop `isActive === false`; do not hard-code a category or brand list in the component. The
   lookup page size is 100, enough for the phase-1 catalogue.
 
+### Paging and sort are URL state too (BO-F04)
+
+- **`product-paging.ts` owns `page`/`size`/`sort`/`dir`.** `pagingFromParams` validates the
+  closed sets (1-based page, sizes 10/20/50, sort fields name/price/stock/createdAt) and falls
+  back rather than sending an untyped query. `pagingToQuery` maps the URL's `size` to the API's
+  `pageSize`; `pagingToQueryParams` omits defaults (`/products`, not `?page=1&size=20`).
+- **Filters and paging share ONE state subject.** A filter change resets page 1 in the same
+  emission; two subjects would make `combineLatest` fire twice and send a request that is
+  immediately cancelled. `writeState` is the only path that updates state and the URL.
+- **Clicking the active page is a no-op.** `pagingEqual` guards `applyPaging`, and `replaceUrl`
+  keeps rapid page changes out of history (tc 7). Page size and sort also reset to page 1.
+- **Only name/price/createdAt are sortable.** The template renders a real `<button>` inside the
+  `<th>` (keyboard reachable), `aria-sort` stays on the `<th>`, and `sortBy` rejects anything
+  outside `ProductSortField` even when called directly (tc 10). Date sorting is numeric UTC
+  milliseconds in the mock, never a string comparison.
+- **`pageWindow` is the compact paginator.** Up to seven pages it shows all; above that first,
+  last and active ±1 with `null` for an ellipsis. The numbered pages are `hidden sm:flex`; a
+  phone gets «صفحه ۲ از ۷» instead (tc 9).
+- **The empty state distinguishes three cases:** active filters, a stale page number, and an
+  actually empty shop. Only the last offers «افزودن محصول».
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

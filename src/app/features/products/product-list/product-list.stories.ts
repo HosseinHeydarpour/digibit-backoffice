@@ -7,6 +7,7 @@ import type {
   ProductBrandOption,
   ProductCategoryOption,
   ProductListItem,
+  ProductQuery,
 } from '../models/product.model';
 import { ProductsService } from '../services/products.service';
 
@@ -55,6 +56,18 @@ const SAMPLE_PRODUCTS: readonly ProductListItem[] = [
   },
 ];
 
+/** 25 deterministic rows so the paginated story has a real second page. */
+const PAGINATED_PRODUCTS: readonly ProductListItem[] = Array.from({ length: 25 }, (_, index) => ({
+  id: `page-${index + 1}`,
+  name: `محصول نمونه ${index + 1}`,
+  categoryName: 'لوازم جانبی',
+  brandName: 'سونی',
+  price: 500_000 + index * 50_000,
+  stock: index % 7,
+  status: 'published',
+  createdAt: 1728883200000 + index * 86_400_000,
+}));
+
 /** Wrap rows in the one-page shape `ProductsService.list()` returns. */
 function pageOf(rows: readonly ProductListItem[]): Page<ProductListItem> {
   return { items: [...rows], total: rows.length, page: 1, pageSize: 20 };
@@ -86,6 +99,22 @@ class StaticProductsService implements Pick<ProductsService, 'list' | 'categorie
 
   brands(): Observable<readonly ProductBrandOption[]> {
     return of(SAMPLE_BRANDS);
+  }
+}
+
+/** A paging-aware source: page 1 of 25, with 20 rows on screen. */
+class PagedProductsService extends StaticProductsService {
+  override list(query: ProductQuery = {}): Observable<Page<ProductListItem>> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const start = (page - 1) * pageSize;
+
+    return of({
+      items: PAGINATED_PRODUCTS.slice(start, start + pageSize),
+      total: PAGINATED_PRODUCTS.length,
+      page,
+      pageSize,
+    });
   }
 }
 
@@ -134,6 +163,11 @@ const meta: Meta<ProductList> = {
           'to the URL (`?query=&category=&brand=&status=`); the text box is debounced by 300 ms and',
           'the other three apply on change. A refresh or a shared link restores the same filters,',
           'and the filtered empty state offers «پاک کردن فیلترها» instead of «افزودن محصول».',
+          '',
+          '**BO-F04 adds paging and sort.** The footer shows the server range, lets the user pick',
+          '10/20/50 rows, and keeps the current page; clicking name, price or createdAt toggles',
+          'asc/desc. `page`, `size`, `sort` and `dir` live in the URL next to the filters, and the',
+          'mock sorts numbers (including UTC createdAt) rather than strings.',
         ].join('\n'),
       },
     },
@@ -179,6 +213,22 @@ export const ServerTotal: Story = {
           },
         },
       ],
+    },
+  }),
+};
+
+/**
+ * Page 1 of a 25-row catalogue (BO-F04).
+ *
+ * The footer says «نمایش ۱ تا ۲۰ از ۲۵ محصول», the numbered pages expose 2, and
+ * the size select can switch to 10/50. Clicking page 2 or a sortable header
+ * changes the URL and refetches; nothing is filtered locally.
+ */
+export const Paginated: Story = {
+  render: () => ({
+    template: '<app-product-list />',
+    moduleMetadata: {
+      providers: [{ provide: ProductsService, useValue: new PagedProductsService() }],
     },
   }),
 };

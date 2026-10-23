@@ -140,9 +140,9 @@
   class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
 >
   <!--
-    A filter change keeps the previous rows visible while the next request is in
-    flight (unlike the first load, which shows the skeleton). This thin bar is
-    the only feedback needed; there is no layout jump.
+    A filter/page change keeps the previous rows visible while the next request
+    is in flight (unlike the first load, which shows the skeleton). This thin bar
+    is the only feedback needed; there is no layout jump.
   -->
   @if (isFetching() && page() !== null) {
     <div
@@ -155,7 +155,7 @@
   }
 
   <!--
-    ONE SWITCH, FOUR STATES (BO-E07 tc 7, carried into BO-F02/BO-F03).
+    ONE SWITCH, FOUR STATES (BO-E07 tc 7, carried into BO-F02/BO-F03/BO-F04).
 
     `state()` is the only branch condition. `error` is checked first — a failed
     fetch must never look like "still loading" or like an empty shop — then
@@ -226,9 +226,10 @@
 
     @case ('empty') {
       <!--
-        EMPTY (BO-F02 tc 8, BO-F03 tc 9). A filtered empty is NOT "the shop has
-        no products": the copy names the filters and the action clears them,
-        instead of offering to create a product that may already exist.
+        EMPTY (BO-F02 tc 8, BO-F03 tc 9, BO-F04 stale page). Three different
+        sentences: a filtered search that found nothing, a page number left over
+        from a larger result set, and a shop with no products at all. Offering
+        «افزودن محصول» for the first two would be wrong — the products may exist.
       -->
       @if (hasFilters()) {
         <app-empty-state
@@ -237,6 +238,14 @@
           description="فیلترها را تغییر دهید یا همه را پاک کنید."
           actionLabel="پاک کردن فیلترها"
           (action)="clearFilters()"
+        />
+      } @else if (paging().page > 1) {
+        <app-empty-state
+          icon="pi pi-inbox"
+          title="محصولی در این صفحه نیست"
+          description="به صفحهٔ اول برگردید."
+          actionLabel="بازگشت به صفحهٔ اول"
+          (action)="goToFirstPage()"
         />
       } @else {
         <app-empty-state
@@ -258,12 +267,34 @@
                 <th
                   scope="col"
                   [style.width]="col.width ?? null"
+                  [attr.aria-sort]="col.sortable ? ariaSort(col.field) : null"
                   [class]="
                     'px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 ' +
                     (col.class ?? '')
                   "
                 >
-                  {{ col.header }}
+                  @if (col.sortable) {
+                    <!--
+                      A real <button>: a header click is an action, and a <th>
+                      with (click) is invisible to the keyboard. `aria-sort` stays
+                      on the <th>, where assistive technology expects it (tc 3/4).
+                    -->
+                    <button
+                      type="button"
+                      (click)="sortBy(col.field)"
+                      [attr.data-sort]="col.field"
+                      class="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-gray-500 transition hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      {{ col.header }}
+                      <i
+                        [class]="sortIconClass(col.field)"
+                        class="text-[10px]"
+                        aria-hidden="true"
+                      ></i>
+                    </button>
+                  } @else {
+                    {{ col.header }}
+                  }
                 </th>
               }
             </tr>
@@ -382,26 +413,98 @@
       </div>
 
       <!--
-        FOOTER (BO-F02 tc 10) — the result count, under the table and inside the
-        card, so it scrolls with the rows instead of floating. `persianDigits`
-        keeps the panel's numerals consistent.
+        FOOTER (BO-F02 tc 10 + BO-F04). The range uses the server total, not the
+        rows on screen: page 2 of a 137-row catalogue says ۲۱–۴۰ از ۱۳۷. On a
+        phone the numbered pages collapse to «صفحه ۲ از ۷» (tc 9); the size
+        select and prev/next stay reachable.
       -->
       <div
-        class="flex items-center justify-between gap-3 border-t border-gray-200 px-6 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+        class="flex flex-col gap-4 border-t border-gray-200 px-6 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between"
       >
-        <span>
+        <p class="text-xs sm:text-sm" aria-live="polite">
+          نمایش
+          <span class="font-medium text-gray-900 dark:text-white">
+            {{ rangeStart() | persianDigits }}
+          </span>
+          تا
+          <span class="font-medium text-gray-900 dark:text-white">
+            {{ rangeEnd() | persianDigits }}
+          </span>
+          از
           <span class="font-medium text-gray-900 dark:text-white">
             {{ total() | persianDigits }}
           </span>
           محصول
-        </span>
+        </p>
 
-        @if (isFetching()) {
-          <span class="inline-flex items-center gap-2 text-xs">
-            <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
-            در حال به‌روزرسانی…
-          </span>
-        }
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2">
+            <label for="page-size" class="text-xs text-gray-500 dark:text-gray-400">
+              تعداد در صفحه
+            </label>
+            <select
+              id="page-size"
+              (change)="onPageSizeChange($event)"
+              class="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+            >
+              @for (size of pageSizeOptions; track size) {
+                <option [value]="size" [selected]="size === paging().pageSize">
+                  {{ size | persianDigits }}
+                </option>
+              }
+            </select>
+          </div>
+
+          <nav class="flex items-center gap-1" aria-label="صفحه‌بندی محصولات">
+            <button
+              type="button"
+              (click)="onPageChange(paging().page - 1)"
+              [disabled]="paging().page === 1"
+              aria-label="صفحهٔ قبل"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              <i class="pi pi-chevron-right text-xs" aria-hidden="true"></i>
+            </button>
+
+            <div id="page-numbers" class="hidden items-center gap-1 sm:flex">
+              @for (item of pageWindow(); track $index) {
+                @if (item === null) {
+                  <span class="px-1 text-xs text-gray-400" aria-hidden="true">…</span>
+                } @else {
+                  <button
+                    type="button"
+                    (click)="onPageChange(item)"
+                    [attr.data-page]="item"
+                    [attr.aria-current]="item === paging().page ? 'page' : null"
+                    [class]="
+                      item === paging().page
+                        ? 'bg-primary text-white'
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                    "
+                    class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    {{ item | persianDigits }}
+                  </button>
+                }
+              }
+            </div>
+
+            <span id="page-summary" class="px-2 text-xs text-gray-500 dark:text-gray-400 sm:hidden">
+              صفحه {{ paging().page | persianDigits }} از
+              {{ totalPages() | persianDigits }}
+            </span>
+
+            <button
+              type="button"
+              (click)="onPageChange(paging().page + 1)"
+              [disabled]="paging().page >= totalPages()"
+              aria-label="صفحهٔ بعد"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              <i class="pi pi-chevron-left text-xs" aria-hidden="true"></i>
+            </button>
+          </nav>
+        </div>
       </div>
     }
   }

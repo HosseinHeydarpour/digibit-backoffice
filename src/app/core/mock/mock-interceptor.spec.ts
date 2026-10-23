@@ -108,6 +108,30 @@ describe('mockInterceptor', () => {
     }
   });
 
+  it('sorts by price descending and by createdAt ascending (BO-F04 tc 3, tc 4)', async () => {
+    const byPrice = await firstValueFrom(
+      http.get<ApiResponse<{ price: number }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { sort: 'price', dir: 'desc', pageSize: 100 },
+      }),
+    );
+
+    for (let index = 1; index < byPrice.data.length; index += 1) {
+      expect(byPrice.data[index - 1].price).toBeGreaterThanOrEqual(byPrice.data[index].price);
+    }
+
+    const byDate = await firstValueFrom(
+      http.get<ApiResponse<{ createdAt: number }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { sort: 'createdAt', dir: 'asc', pageSize: 100 },
+      }),
+    );
+
+    for (let index = 1; index < byDate.data.length; index += 1) {
+      expect(byDate.data[index - 1].createdAt).toBeLessThanOrEqual(byDate.data[index].createdAt);
+    }
+  });
+
   it('applies the configured artificial delay', async () => {
     // A loading state is only trustworthy if the response is genuinely async.
     // Awaiting the observable proves the delay elapses instead of resolving inline.

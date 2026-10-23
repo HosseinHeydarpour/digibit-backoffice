@@ -13,7 +13,7 @@ import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
-import type { Page } from '@shared/models';
+import type { Page, SortOrder } from '@shared/models';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
@@ -48,6 +48,18 @@ import {
   isProductStatus,
 } from './product-filters';
 import type { ProductFilters } from './product-filters';
+import {
+  PAGE_SIZE_OPTIONS,
+  isPageSize,
+  isSortField,
+  pageWindow as buildPageWindow,
+  pagingEqual,
+  pagingFromParams,
+  pagingToQuery,
+  pagingToQueryParams,
+  totalPages as getTotalPages,
+} from './product-paging';
+import type { PageSize, ProductPaging } from './product-paging';
 
 /**
  * The four outcomes a list fetch can have (BO-E07's vocabulary).
@@ -60,6 +72,20 @@ import type { ProductFilters } from './product-filters';
 type ProductListState = 'loading' | 'error' | 'empty' | 'data';
 
 /**
+ * One atomic snapshot of the list state: filters (BO-F03) plus paging/sort
+ * (BO-F04).
+ *
+ * They live in ONE `BehaviorSubject` so a filter change that also resets the
+ * page emits once. Two separate subjects would make `combineLatest` emit twice
+ * (old page + new filter, then new page), and the first HTTP request would be
+ * cancelled after it had already been sent.
+ */
+interface ProductListQuery {
+  readonly filters: ProductFilters;
+  readonly paging: ProductPaging;
+}
+
+/**
  * The table's columns, in render order (F02's «ستون‌ها را در یک آرایهٔ cols …»).
  *
  * WHY THIS ARRAY IS NOT IN `models/product.model.ts`:
@@ -69,9 +95,10 @@ type ProductListState = 'loading' | 'error' | 'empty' | 'data';
  * The model file stays types-only; the columns live here, next to the template
  * that reads them.
  *
- * `sortable` is declared now and consumed by BO-F04 (click-to-sort); `width`
- * keeps the numeric columns from collapsing on a wide screen. `class` carries
- * the responsive hiding that makes the table usable on a phone (BO-F02 tc 6).
+ * `sortable` is consumed by BO-F04's header click; only name, price and
+ * createdAt are clickable (tc 3/4/10). `width` keeps the numeric columns from
+ * collapsing on a wide screen. `class` carries the responsive hiding that makes
+ * the table usable on a phone (BO-F02 tc 6).
  */
 const COLUMNS: readonly ProductColumn[] = [
   { field: 'name', header: 'نام محصول', width: '30%', sortable: true },
@@ -87,8 +114,8 @@ const COLUMNS: readonly ProductColumn[] = [
 /**
  * Status → label and pill colours, in one place (BO-F02 tc 4).
  *
- * The same table now feeds the status filter's options (BO-F03), so the select
- * and the pills cannot disagree about what «پیش‌نویس» is called.
+ * The same table feeds the status filter's options (BO-F03), so the select and
+ * the pills cannot disagree about what «پیش‌نویس» is called.
  */
 const PRODUCT_STATUS_META: Record<
   ProductStatus,
@@ -114,47 +141,42 @@ function selectValue(event: Event): string {
 }
 
 /**
- * Products list page — `/products` (BO-F02 + BO-F03).
+ * Products list page — `/products` (BO-F02 + BO-F03 + BO-F04).
  *
- * The Arino table plus the filter bar: a text search over name/SKU, category,
- * brand and status. The filters live in the URL (`?query=&category=&brand=&status=`)
- * rather than only in component state, so a refresh or a shared link restores
- * exactly what the sender saw.
+ * The Arino table, the filter bar, and the pagination/sort controls. Filters
+ * (BO-F03) and paging/sort (BO-F04) both live in the URL:
  *
- * TRACE — one filter interaction, end to end:
+ *   /products?query=سونی&category=3&status=draft&page=2&size=10&sort=price&dir=desc
  *
- *   1. The user types «سونی» in `#product-search`. The native input event updates
- *      `searchControl`.
- *   2. `valueChanges` goes through `debounceTime(300)`; a second keystroke
- *      cancels the first timer, so only the last value reaches the URL.
- *   3. `applyFilters({ ...filters, query: 'سونی' })` updates `filters$` and calls
- *      `Router.navigate([], { queryParams: { query: 'سونی', category: null, … },
- *      queryParamsHandling: 'merge', replaceUrl: true })`.
- *   4. `filters$` emits into `combineLatest(reload$, filters$)`; `switchMap`
- *      cancels any in-flight request and calls
- *      `ProductsService.list(filtersToQuery(filters))`.
- *   5. `filtersToQuery` maps the URL names to the API names:
- *      `{ query: 'سونی', categoryId: null, brandId: null, status: null }`.
- *   6. `buildQuery` drops the nulls, so the mock sees `?query=سونی`, filters the
- *      fixture by name + slug + SKU, and returns a `Page`.
- *   7. `page()` updates; `items()` redraws the rows and `total()` updates the
- *      footer. No full page reload.
- *   8. Picking a category repeats steps 3–7 with `categoryId: '3'` and the URL
- *      becomes `?query=سونی&category=3`; the two filters combine.
- *   9. «پاک کردن فیلترها» writes `{ query: null, category: null, brand: null,
- *      status: null }`, which removes the four keys while `merge` preserves
- *      BO-F04's future `page`/`sort` parameters.
- *  10. A refresh (or a shared URL) starts at `route.snapshot.queryParamMap`, so
- *      the first `filters$` value is already the restored state — the first
- *      fetch is the filtered one.
+ * so a refresh or a shared link restores exactly what the sender saw.
  *
- * Back/forward is handled by the `route.queryParamMap` subscription: an external
- * URL change updates `filters` and `filters$` without re-navigating. Our own
- * navigation is ignored because `filtersEqual` sees the same state.
+ * TRACE — one page/sort interaction, end to end:
+ *
+ *   1. The user clicks «۲» in the paginator. `onPageChange(2)` clamps the number
+ *      to `totalPages()` and calls `applyPaging({ page: 2, … })`.
+ *   2. `writeState` updates `state$` once and navigates with
+ *      `queryParams: { page: '2', size: null, sort: null, dir: null, …filters }`
+ *      and `replaceUrl: true` (no history spam).
+ *   3. `combineLatest(reload$, state$)` → `switchMap` cancels any in-flight
+ *      request → `list({ ...filtersToQuery(filters), page: 2, pageSize: 20 })`.
+ *   4. `buildQuery` writes `?page=2&pageSize=20`; the mock slices rows 20–39 and
+ *      returns `{ items, total, page: 2, pageSize: 20 }`.
+ *   5. `page()` updates; `rangeStart()` prints 21, `rangeEnd()` 40, and the
+ *      active page button carries `aria-current="page"`.
+ *   6. Clicking «قیمت» calls `sortBy('price')`: a new field starts `asc` and
+ *      resets to page 1; clicking it again flips to `desc`. The URL becomes
+ *      `?sort=price&dir=desc`; the mock sorts `price` as a NUMBER (never as a
+ *      string) before slicing.
+ *   7. Changing «تعداد در صفحه» to 10 calls `onPageSizeChange`: page resets to 1,
+ *      `size=10` enters the URL, and `pageWindow` is recomputed.
+ *   8. A refresh starts at `route.snapshot.queryParamMap`; `pagingFromParams`
+ *      restores page/size/sort before the first request. Back/Forward is handled
+ *      by the `queryParamMap` subscription, which updates the state only when
+ *      the URL differs.
  *
  * The four fetch outcomes are still one `state()` (BO-E07): error > loading >
- * empty > data. `isFetching` is a lighter signal used only for the in-card
- * progress bar during a filter change, when the previous rows stay visible.
+ * empty > data. `isFetching` drives the thin progress bar during a page/filter
+ * change, when the previous rows stay visible.
  */
 @Component({
   selector: 'app-product-list',
@@ -185,20 +207,20 @@ export class ProductList {
   /**
    * The reload trigger: a `BehaviorSubject` emits once at construction, so the
    * first paint starts the fetch immediately, and `next()` is what the retry
-   * button calls. The filter stream is combined with it, so a retry reuses the
-   * filters currently on screen.
+   * button calls. The state stream is combined with it, so a retry reuses the
+   * filters/page/sort currently on screen.
    */
   private readonly reload$ = new BehaviorSubject<void>(undefined);
 
   /**
-   * The filter state as a stream. Seeded from the URL so a refresh/shared link
-   * restores it before the first request; `applyFilters` pushes every change.
-   * A `BehaviorSubject` (not just the signal) because the fetch pipeline needs
-   * an initial synchronous emission.
+   * Filters + paging as one atomic stream. Seeded from the URL so a refresh or a
+   * shared link restores everything before the first request; `writeState`
+   * pushes every change.
    */
-  private readonly filters$ = new BehaviorSubject<ProductFilters>(
-    filtersFromParams(this.route.snapshot.queryParamMap),
-  );
+  private readonly state$ = new BehaviorSubject<ProductListQuery>({
+    filters: filtersFromParams(this.route.snapshot.queryParamMap),
+    paging: pagingFromParams(this.route.snapshot.queryParamMap),
+  });
 
   /**
    * Non-null when the last fetch rejected (BO-E07 tc 2).
@@ -213,8 +235,11 @@ export class ProductList {
   /** True while a request is in flight; drives the thin in-card progress bar. */
   readonly isFetching = signal(false);
 
-  /** The UI mirror of `filters$` — the template reads this signal. */
-  readonly filters = signal<ProductFilters>(this.filters$.value);
+  /** The UI mirror of the filter half of `state$`. */
+  readonly filters = signal<ProductFilters>(this.state$.value.filters);
+
+  /** The UI mirror of the page/size/sort half of `state$`. */
+  readonly paging = signal<ProductPaging>(this.state$.value.paging);
 
   /** The debounced search box; the only filter that is not applied on change. */
   readonly searchControl = new FormControl(this.filters().query, { nonNullable: true });
@@ -241,30 +266,35 @@ export class ProductList {
    * and is deliberately distinguishable from a page with `items: []`, which is
    * "no products match" (tc 9 vs tc 8).
    *
-   * The pipeline combines the retry trigger with the filter stream. `switchMap`
-   * cancels the previous request when the user changes a filter quickly, so a
-   * slow response for «س» can never overwrite the answer for «سونی».
+   * The pipeline combines the retry trigger with filters + paging. `switchMap`
+   * cancels the previous request when the user changes a filter or clicks pages
+   * quickly, so a slow response for page 2 can never overwrite page 3.
    */
   readonly page = toSignal<Page<ProductListItem> | null>(
-    combineLatest([this.reload$, this.filters$]).pipe(
+    combineLatest([this.reload$, this.state$]).pipe(
       tap(() => {
         this.itemsError.set(null);
         this.isFetching.set(true);
       }),
-      switchMap(([, filters]) =>
-        this.productsService.list(filtersToQuery(filters)).pipe(
-          tap({
-            next: () => {
-              this.itemsError.set(null);
-              this.isFetching.set(false);
-            },
-            error: () => {
-              this.itemsError.set('دریافت محصولات ناموفق بود');
-              this.isFetching.set(false);
-            },
-          }),
-          catchError(() => of(null)),
-        ),
+      switchMap(([, state]) =>
+        this.productsService
+          .list({
+            ...filtersToQuery(state.filters),
+            ...pagingToQuery(state.paging),
+          })
+          .pipe(
+            tap({
+              next: () => {
+                this.itemsError.set(null);
+                this.isFetching.set(false);
+              },
+              error: () => {
+                this.itemsError.set('دریافت محصولات ناموفق بود');
+                this.isFetching.set(false);
+              },
+            }),
+            catchError(() => of(null)),
+          ),
       ),
     ),
     { initialValue: null },
@@ -299,9 +329,34 @@ export class ProductList {
 
   /**
    * Result count for the footer (tc 10) — the server's total, not the current
-   * page length, so BO-F04's "۱–۲۰ از ۱۳۷" has one number to read.
+   * page length, so "۲۱–۴۰ از ۱۳۷" has one number to read.
    */
   readonly total = computed(() => this.page()?.total ?? 0);
+
+  /** Number of pages for the paginator; at least 1 so the control is never empty. */
+  readonly totalPages = computed(() => getTotalPages(this.total(), this.paging().pageSize));
+
+  /** First/last row numbers shown in the footer; 0–0 when the result is empty. */
+  readonly rangeStart = computed(() =>
+    this.total() === 0 ? 0 : (this.paging().page - 1) * this.paging().pageSize + 1,
+  );
+
+  readonly rangeEnd = computed(() =>
+    this.total() === 0 ? 0 : Math.min(this.paging().page * this.paging().pageSize, this.total()),
+  );
+
+  /** The compact page list, with `null` for an ellipsis. */
+  readonly pageWindow = computed(() => buildPageWindow(this.paging().page, this.totalPages()));
+
+  /**
+   * A getter, not a field: `PAGE_SIZE_OPTIONS` is a runtime import reachable
+   * from both the eager spec bundle and the lazy `products-routes` chunk. A field
+   * initialiser can run before that shared chunk is initialised (the same hazard
+   * as `TOMAN_UNIT` in the dashboard), which would leave the select empty.
+   */
+  get pageSizeOptions(): readonly PageSize[] {
+    return PAGE_SIZE_OPTIONS;
+  }
 
   /** Whether the clear button should be enabled and the empty copy should mention filters. */
   readonly hasFilters = computed(() => hasActiveFilters(this.filters()));
@@ -312,26 +367,34 @@ export class ProductList {
       .subscribe((query) => this.applyFilters({ ...this.filters(), query }));
 
     // Back/forward (or a pasted URL) changes the parameters WITHOUT going
-    // through `applyFilters`. Mirror that into the state. Our own navigation is
-    // a no-op here because `filtersEqual` already sees the same values.
+    // through `writeState`. Mirror that into the state. Our own navigation is a
+    // no-op here because the comparator already sees the same values.
     this.route.queryParamMap
       .pipe(
-        map((params) => filtersFromParams(params)),
-        distinctUntilChanged(filtersEqual),
+        map((params) => ({
+          filters: filtersFromParams(params),
+          paging: pagingFromParams(params),
+        })),
+        distinctUntilChanged(
+          (previous, current) =>
+            filtersEqual(previous.filters, current.filters) &&
+            pagingEqual(previous.paging, current.paging),
+        ),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((filters) => {
-        if (filtersEqual(filters, this.filters())) {
+      .subscribe((next) => {
+        if (filtersEqual(next.filters, this.filters()) && pagingEqual(next.paging, this.paging())) {
           return;
         }
 
-        this.filters.set(filters);
-        this.filters$.next(filters);
-        this.searchControl.setValue(filters.query, { emitEvent: false });
+        this.filters.set(next.filters);
+        this.paging.set(next.paging);
+        this.state$.next(next);
+        this.searchControl.setValue(next.filters.query, { emitEvent: false });
       });
   }
 
-  /** Re-runs the fetch with the filters currently on screen (BO-E07 tc 3). */
+  /** Re-runs the fetch with the filters/page currently on screen (BO-E07 tc 3). */
   retry(): void {
     this.reload$.next();
   }
@@ -355,10 +418,74 @@ export class ProductList {
     }
   }
 
-  /** Reset all four filters and remove their keys from the URL (tc 7). */
+  /** Reset all four filters, keep the page size/sort, and return to page 1 (tc 7). */
   clearFilters(): void {
     this.searchControl.setValue('', { emitEvent: false });
-    this.applyFilters(EMPTY_FILTERS);
+    this.writeState({
+      filters: EMPTY_FILTERS,
+      paging: { ...this.paging(), page: 1 },
+    });
+  }
+
+  /**
+   * Header click: sort by `field`, or flip the direction when it is already the
+   * active sort. A non-sortable column is ignored (tc 10) even if a caller
+   * reaches this method directly.
+   */
+  sortBy(field: ProductColumn['field']): void {
+    if (!isSortField(field)) {
+      return;
+    }
+
+    const current = this.paging();
+    const dir: SortOrder = current.sort === field && current.dir === 'asc' ? 'desc' : 'asc';
+
+    this.applyPaging({ ...current, page: 1, sort: field, dir });
+  }
+
+  /** `aria-sort` for a sortable `<th>`; non-active columns report `none`. */
+  ariaSort(field: ProductColumn['field']): 'ascending' | 'descending' | 'none' {
+    if (this.paging().sort !== field) {
+      return 'none';
+    }
+
+    return this.paging().dir === 'asc' ? 'ascending' : 'descending';
+  }
+
+  /** The sort chevron for a header; inactive columns show the neutral alt icon. */
+  sortIconClass(field: ProductColumn['field']): string {
+    if (this.paging().sort !== field) {
+      return 'pi pi-sort-alt';
+    }
+
+    return this.paging().dir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down-alt';
+  }
+
+  /** Paginator click; clamps to the available range and ignores a repeat click. */
+  onPageChange(page: number): void {
+    const next = Math.min(Math.max(1, page), this.totalPages());
+
+    if (next === this.paging().page) {
+      return;
+    }
+
+    this.applyPaging({ ...this.paging(), page: next });
+  }
+
+  /** Page-size select; the allowed sizes are the closed 10/20/50 union (tc 2). */
+  onPageSizeChange(event: Event): void {
+    const size = Number(selectValue(event));
+
+    if (!isPageSize(size)) {
+      return;
+    }
+
+    this.applyPaging({ ...this.paging(), page: 1, pageSize: size });
+  }
+
+  /** The empty state's way back when a stale page number is out of range. */
+  goToFirstPage(): void {
+    this.onPageChange(1);
   }
 
   statusLabel(status: ProductStatus): string {
@@ -399,23 +526,47 @@ export class ProductList {
   }
 
   /**
-   * Single write path for every filter: state → stream → URL.
-   *
-   * `replaceUrl` keeps the browser history clean while typing; `merge` preserves
-   * parameters owned by later tasks (`page`, `sort`). `filtersEqual` skips a
-   * redundant request when the user re-selects the option already active.
+   * Filter change: reset to page 1, because a filter that shrinks the result set
+   * can leave the current page beyond the last one.
    */
   private applyFilters(next: ProductFilters): void {
     if (filtersEqual(next, this.filters())) {
       return;
     }
 
-    this.filters.set(next);
-    this.filters$.next(next);
+    this.writeState({
+      filters: next,
+      paging: { ...this.paging(), page: 1 },
+    });
+  }
+
+  /** Page/size/sort change: one atomic state update and one URL write. */
+  private applyPaging(next: ProductPaging): void {
+    if (pagingEqual(next, this.paging())) {
+      return;
+    }
+
+    this.writeState({ ...this.state$.value, paging: next });
+  }
+
+  /**
+   * Single write path: state → stream → URL.
+   *
+   * `replaceUrl` keeps history clean while paging; `merge` preserves parameters
+   * this task does not own. The caller has already checked equality, so a repeat
+   * click on the current page does not create a duplicate navigation (tc 7).
+   */
+  private writeState(next: ProductListQuery): void {
+    this.filters.set(next.filters);
+    this.paging.set(next.paging);
+    this.state$.next(next);
 
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: filtersToQueryParams(next),
+      queryParams: {
+        ...filtersToQueryParams(next.filters),
+        ...pagingToQueryParams(next.paging),
+      },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
