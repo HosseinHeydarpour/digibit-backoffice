@@ -7,22 +7,21 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { AbstractControl } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '@core/services/toast';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
-import { catchError, of } from 'rxjs';
+import { PrimeTemplate } from 'primeng/api';
+import { Select } from 'primeng/select';
 
-import type {
-  ProductBrandOption,
-  ProductCategoryOption,
-  ProductStatus,
-} from '../models/product.model';
-import { ProductsService } from '../services/products.service';
+import type { ProductBrandOption, ProductStatus } from '../models/product.model';
+import { ProductLookupsService } from '../services/product-lookups.service';
 
+import { buildCategoryOptions } from './category-options';
+import type { CategoryOption } from './category-options';
 import { slugify } from './product-slug';
 import {
   SHORT_DESCRIPTION_MAX,
@@ -97,12 +96,12 @@ const STATUS_OPTIONS: readonly { value: ProductStatus; label: string }[] = [
  */
 @Component({
   selector: 'app-product-create',
-  imports: [PageHeader, ReactiveFormsModule, RouterLink, PersianDigitsPipe],
+  imports: [PageHeader, ReactiveFormsModule, RouterLink, PersianDigitsPipe, Select, PrimeTemplate],
   templateUrl: './product-create.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductCreate {
-  private readonly productsService = inject(ProductsService);
+  private readonly lookups = inject(ProductLookupsService);
 
   private readonly fb = inject(FormBuilder);
 
@@ -139,17 +138,34 @@ export class ProductCreate {
     return this.form.controls.images;
   }
 
-  readonly categories = toSignal(
-    this.productsService
-      .categories()
-      .pipe(catchError(() => of<readonly ProductCategoryOption[]>([]))),
-    { initialValue: [] as readonly ProductCategoryOption[] },
-  );
+  /**
+   * Categories with their full path, built from the cached lookup (BO-F09).
+   * Loading/error are separate signals so the field can show a spinner or a
+   * retry without hiding the rest of the form.
+   */
+  readonly categoryOptions = computed<CategoryOption[]>(() => [
+    ...buildCategoryOptions(this.lookups.categories()),
+  ]);
 
-  readonly brands = toSignal(
-    this.productsService.brands().pipe(catchError(() => of<readonly ProductBrandOption[]>([]))),
-    { initialValue: [] as readonly ProductBrandOption[] },
-  );
+  readonly categoriesLoading = this.lookups.categoriesLoading;
+
+  readonly categoriesError = this.lookups.categoriesError;
+
+  readonly brands = this.lookups.brands;
+
+  /**
+   * The brand select needs a real empty option, not a clear icon: the control is
+   * non-nullable (`''` means "no brand"), and a clear icon would write `null`
+   * into a non-nullable control. The sentinel keeps the value a string.
+   */
+  readonly brandOptions = computed<ProductBrandOption[]>(() => [
+    { id: '', name: 'بدون برند', logo: null },
+    ...this.lookups.brands(),
+  ]);
+
+  readonly brandsLoading = this.lookups.brandsLoading;
+
+  readonly brandsError = this.lookups.brandsError;
 
   readonly tabs: readonly ProductTab[] = TABS;
 
@@ -199,6 +215,16 @@ export class ProductCreate {
   /** A manual edit wins over the generated slug (tc 8). */
   onSlugInput(): void {
     this.slugEdited = true;
+  }
+
+  /** Retry the category lookup after a failed request (BO-F09 tc 9). */
+  retryCategories(): void {
+    this.lookups.reloadCategories();
+  }
+
+  /** Retry the brand lookup after a failed request. */
+  retryBrands(): void {
+    this.lookups.reloadBrands();
   }
 
   /**

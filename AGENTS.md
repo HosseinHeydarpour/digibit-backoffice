@@ -480,6 +480,30 @@ and its `data`. Every feature page after it follows that shape.
 - **Validation is per-tab, not per-form.** `next()` still touches only the current tab's controls;
   a valid main tab can advance even while the (empty) variants/gallery arrays are untouched.
 
+### Cached lookups and searchable selects (BO-F09)
+
+- **`ProductLookupsService` is the cache, not the page.** Root-scoped `toSignal` state for categories
+  and brands, one `BehaviorSubject` reload per list, and `loading`/`loaded`/`error` in one state
+  object. Revisiting `/products/new` reuses the last success; the retry button re-runs only the list
+  that failed. A resolver would block navigation and turn a lookup failure into no page at all.
+- **`buildCategoryOptions` is pure.** It filters inactive rows, walks `parentId` to a full
+  `path` (`لوازم برقی / صوتی`), computes `level` for indentation, sorts by Persian path, and stops a
+  corrupt parent cycle at 20. A missing parent becomes a root instead of `undefined / name`.
+  `ProductCategoryOption` now carries the optional `parentId` the API already returns.
+- **Search is local.** `p-select [filter]="true" filterBy="path"` (categories) and `filterBy="name"`
+  (brands) filter the already-loaded options; no keystroke reaches the API (tc 2). Brand
+  `itemTemplate`/`selectedItemTemplate` show a 20px logo or an initial fallback (tc 3).
+- **The select is full width and appended to `<body>`.** `class="w-full"` plus `styleClass="w-full"`
+  covers the host and the inner container on a phone (tc 7); `appendTo="body"` keeps the overlay out
+  of the form card's `overflow-hidden`.
+- **Loading and failure live on the field.** `[loading]` is the spinner; a failure renders a Persian
+  sentence and `[data-retry-categories]`/`[data-retry-brands]` buttons, without hiding the rest of
+  the form (tc 8/9). The F09 spec uses a `Subject` to hold the loading state and a second emission
+  to prove the retry recovers.
+- **Prefill is the form's value, not a component field.** `formControlName` + `optionValue="id"`
+  means an id set before the options arrive still selects the right row (tc 5); F14 reuses this on
+  the edit page.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

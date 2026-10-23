@@ -11,13 +11,14 @@ import { ProductsService } from '../services/products.service';
 import { ProductCreate } from './product-create';
 
 const CATEGORIES: readonly ProductCategoryOption[] = [
-  { id: '3', name: 'لوازم برقی' },
-  { id: '4', name: 'صوتی' },
+  { id: '3', name: 'لوازم برقی', parentId: null, isActive: true },
+  { id: '4', name: 'صوتی', parentId: '3', isActive: true },
+  { id: '9', name: 'دستهٔ حذف‌شده', parentId: '3', isActive: false },
 ];
 
 const BRANDS: readonly ProductBrandOption[] = [
-  { id: '5', name: 'سونی' },
-  { id: '6', name: 'ریزر' },
+  { id: '5', name: 'سونی', logo: '/mock/sony.png' },
+  { id: '6', name: 'ریزر', logo: null },
 ];
 
 class ProductsServiceStub {
@@ -176,18 +177,15 @@ describe('ProductCreate (BO-F07)', () => {
     expect(component.hasUnsavedChanges()).toBe(true);
   });
 
-  it('renders category and brand options from the service', async () => {
+  it('tc 1/3/10: builds full-path active categories and keeps brand logos', async () => {
     await mount();
 
-    const categoryTexts = Array.from(
-      fixture.nativeElement.querySelectorAll('#product-category option'),
-    ).map((option) => (option as HTMLOptionElement).textContent!.trim());
-    const brandTexts = Array.from(
-      fixture.nativeElement.querySelectorAll('#product-brand option'),
-    ).map((option) => (option as HTMLOptionElement).textContent!.trim());
-
-    expect(categoryTexts).toEqual(['انتخاب دسته‌بندی', 'لوازم برقی', 'صوتی']);
-    expect(brandTexts).toEqual(['بدون برند', 'سونی', 'ریزر']);
+    expect(component.categoryOptions().map((option) => option.path)).toEqual([
+      'لوازم برقی',
+      'لوازم برقی / صوتی',
+    ]);
+    expect(component.brands().map((brand) => brand.name)).toEqual(['سونی', 'ریزر']);
+    expect(component.brands()[0].logo).toBe('/mock/sony.png');
   });
 
   it('tc 10: the form surfaces are dark-mode ready', async () => {

@@ -112,6 +112,8 @@ export interface ProductListItem {
 export interface ProductCategoryOption {
   readonly id: EntityId;
   readonly name: string;
+  /** Parent category, used to render the full path in the product form (BO-F09). */
+  readonly parentId?: EntityId | null;
   readonly isActive?: boolean;
 }
 

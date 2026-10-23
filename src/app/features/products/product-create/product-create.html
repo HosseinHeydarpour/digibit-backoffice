@@ -136,16 +136,43 @@
                 >
                   دسته‌بندی <span class="text-red-500">*</span>
                 </label>
-                <select
-                  id="product-category"
+                <p-select
+                  inputId="product-category"
                   formControlName="categoryId"
-                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  [options]="categoryOptions()"
+                  optionLabel="path"
+                  optionValue="id"
+                  [filter]="true"
+                  filterBy="path"
+                  [loading]="categoriesLoading()"
+                  [showClear]="false"
+                  placeholder="انتخاب دسته‌بندی"
+                  filterPlaceholder="جستجوی دسته‌بندی…"
+                  emptyMessage="دسته‌بندی‌ای یافت نشد"
+                  emptyFilterMessage="نتیجه‌ای پیدا نشد"
+                  appendTo="body"
+                  class="w-full"
+                  styleClass="w-full"
                 >
-                  <option value="">انتخاب دسته‌بندی</option>
-                  @for (category of categories(); track category.id) {
-                    <option [value]="category.id">{{ category.name }}</option>
-                  }
-                </select>
+                  <ng-template pTemplate="item" let-category>
+                    <span [style.padding-inline-start.px]="category.level * 12">
+                      {{ category.path }}
+                    </span>
+                  </ng-template>
+                </p-select>
+                @if (categoriesError()) {
+                  <p class="mt-1 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                    بارگذاری دسته‌بندی‌ها ناموفق بود.
+                    <button
+                      type="button"
+                      (click)="retryCategories()"
+                      data-retry-categories
+                      class="font-medium underline underline-offset-2"
+                    >
+                      تلاش دوباره
+                    </button>
+                  </p>
+                }
                 @if (errorFor('categoryId')) {
                   <p class="mt-1 text-xs text-red-600 dark:text-red-400">
                     {{ errorFor('categoryId') }}
@@ -160,16 +187,77 @@
                 >
                   برند
                 </label>
-                <select
-                  id="product-brand"
+                <p-select
+                  inputId="product-brand"
                   formControlName="brandId"
-                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  [options]="brandOptions()"
+                  optionLabel="name"
+                  optionValue="id"
+                  [filter]="true"
+                  filterBy="name"
+                  [loading]="brandsLoading()"
+                  [showClear]="false"
+                  placeholder="بدون برند"
+                  filterPlaceholder="جستجوی برند…"
+                  emptyMessage="برندی یافت نشد"
+                  emptyFilterMessage="نتیجه‌ای پیدا نشد"
+                  appendTo="body"
+                  class="w-full"
+                  styleClass="w-full"
                 >
-                  <option value="">بدون برند</option>
-                  @for (brand of brands(); track brand.id) {
-                    <option [value]="brand.id">{{ brand.name }}</option>
-                  }
-                </select>
+                  <ng-template pTemplate="item" let-brand>
+                    <div class="flex items-center gap-2">
+                      @if (brand.logo) {
+                        <img
+                          [src]="brand.logo"
+                          [alt]="brand.name"
+                          class="h-5 w-5 rounded-full object-cover"
+                        />
+                      } @else {
+                        <span
+                          class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                          aria-hidden="true"
+                        >
+                          {{ brand.name.charAt(0) }}
+                        </span>
+                      }
+                      <span>{{ brand.name }}</span>
+                    </div>
+                  </ng-template>
+
+                  <ng-template pTemplate="selectedItem" let-brand>
+                    <div class="flex items-center gap-2">
+                      @if (brand.logo) {
+                        <img
+                          [src]="brand.logo"
+                          [alt]="brand.name"
+                          class="h-5 w-5 rounded-full object-cover"
+                        />
+                      } @else {
+                        <span
+                          class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                          aria-hidden="true"
+                        >
+                          {{ brand.name.charAt(0) }}
+                        </span>
+                      }
+                      <span>{{ brand.name }}</span>
+                    </div>
+                  </ng-template>
+                </p-select>
+                @if (brandsError()) {
+                  <p class="mt-1 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                    بارگذاری برندها ناموفق بود.
+                    <button
+                      type="button"
+                      (click)="retryBrands()"
+                      data-retry-brands
+                      class="font-medium underline underline-offset-2"
+                    >
+                      تلاش دوباره
+                    </button>
+                  </p>
+                }
               </div>
 
               <div class="md:col-span-2">

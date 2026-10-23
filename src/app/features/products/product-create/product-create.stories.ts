@@ -8,15 +8,15 @@ import { ProductsService } from '../services/products.service';
 import { ProductCreate } from './product-create';
 
 const CATEGORIES: readonly ProductCategoryOption[] = [
-  { id: '3', name: 'لوازم برقی' },
-  { id: '4', name: 'صوتی' },
-  { id: '5', name: 'نمایشگر' },
+  { id: '3', name: 'لوازم برقی', parentId: null },
+  { id: '4', name: 'صوتی', parentId: '3' },
+  { id: '5', name: 'نمایشگر', parentId: '3' },
 ];
 
 const BRANDS: readonly ProductBrandOption[] = [
-  { id: '5', name: 'سونی' },
-  { id: '6', name: 'ریزر' },
-  { id: '7', name: 'ال‌جی' },
+  { id: '5', name: 'سونی', logo: null },
+  { id: '6', name: 'ریزر', logo: null },
+  { id: '7', name: 'ال‌جی', logo: null },
 ];
 
 /** The create page only reads the two lookup lists; the real endpoints are stubbed here. */
@@ -57,6 +57,11 @@ const meta: Meta<ProductCreate> = {
           '**BO-F08** moves the rules into `product-validators.ts`: trimmed name length, ASCII slug,',
           'positive price and non-negative stock, with Persian messages shown only after touch.',
           '`applyServerErrors({ slug: […] })` maps an F13 API envelope onto the matching control.',
+          '',
+          '**BO-F09** turns the category/brand selects into searchable PrimeNG selects. The category',
+          'lookup is cached in `ProductLookupsService` and each option carries a full path',
+          '(`لوازم برقی / صوتی`); brand options show a small logo or an initial fallback. Loading and',
+          'failure each have their own state, with a per-field retry.',
         ].join('\n'),
       },
     },

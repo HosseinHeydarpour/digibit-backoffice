@@ -395,6 +395,60 @@ The rules live in `product-create/product-validators.ts` as pure functions; the 
 - **Messages live in one place.** The template calls `errorFor('field')`; it never reads
   `control.errors`.
 
+## سلکت دسته/برند / Category and brand selects (BO-F09)
+
+هر دو سلکت فرم ایجاد حالا `p-select` هستند: **جستجوی محلی**، حالت لودینگ، پیام خطای فارسی
+با «تلاش دوباره»، و در موبایل تمام‌عرض. گزینه‌های دسته از `ProductLookupsService` می‌آیند
+که در سطح root کش می‌شود؛ ورود دوباره به فرم دو درخواست تازه نمی‌سازد.
+
+Both selects are PrimeNG `p-select`: local search, a loading state, a Persian failure message
+with retry, and full width on a phone. Category options come from the root-scoped
+`ProductLookupsService`, so revisiting the form does not refetch two lists.
+
+### دسته‌ها / Categories
+
+`buildCategoryOptions` از lookup تخت، مسیر کامل و سطح می‌سازد:
+
+```
+{ id: '1', name: 'لوازم برقی', parentId: null }
+{ id: '2', name: 'صوتی', parentId: '1' }
+→ { path: 'لوازم برقی', level: 0 }
+→ { path: 'لوازم برقی / صوتی', level: 1 }
+```
+
+- گزینهٔ غیرفعال (`isActive === false`) در `buildCategoryOptions` و در `ProductsService`
+  حذف می‌شود (tc 10).
+- والد حذف‌شده باعث نمی‌شود مسیر `undefined / نام` شود؛ گزینه به root تبدیل می‌شود.
+- `filterBy="path"` جستجو را روی همان مسیر کامل انجام می‌دهد، بدون درخواست اضافه (tc 2).
+- item template با `level * 12px` تورفتگی می‌دهد؛ ظاهر درختی بدون ساختار `p-tree`.
+
+### برندها / Brands
+
+- `filterBy="name"` جستجوی محلی روی نام برند.
+- item/selected template اگر `logo` داشته باشد تصویر کوچک ۲۰px و در غیر این صورت دایرهٔ
+  حرف اول را نشان می‌دهد (tc 3).
+- `[showClear]="true"` گزینهٔ «بدون برند» را با پاک‌کردن مقدار فراهم می‌کند.
+
+### حالت‌ها / States
+
+- **لودینگ:** `[loading]="categoriesLoading()"` روی خود select؛ بقیهٔ فرم قابل استفاده است
+  (tc 8).
+- **خطا:** پیام «بارگذاری دسته‌بندی‌ها ناموفق بود.» + دکمهٔ «تلاش دوباره» که فقط همان
+  درخواست را دوباره می‌فرستد (tc 9).
+- **پیش‌پرکردن:** `formControlName` با `optionValue="id"`؛ وقتی گزینه‌ها بعد از مقدار برسند،
+  PrimeNG مقدار را با option تطبیق می‌دهد (tc 5). F14 همین را با resolver ویرایش کامل می‌کند.
+- **موبایل:** `class="w-full"` + `styleClass="w-full"` (tc 7).
+
+<a href="?path=/story/features-products-create--default" target="_top">
+  مشاهدهٔ فرم ایجاد محصول در Storybook
+</a>
+
+- **Loading** is on the select itself; the rest of the form stays usable (tc 8).
+- **Errors** show a Persian sentence and a retry that re-runs only that request (tc 9).
+- **Prefill** relies on `formControlName` + `optionValue="id"`; options arriving later still
+  match the current id (tc 5).
+- **Mobile** is full width via `class="w-full"` + `styleClass="w-full"` (tc 7).
+
 ## حالت‌های صفحه / Page states
 
 سه حالت غیر دادهٔ صفحه: در حال بارگذاری، خالی و خطا. هر سه از یک `state()` می‌آیند و
