@@ -1,7 +1,9 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { PERMISSIONS } from '@core/auth/permissions.token';
 import type { Page } from '@shared/models';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
 import type {
@@ -120,6 +122,10 @@ describe('ProductList (BO-F02)', () => {
         // `ToastService` is root-provided but injects `MessageService`, which is
         // NOT root-provided by itself (see app.config.ts).
         MessageService,
+        // BO-F06: ConfirmService injects PrimeNG's ConfirmationService, and the
+        // row actions only render for a signed-in user with the module grant.
+        ConfirmationService,
+        { provide: PERMISSIONS, useValue: signal<readonly string[]>(['products.view']) },
       ],
     }).compileComponents();
   });
@@ -219,23 +225,12 @@ describe('ProductList (BO-F02)', () => {
     expect(deleteButton).toBeTruthy();
   });
 
-  it('tc 5: the status/delete actions report that their CRUD is not built yet', async () => {
+  it('tc 5: the status/delete confirmation flows are covered by the BO-F06 spec', async () => {
     await mount();
 
-    const messages: string[] = [];
-    TestBed.inject(MessageService).messageObserver.subscribe((message) => {
-      // `MessageService` emits one message or a batch — `ToastService` posts single
-      // messages, but the subscription has to accept both shapes.
-      const batch = Array.isArray(message) ? message : [message];
-      messages.push(...batch.map((entry) => entry?.summary ?? ''));
-    });
-
     const row = fixture.nativeElement.querySelector('tbody tr');
-    (row.querySelector('button[aria-label="تغییر وضعیت"]') as HTMLButtonElement).click();
-    (row.querySelector('button[aria-label="حذف"]') as HTMLButtonElement).click();
-
-    expect(messages.join(' ')).toContain('BlackWidow');
-    expect(messages.length).toBe(2);
+    expect(row.querySelector('button[aria-label="تغییر وضعیت"]')).toBeTruthy();
+    expect(row.querySelector('button[aria-label="حذف"]')).toBeTruthy();
   });
 
   // ─── tc 6 · mobile column hiding ──────────────────────────────────────────

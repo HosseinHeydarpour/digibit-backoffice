@@ -277,6 +277,48 @@ a price sort is the true 21st–40th cheapest row, not a string sort of the firs
   button and is rejected by `isSortField`.
 - **`aria-sort` sits on the `<th>` and `aria-current="page"` on the active button.**
 
+## اکشن‌های ردیف / Row actions (BO-F06)
+
+هر ردیف سه اکشن دارد: ویرایش (لینک واقعی به `/products/:id/edit`)، تغییر وضعیت و حذف.
+در دسکتاپ هر سه به‌صورت inline هستند؛ در موبایل داخل یک منوی سه‌نقطه جمع می‌شوند.
+منو **یک نمونهٔ مشترک** است و با `appendTo="body"` رندر می‌شود، بنابراین
+`overflow-x-auto` جدول آن را نمی‌برد (tc 10).
+
+Each row exposes edit (a real link), status toggle and delete. On desktop they are inline; on
+a phone they collapse into one kebab menu. The menu is a single shared instance appended to
+`<body>`, so the table's `overflow-x-auto` cannot clip it (tc 10).
+
+### تغییر وضعیت / Status toggle
+
+1. کلیک روی «وضعیت» → `ConfirmService.confirm({ message: 'محصول «…» غیرفعال شود؟' })`.
+2. لغو → هیچ state و درخواستی تغییر نمی‌کند (tc 3).
+3. تأیید → `statusOverrides` همان id را به وضعیت جدید نگاشت می‌کند؛ pill **فوراً** عوض
+   می‌شود، قبل از پاسخ HTTP (tc 2، tc 7).
+4. موفقیت → toast موفقیت، `reload$` و در نتیجه fetch دوباره؛ `reconcileOptimistic`
+   overlay را وقتی سرور همان وضعیت را برگرداند پاک می‌کند (tc 6).
+5. خطا → overlay پاک می‌شود و pill به مقدار سرور برمی‌گردد (rollback، tc 7). toast خطا
+   کار `error-interceptor` است؛ کامپوننت دوباره toast نمی‌زند تا دو پیام تکراری نشود (tc 5).
+
+### حذف / Delete
+
+1. کلیک روی «حذف» → `confirm({ …, danger: true })`؛ دکمهٔ تأیید قرمز است (tc 4).
+2. تأیید → id به `removedIds` می‌رود؛ ردیف فوراً از جدول حذف و `total` یکی کم می‌شود.
+3. موفقیت → toast و fetch دوباره؛ `reconcileOptimistic` id را وقتی ردیف از پاسخ سرور
+   غایب باشد پاک می‌کند.
+4. خطا → id از مجموعه حذف و ردیف/تعداد کل برمی‌گردد (rollback).
+
+### مجوز / Permission
+
+اکشن‌ها با `PERMISSIONS` و کلید `products.view` کنترل می‌شوند. بدون این مجوز، هم
+اکشن‌های inline و هم منوی موبایل رندر نمی‌شوند و متدهای handler هم no-op هستند (tc 9).
+تقسیم دقیق‌تر به `products.edit` / `products.delete` به BO-D07/D08 موکول است.
+
+- Actions are gated by the `products.view` grant; without it neither the inline controls nor
+  the mobile menu render, and the handlers are no-ops (tc 9). Finer `products.edit` /
+  `products.delete` grants belong to BO-D07/D08.
+- The optimistic overlays live above `page().items`, so the server response stays the source
+  of truth and a failed request is a clean rollback.
+
 ## حالت‌های صفحه / Page states
 
 سه حالت غیر دادهٔ صفحه: در حال بارگذاری، خالی و خطا. هر سه از یک `state()` می‌آیند و

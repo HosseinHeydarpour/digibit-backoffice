@@ -4,7 +4,7 @@ import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import type { Page } from '@shared/models';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { Observable, of } from 'rxjs';
 
 import type {
@@ -92,6 +92,7 @@ describe('ProductList paging and sort (BO-F04)', () => {
         provideRouter([{ path: 'products', component: ProductList }]),
         { provide: ProductsService, useValue: service },
         MessageService,
+        ConfirmationService,
       ],
     }).compileComponents();
 

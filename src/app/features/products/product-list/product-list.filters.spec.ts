@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import type { Page } from '@shared/models';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { Observable, of } from 'rxjs';
 
 import type {
@@ -96,6 +96,7 @@ describe('ProductList filters (BO-F03)', () => {
         { provide: ProductsService, useValue: service },
         // ToastService is root-provided but injects MessageService, which is not.
         MessageService,
+        ConfirmationService,
       ],
     }).compileComponents();
 

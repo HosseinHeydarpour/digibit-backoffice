@@ -1,4 +1,6 @@
+import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { PERMISSIONS } from '@core/auth/permissions.token';
 import type { Page } from '@shared/models';
 import { applicationConfig, Meta, StoryObj } from '@storybook/angular';
 import { NEVER, Observable, of, throwError } from 'rxjs';
@@ -137,7 +139,12 @@ const meta: Meta<ProductList> = {
   tags: ['autodocs'],
   decorators: [
     applicationConfig({
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        // Same grant the app's mock config supplies; without it BO-F06 hides
+        // every row action, and the catalogue would not show the controls.
+        { provide: PERMISSIONS, useValue: signal<readonly string[]>(['products.view']) },
+      ],
     }),
   ],
   parameters: {
@@ -168,6 +175,12 @@ const meta: Meta<ProductList> = {
           '10/20/50 rows, and keeps the current page; clicking name, price or createdAt toggles',
           'asc/desc. `page`, `size`, `sort` and `dir` live in the URL next to the filters, and the',
           'mock sorts numbers (including UTC createdAt) rather than strings.',
+          '',
+          '**BO-F06 adds row actions.** Edit is a real link; status and delete go through',
+          '`ConfirmService` (delete is the red danger dialog), update the row optimistically, and',
+          'roll back if the API rejects. On a phone the three controls collapse into one kebab whose',
+          'menu is appended to `<body>`, so the table overflow cannot clip it. Actions require the',
+          '`products.view` grant.',
         ].join('\n'),
       },
     },

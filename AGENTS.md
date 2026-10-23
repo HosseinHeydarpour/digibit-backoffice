@@ -411,6 +411,29 @@ and its `data`. Every feature page after it follows that shape.
 - **The empty state distinguishes three cases:** active filters, a stale page number, and an
   actually empty shop. Only the last offers «افزودن محصول».
 
+### Row actions: confirm, optimistic update, rollback (BO-F06)
+
+- **One confirm API, two shapes.** Status and delete both `await ConfirmService.confirm(...)`. Delete
+  passes `danger: true`, which routes it to the red dialog; cancel resolves `false` and must leave
+  state, URL and network untouched (tc 3).
+- **Optimistic state lives ABOVE `page()`.** `statusOverrides` (id → status) and `removedIds` are
+  applied by the `items` computed; `total` subtracts pending deletes. The HTTP response remains the
+  source of truth: `reconcileOptimistic(page)` drops an override when the server returns the same
+  status, and drops a removed id once the row is absent. On error the overlay is cleared — that is
+  the rollback (tc 7).
+- **The error toast belongs to the interceptor.** The mutation's `error` branch only rolls back; it
+  does not call `toast.error`, or the user would see two messages for one failure (the error
+  interceptor already reported it). Success toasts are component-owned.
+- **Row actions require `products.view`.** Without it the inline controls and the mobile kebab do not
+  render, and the handlers return early (tc 9). Finer `products.edit`/`products.delete` grants land
+  with BO-D07/D08.
+- **One shared popup, appended to `<body>`.** The desktop three controls are `hidden sm:flex`; the
+  mobile kebab is `sm:hidden` and opens a single `<p-menu appendTo="body">`. A popup inside the table
+  would be clipped by the `overflow-x-auto` wrapper (tc 10).
+- **Any spec that creates `ProductList` now needs `ConfirmationService`** (or a `ConfirmService`
+  stub), because the page injects the confirm service. `ProductList` also reads `PERMISSIONS`; its
+  default is empty, so action tests must provide `['products.view']`.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

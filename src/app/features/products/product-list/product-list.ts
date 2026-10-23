@@ -9,14 +9,18 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { PERMISSIONS } from '@core/auth/permissions.token';
+import { ConfirmService } from '@core/services/confirm';
 import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
-import type { Page, SortOrder } from '@shared/models';
+import type { EntityId, Page, SortOrder } from '@shared/models';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
+import type { MenuItem } from 'primeng/api';
+import { Menu } from 'primeng/menu';
 import {
   BehaviorSubject,
   catchError,
@@ -26,6 +30,7 @@ import {
   map,
   of,
   switchMap,
+  take,
   tap,
 } from 'rxjs';
 
@@ -184,6 +189,7 @@ function selectValue(event: Event): string {
     PageHeader,
     ReactiveFormsModule,
     RouterLink,
+    Menu,
     PersianDatePipe,
     PersianDigitsPipe,
     TomanPipe,
@@ -201,6 +207,10 @@ export class ProductList {
   private readonly route = inject(ActivatedRoute);
 
   private readonly toast = inject(ToastService);
+
+  private readonly confirm = inject(ConfirmService);
+
+  private readonly permissions = inject(PERMISSIONS);
 
   private readonly destroyRef = inject(DestroyRef);
 
@@ -234,6 +244,24 @@ export class ProductList {
 
   /** True while a request is in flight; drives the thin in-card progress bar. */
   readonly isFetching = signal(false);
+
+  /**
+   * Optimistic overlays for BO-F06.
+   *
+   * The server response is the source of truth, but a status toggle or a delete
+   * must be visible immediately. These maps are applied on top of `page().items`
+   * and cleared when a successful refetch confirms the server agrees (or when
+   * the request fails, which is the rollback).
+   */
+  private readonly statusOverrides = signal<ReadonlyMap<EntityId, ProductStatus>>(new Map());
+
+  private readonly removedIds = signal<ReadonlySet<EntityId>>(new Set());
+
+  /** The row whose mobile action menu is open; null when the menu is closed. */
+  readonly selectedProduct = signal<ProductListItem | null>(null);
+
+  /** Row actions require the module's view grant until D07/D08 split edit/delete. */
+  readonly canManage = computed(() => this.permissions().includes('products.view'));
 
   /** The UI mirror of the filter half of `state$`. */
   readonly filters = signal<ProductFilters>(this.state$.value.filters);
@@ -284,7 +312,8 @@ export class ProductList {
           })
           .pipe(
             tap({
-              next: () => {
+              next: (result) => {
+                this.reconcileOptimistic(result);
                 this.itemsError.set(null);
                 this.isFetching.set(false);
               },
@@ -300,8 +329,28 @@ export class ProductList {
     { initialValue: null },
   );
 
-  /** The rows of the current page; `null` while the first request is in flight. */
-  readonly items = computed<readonly ProductListItem[] | null>(() => this.page()?.items ?? null);
+  /**
+   * The rows of the current page with the optimistic overlays applied; `null`
+   * while the first request is in flight. A deleted row disappears immediately,
+   * and a status toggle changes the pill before the server answers (BO-F06).
+   */
+  readonly items = computed<readonly ProductListItem[] | null>(() => {
+    const page = this.page();
+
+    if (!page) {
+      return null;
+    }
+
+    const overrides = this.statusOverrides();
+    const removed = this.removedIds();
+
+    return page.items
+      .filter((item) => !removed.has(item.id))
+      .map((item) => {
+        const status = overrides.get(item.id);
+        return status && status !== item.status ? { ...item, status } : item;
+      });
+  });
 
   /** The single branch condition for the template's `@switch` (BO-E07 tc 7). */
   readonly state = computed<ProductListState>(() => {
@@ -328,10 +377,48 @@ export class ProductList {
   ).map((value) => ({ value, label: PRODUCT_STATUS_META[value].label }));
 
   /**
-   * Result count for the footer (tc 10) — the server's total, not the current
-   * page length, so "۲۱–۴۰ از ۱۳۷" has one number to read.
+   * The mobile row-action menu (BO-F06).
+   *
+   * PrimeNG's popup is appended to `<body>`, so the table's `overflow-x-auto`
+   * cannot clip it on a phone (tc 10). The items are derived from the selected
+   * row, so one menu instance serves every row instead of 20 hidden popups.
    */
-  readonly total = computed(() => this.page()?.total ?? 0);
+  readonly actionItems = computed<MenuItem[]>(() => {
+    const product = this.selectedProduct();
+
+    if (!product || !this.canManage()) {
+      return [];
+    }
+
+    const isPublished = product.status === 'published';
+
+    return [
+      {
+        label: 'ویرایش',
+        icon: 'pi pi-pencil',
+        command: () => this.editProduct(product.id),
+      },
+      {
+        label: isPublished ? 'غیرفعال کردن' : 'منتشر کردن',
+        icon: 'pi pi-power-off',
+        command: () => void this.toggleStatus(product),
+      },
+      { separator: true },
+      {
+        label: 'حذف',
+        icon: 'pi pi-trash',
+        styleClass: 'text-red-600',
+        command: () => void this.removeProduct(product),
+      },
+    ];
+  });
+
+  /**
+   * Result count for the footer (tc 10) — the server's total, not the current
+   * page length, so "۲۱–۴۰ از ۱۳۷" has one number to read. Pending optimistic
+   * deletes reduce it immediately; a failed delete restores it.
+   */
+  readonly total = computed(() => Math.max(0, (this.page()?.total ?? 0) - this.removedIds().size));
 
   /** Number of pages for the paginator; at least 1 so the control is never empty. */
   readonly totalPages = computed(() => getTotalPages(this.total(), this.paging().pageSize));
@@ -505,24 +592,180 @@ export class ProductList {
   }
 
   /**
-   * تغییر وضعیت — F06's job. The button is in the DOM now (F02 tc 5) and says so
-   * honestly through a toast, instead of silently doing nothing.
+   * Open the mobile action menu for one row (BO-F06 tc 1).
+   *
+   * `Menu.toggle(event)` anchors the popup to the kebab button; the product is
+   * stored so `actionItems` can build the three commands for that row.
    */
-  toggleStatus(product: ProductListItem): void {
-    this.toast.info(`تغییر وضعیت «${product.name}» در نسخهٔ بعدی فعال می‌شود.`);
+  openActions(product: ProductListItem, menu: Menu, event: Event): void {
+    if (!this.canManage()) {
+      return;
+    }
+
+    this.selectedProduct.set(product);
+    menu.toggle(event);
   }
 
   /**
-   * حذف — F06/F15's job, behind a confirmation dialog. Same contract as the
-   * status button: present, announced, and no silent no-op.
+   * تغییر وضعیت — confirm, optimistically flip the pill, then persist.
+   *
+   * TRACE: a published product named «هدفون سونی».
+   *   1. The row action calls `toggleStatus(product)`.
+   *   2. `ConfirmService.confirm` asks `محصول «هدفون سونی» غیرفعال شود؟`.
+   *   3. Cancel → return; no state change, no request, no toast (tc 3).
+   *   4. Accept → `statusOverrides` maps the id to `inactive`; the table's pill
+   *      turns grey immediately, before HTTP (tc 2, tc 7).
+   *   5. `setStatus(id, 'inactive')` succeeds → a success toast fires and
+   *      `reload$` refetches; `reconcileOptimistic` drops the overlay once the
+   *      server returns the same status (tc 6).
+   *   6. The request fails → the overlay is removed and the green pill returns
+   *      (rollback, tc 7); the error interceptor has already shown the toast (tc 5).
    */
-  removeProduct(product: ProductListItem): void {
-    this.toast.info(`حذف «${product.name}» در نسخهٔ بعدی فعال می‌شود.`);
+  async toggleStatus(product: ProductListItem): Promise<void> {
+    if (!this.canManage()) {
+      return;
+    }
+
+    const next: ProductStatus = product.status === 'published' ? 'inactive' : 'published';
+    const confirmed = await this.confirm.confirm({
+      message:
+        next === 'inactive'
+          ? `محصول «${product.name}» غیرفعال شود؟`
+          : `محصول «${product.name}» منتشر شود؟`,
+      header: 'تغییر وضعیت محصول',
+      acceptLabel: next === 'inactive' ? 'غیرفعال کن' : 'منتشر کن',
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.setStatusOverride(product.id, next);
+
+    this.productsService
+      .setStatus(product.id, next)
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.toast.success('وضعیت محصول به‌روزرسانی شد.');
+          this.reload$.next();
+        },
+        error: () => this.clearStatusOverride(product.id),
+      });
+  }
+
+  /**
+   * حذف — a dangerous confirm, an optimistic row removal, and a rollback.
+   *
+   * The row disappears and the footer total drops by one immediately; on error
+   * the id is removed from the overlay and the row returns (tc 4, tc 7). The
+   * confirm is `danger: true`, which routes it to the red dialog.
+   */
+  async removeProduct(product: ProductListItem): Promise<void> {
+    if (!this.canManage()) {
+      return;
+    }
+
+    const confirmed = await this.confirm.confirm({
+      message: `محصول «${product.name}» حذف شود؟ این عمل قابل بازگشت نیست.`,
+      header: 'حذف محصول',
+      acceptLabel: 'حذف',
+      danger: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.removedIds.update((current) => new Set(current).add(product.id));
+
+    this.productsService
+      .remove(product.id)
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.toast.success('محصول حذف شد.');
+          this.reload$.next();
+        },
+        error: () => this.restoreRemoved(product.id),
+      });
   }
 
   /** The empty state's way out: the create form (BO-F02 tc 8). */
   openCreateForm(): void {
     void this.router.navigate(['/products', 'new']);
+  }
+
+  /** Put an optimistic status on one row, without mutating `page()`. */
+  private setStatusOverride(id: EntityId, status: ProductStatus): void {
+    this.statusOverrides.update((current) => {
+      const next = new Map(current);
+      next.set(id, status);
+      return next;
+    });
+  }
+
+  /** Rollback: remove the optimistic status so the server's value is shown again. */
+  private clearStatusOverride(id: EntityId): void {
+    this.statusOverrides.update((current) => {
+      if (!current.has(id)) {
+        return current;
+      }
+
+      const next = new Map(current);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  /** Rollback a failed delete: the row reappears and the total goes back up. */
+  private restoreRemoved(id: EntityId): void {
+    this.removedIds.update((current) => {
+      if (!current.has(id)) {
+        return current;
+      }
+
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  /**
+   * Drop the overlays the server has caught up with.
+   *
+   * Called on every successful fetch. A status override is cleared only when the
+   * SAME row comes back with the SAME status; a refetch that raced the mutation
+   * still shows the old value, so the override stays and keeps the UI honest
+   * until the next fetch. A removed id is cleared once the row is absent — the
+   * server has confirmed the delete.
+   */
+  private reconcileOptimistic(page: Page<ProductListItem>): void {
+    const byId = new Map(page.items.map((item) => [item.id, item]));
+
+    if (this.statusOverrides().size > 0) {
+      const overrides = new Map(this.statusOverrides());
+
+      for (const [id, status] of overrides) {
+        if (byId.get(id)?.status === status) {
+          overrides.delete(id);
+        }
+      }
+
+      this.statusOverrides.set(overrides);
+    }
+
+    if (this.removedIds().size > 0) {
+      const removed = new Set(this.removedIds());
+
+      for (const id of removed) {
+        if (!byId.has(id)) {
+          removed.delete(id);
+        }
+      }
+
+      this.removedIds.set(removed);
+    }
   }
 
   /**

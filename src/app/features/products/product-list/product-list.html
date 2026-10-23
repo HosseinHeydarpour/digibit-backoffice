@@ -162,6 +162,9 @@
     `loading` (a `null` payload that has not answered yet), then a real empty
     list, then `data`.
   -->
+  <!-- One popup for every row; the selected product supplies its items. -->
+  <p-menu #actionMenu [model]="actionItems()" [popup]="true" appendTo="body" />
+
   @switch (state()) {
     @case ('loading') {
       <!--
@@ -364,47 +367,66 @@
                 </td>
 
                 <!--
-                  اکشن‌ها (BO-F02 tc 5) — ویرایش / تغییر وضعیت / حذف.
+                  اکشن‌ها (BO-F02 tc 5 + BO-F06) — ویرایش / تغییر وضعیت / حذف.
 
                   ویرایش is a real link: the edit route exists (BO-F01), so one
                   click is one navigation and the middle/ctrl-click "open in new
-                  tab" behaviour comes for free from the router. The other two
-                  are buttons whose CRUD arrives in F06/F15; until then they say
-                  so through a toast instead of doing nothing silently.
+                  tab" behaviour comes for free from the router. Status and delete
+                  go through `ConfirmService`; the row updates optimistically and
+                  rolls back if the API rejects (F06).
 
-                  Every control carries an `aria-label`, because three icons in
-                  a row with no text is otherwise three unlabelled buttons to a
+                  On a phone the three inline controls collapse into one kebab
+                  that opens the shared `p-menu` appended to <body>. Every control
+                  carries an `aria-label`, because icons alone are unlabelled to a
                   screen reader.
                 -->
                 <td class="whitespace-nowrap px-6 py-4 text-start">
-                  <div class="flex items-center gap-2">
-                    <a
-                      [routerLink]="['/products', item.id, 'edit']"
-                      class="inline-flex items-center gap-1 text-primary transition hover:text-primary-dark"
-                      aria-label="ویرایش محصول"
-                    >
-                      <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
-                      <span class="text-sm">ویرایش</span>
-                    </a>
+                  @if (canManage()) {
+                    <!-- Desktop: inline actions. The mobile menu below is the same three commands. -->
+                    <div class="hidden items-center gap-2 sm:flex">
+                      <a
+                        [routerLink]="['/products', item.id, 'edit']"
+                        class="inline-flex items-center gap-1 text-primary transition hover:text-primary-dark"
+                        aria-label="ویرایش محصول"
+                      >
+                        <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+                        <span class="text-sm">ویرایش</span>
+                      </a>
+                      <button
+                        type="button"
+                        (click)="toggleStatus(item)"
+                        class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                        aria-label="تغییر وضعیت"
+                      >
+                        <i class="pi pi-power-off text-sm" aria-hidden="true"></i>
+                        <span>وضعیت</span>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="removeProduct(item)"
+                        class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                        aria-label="حذف"
+                      >
+                        <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+                        <span>حذف</span>
+                      </button>
+                    </div>
+
+                    <!--
+                      Mobile: one kebab, one shared menu appended to <body>.
+                      A popup inside this cell would be clipped by the table's
+                      overflow-x-auto wrapper (tc 10).
+                    -->
                     <button
                       type="button"
-                      (click)="toggleStatus(item)"
-                      class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-                      aria-label="تغییر وضعیت"
+                      (click)="openActions(item, actionMenu, $event)"
+                      aria-label="عملیات محصول"
+                      aria-haspopup="menu"
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 sm:hidden"
                     >
-                      <i class="pi pi-power-off text-sm" aria-hidden="true"></i>
-                      <span>وضعیت</span>
+                      <i class="pi pi-ellipsis-v text-sm" aria-hidden="true"></i>
                     </button>
-                    <button
-                      type="button"
-                      (click)="removeProduct(item)"
-                      class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                      aria-label="حذف"
-                    >
-                      <i class="pi pi-trash text-sm" aria-hidden="true"></i>
-                      <span>حذف</span>
-                    </button>
-                  </div>
+                  }
                 </td>
               </tr>
             }
