@@ -97,7 +97,20 @@ this.api.getPage<Product>('/products', { page: 1, pageSize: 20, q: '' });
 // → /api/v1/products?page=1&pageSize=20      ← no "q=" at the end
 ```
 
-Pass a plain object. `null`, `undefined` and `''` values are **dropped**.
+می‌توانی یک `HttpParams` آماده هم بدهی (تسک BO-F05). این شکل وقتی لازم است که یک تابع خالص
+مثل `buildQuery` در `features/products/services/products.service.ts` خودش قاعدهٔ «حذف مقدار
+خالی» را اعمال کرده باشد؛ پارامتر آماده همان‌طور که هست فرستاده می‌شود.
+
+You may also pass an already-built `HttpParams` (BO-F05). That form exists for a pure builder such
+as `buildQuery` in `features/products/services/products.service.ts`, which owns the "drop empty"
+rule itself; the params are sent as-is.
+
+```ts
+this.api.getPage<Product>('/products', buildQuery({ query: 'سونی', page: 2 }));
+```
+
+Pass a plain object. `null`, `undefined` and `''` values are **dropped**. An `HttpParams` instance
+is forwarded unchanged.
 
 ### خطاها / Errors
 

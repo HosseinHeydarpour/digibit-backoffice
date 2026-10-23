@@ -32,7 +32,7 @@ export const mockInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
-  const resolved = resolve(req.method, req.url, req.params);
+  const resolved = resolve(req.method, req.url, req.params, req.body);
   if (!resolved) {
     return next(req);
   }
@@ -98,28 +98,37 @@ function byId<T extends { id: string }>(items: T[], id: string): T | undefined {
   return items.find((item) => item.id === id);
 }
 
-function resolve(method: string, url: string, params: ParamReader): MockResolution | null {
+/** `{ data, message }` — the shape `ApiService.get` unwraps. */
+function ok(data: unknown, message = ''): MockResolution {
+  return { status: 200, body: { data, message } };
+}
+
+/** Same envelope with 201, so a create is distinguishable from a read. */
+function created(data: unknown, message = ''): MockResolution {
+  return { status: 201, body: { data, message } };
+}
+
+/** A paged list: `{ data, meta, message }` exactly as the API returns it. */
+function paged(items: unknown[], page: number, pageSize: number): MockResolution {
+  return { status: 200, body: { ...paginate(items, page, pageSize), message: '' } };
+}
+
+const NOT_FOUND: MockResolution = {
+  status: 404,
+  body: { error: { code: 'NOT_FOUND', message: 'موردی با این شناسه یافت نشد.' } },
+};
+
+function resolve(
+  method: string,
+  url: string,
+  params: ParamReader,
+  body: unknown,
+): MockResolution | null {
   const status = forcedStatus(params);
-  // Four segments are destructured so a future `/x/:id/:sub` route needs no change.
+  // The third segment is used by `/products/:id/status`; other modules ignore it.
   const [module, id, sub] = segments(url);
-  void sub;
   const page = num(params, 'page', 1);
   const pageSize = num(params, 'pageSize', environment.DEFAULT_PAGE_SIZE);
-
-  const list = (items: unknown[]): MockResolution => ({
-    status: 200,
-    body: { ...paginate(items, page, pageSize), message: '' },
-  });
-
-  const single = (item: unknown): MockResolution => ({
-    status: 200,
-    body: { data: item, message: '' },
-  });
-
-  const notFound: MockResolution = {
-    status: 404,
-    body: { error: { code: 'NOT_FOUND', message: 'موردی با این شناسه یافت نشد.' } },
-  };
 
   // A forced status simulates a failure before any routing happens.
   if (status !== null) {
@@ -131,59 +140,255 @@ function resolve(method: string, url: string, params: ParamReader): MockResoluti
 
   switch (module) {
     case 'dashboard':
-      if (id === 'summary') return single(fixtures.MOCK_DASHBOARD_SUMMARY);
+      if (id === 'summary') return ok(fixtures.MOCK_DASHBOARD_SUMMARY);
       if (id === 'sales-chart') {
         const days = num(params, 'days', 7);
-        return single(fixtures.getMockSalesChart(days));
+        return ok(fixtures.getMockSalesChart(days));
       }
-      if (id === 'recent-orders') return list(fixtures.MOCK_ORDERS.slice(0, 8));
-      if (id === 'low-stock') return list(fixtures.MOCK_LOW_STOCK);
-      return notFound;
+      if (id === 'recent-orders') return paged(fixtures.MOCK_ORDERS.slice(0, 8), page, pageSize);
+      if (id === 'low-stock') return paged(fixtures.MOCK_LOW_STOCK, page, pageSize);
+      return NOT_FOUND;
 
-    case 'products': {
-      if (!id) return list(fixtures.MOCK_PRODUCTS);
-      // `new` and every write verb echo a sample row so form screens have something to bind.
-      if (id === 'new' || method !== 'GET') return single(fixtures.MOCK_PRODUCTS[0]);
-      const found = byId(fixtures.MOCK_PRODUCTS, id);
-      return found ? single(found) : notFound;
-    }
+    case 'products':
+      return resolveProducts(method, id, sub, params, body, page, pageSize);
 
     case 'categories':
-      return list(fixtures.MOCK_CATEGORIES);
+      return paged(fixtures.MOCK_CATEGORIES, page, pageSize);
     case 'brands':
-      return list(fixtures.MOCK_BRANDS);
+      return paged(fixtures.MOCK_BRANDS, page, pageSize);
     case 'coupons':
-      return list(fixtures.MOCK_COUPONS);
+      return paged(fixtures.MOCK_COUPONS, page, pageSize);
     case 'shipping-methods':
-      return list(fixtures.MOCK_SHIPPING_METHODS);
+      return paged(fixtures.MOCK_SHIPPING_METHODS, page, pageSize);
     case 'banners':
-      return list(fixtures.MOCK_BANNERS);
+      return paged(fixtures.MOCK_BANNERS, page, pageSize);
 
     case 'orders': {
-      if (!id) return list(fixtures.MOCK_ORDERS);
+      if (!id) return paged(fixtures.MOCK_ORDERS, page, pageSize);
       const found = byId(fixtures.MOCK_ORDERS, id);
-      return found ? single(found) : notFound;
+      return found ? ok(found) : NOT_FOUND;
     }
 
     case 'customers': {
-      if (!id) return list(fixtures.MOCK_CUSTOMERS);
+      if (!id) return paged(fixtures.MOCK_CUSTOMERS, page, pageSize);
       const found = byId(fixtures.MOCK_CUSTOMERS, id);
-      return found ? single(found) : notFound;
+      return found ? ok(found) : NOT_FOUND;
     }
 
     case 'comments':
-      return list(fixtures.MOCK_COMMENTS);
+      return paged(fixtures.MOCK_COMMENTS, page, pageSize);
 
     case 'tickets': {
-      if (!id) return list(fixtures.MOCK_TICKETS);
+      if (!id) return paged(fixtures.MOCK_TICKETS, page, pageSize);
       const found = byId(fixtures.MOCK_TICKETS, id);
-      return found ? single(found) : notFound;
+      return found ? ok(found) : NOT_FOUND;
     }
 
     case 'settings':
-      return single(fixtures.MOCK_SETTINGS);
+      return ok(fixtures.MOCK_SETTINGS);
 
     default:
       return null; // unrecognised → pass through to the real backend
   }
+}
+
+/**
+ * The products module's in-memory CRUD.
+ *
+ * `GET /products` applies the same four filters BO-F03 will put in the URL, then
+ * paginates and maps the fixture to the flattened list row. `GET /products/:id`
+ * returns the full record (variants and gallery) so BO-F14's form can bind every
+ * tab from one response.
+ */
+function resolveProducts(
+  method: string,
+  id: string | undefined,
+  sub: string | undefined,
+  params: ParamReader,
+  body: unknown,
+  page: number,
+  pageSize: number,
+): MockResolution {
+  if (!id) {
+    if (method === 'POST') {
+      return created(toProduct(createProduct(body)), 'محصول با موفقیت ایجاد شد.');
+    }
+
+    return paged(filterProducts(params), page, pageSize);
+  }
+
+  // `/products/new` is a form route, not a record; the create screen only needs
+  // a blank-ish shape to bind. Keep the old behaviour for compatibility.
+  const found = id === 'new' ? fixtures.MOCK_PRODUCTS[0] : byId(fixtures.MOCK_PRODUCTS, id);
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  if (method === 'DELETE') {
+    return ok({ id: found.id }, 'محصول حذف شد.');
+  }
+
+  if (method === 'PATCH' && sub === 'status') {
+    return ok(toProduct(updateProduct(found, body)), 'وضعیت محصول به‌روزرسانی شد.');
+  }
+
+  if (method === 'PUT' || method === 'PATCH') {
+    return ok(toProduct(updateProduct(found, body)), 'محصول به‌روزرسانی شد.');
+  }
+
+  return ok(toProduct(found));
+}
+
+type ProductSortKey = 'name' | 'price' | 'stock' | 'createdAt';
+
+function isSortKey(value: string | null): value is ProductSortKey {
+  return value === 'name' || value === 'price' || value === 'stock' || value === 'createdAt';
+}
+
+function filterProducts(params: ParamReader): Record<string, unknown>[] {
+  const text = (params.get('query') ?? '').trim().toLowerCase();
+  const categoryId = params.get('categoryId');
+  const brandId = params.get('brandId');
+  const status = params.get('status');
+  const sort = params.get('sort');
+  const direction = params.get('dir') === 'desc' ? -1 : 1;
+
+  let rows = fixtures.MOCK_PRODUCTS.filter((product) => {
+    const haystack = `${product.name} ${product.slug} ${product.sku}`.toLowerCase();
+
+    return (
+      (text === '' || haystack.includes(text)) &&
+      (categoryId === null || product.categoryId === categoryId) &&
+      (brandId === null || product.brandId === brandId) &&
+      (status === null || product.status === status)
+    );
+  });
+
+  if (isSortKey(sort)) {
+    rows = [...rows].sort((a, b) => {
+      if (sort === 'name') {
+        return a.name.localeCompare(b.name, 'fa') * direction;
+      }
+
+      return (a[sort] - b[sort]) * direction;
+    });
+  }
+
+  return rows.map(toListItem);
+}
+
+function categoryName(id: string): string {
+  return fixtures.MOCK_CATEGORIES.find((category) => category.id === id)?.name ?? '—';
+}
+
+function brandName(id: string): string {
+  return fixtures.MOCK_BRANDS.find((brand) => brand.id === id)?.name ?? '—';
+}
+
+/** The flattened row `GET /products` returns. */
+function toListItem(product: fixtures.MockProduct): Record<string, unknown> {
+  return {
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    categoryId: product.categoryId,
+    categoryName: categoryName(product.categoryId),
+    brandId: product.brandId,
+    brandName: brandName(product.brandId),
+    price: product.price,
+    stock: product.stock,
+    status: product.status,
+    createdAt: product.createdAt,
+  };
+}
+
+/** The full record `GET /products/:id` returns. */
+function toProduct(product: fixtures.MockProduct): Record<string, unknown> {
+  return {
+    ...toListItem(product),
+    slug: product.slug,
+    shortDescription: `${product.name} — توضیح کوتاه نمونه.`,
+    description: `${product.name} — توضیحات کامل نمونه برای محیط آزمایشی.`,
+    lowStockThreshold: 5,
+    images: [
+      {
+        id: `${product.id}-img-1`,
+        url: `/mock/products/${product.id}-1.jpg`,
+        alt: product.name,
+        isPrimary: true,
+        order: 1,
+      },
+    ],
+    variants: [
+      {
+        id: `${product.id}-variant-1`,
+        sku: `${product.sku}-1`,
+        attributes: { رنگ: 'مشکی', سایز: 'استاندارد' },
+        price: product.price,
+        stock: product.stock,
+        imageUrl: null,
+      },
+    ],
+    updatedAt: product.createdAt,
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+function text(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : fallback;
+}
+
+function amount(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function isStatus(value: unknown): value is fixtures.MockProductStatus {
+  return value === 'published' || value === 'draft' || value === 'inactive';
+}
+
+/**
+ * Build the record a `POST /products` would create.
+ *
+ * The mock does not persist it — the fixture array is frozen data, and a write
+ * that mutates module state would make one test affect the next. Echoing a
+ * deterministic record is enough for the create screen to navigate to an edit
+ * page; the real backend is the one that assigns and stores the id.
+ */
+function createProduct(body: unknown): fixtures.MockProduct {
+  const data = asRecord(body);
+  const base = fixtures.MOCK_PRODUCTS[0];
+  const nextId = String(fixtures.MOCK_PRODUCTS.length + 1);
+
+  return {
+    id: nextId,
+    name: text(data['name'], base.name),
+    sku: text(data['sku'], `SKU-${2000 + Number(nextId)}`),
+    slug: text(data['slug'], `product-${nextId}`),
+    categoryId: text(data['categoryId'], base.categoryId),
+    brandId: text(data['brandId'], base.brandId),
+    price: amount(data['price'], base.price),
+    stock: amount(data['stock'], 0),
+    status: isStatus(data['status']) ? data['status'] : 'draft',
+    createdAt: fixtures.FIXTURE_NOW,
+  };
+}
+
+/** Merge the editable fields a `PUT`/`PATCH` sent over the existing record. */
+function updateProduct(product: fixtures.MockProduct, body: unknown): fixtures.MockProduct {
+  const data = asRecord(body);
+
+  return {
+    ...product,
+    name: text(data['name'], product.name),
+    sku: text(data['sku'], product.sku),
+    slug: text(data['slug'], product.slug),
+    categoryId: text(data['categoryId'], product.categoryId),
+    brandId: text(data['brandId'], product.brandId),
+    price: amount(data['price'], product.price),
+    stock: amount(data['stock'], product.stock),
+    status: isStatus(data['status']) ? data['status'] : product.status,
+  };
 }

@@ -58,3 +58,62 @@ Columns are declared in a `cols` array carrying `field/header/width/sortable` an
 signal from `ProductsService`, so BO-F03's filters apply without a page refresh. The fetch's outcome
 goes through one `state()` — `error > loading > empty > data` (BO-E07) — and the empty shop renders
 the shared `<app-empty-state>` with an «افزودن محصول» action.
+
+## لایهٔ داده / The data layer (BO-F05)
+
+`ProductsService` تنها نقطهٔ تماس صفحه با داده است. صفحه هیچ fixture یا `HttpClient` نمی‌شناسد؛
+فقط `list/get/create/update/remove/setStatus` را صدا می‌زند. `list()` یک `Page<ProductListItem>`
+برمی‌گرداند (نه آرایه) تا `total` سرور برای صفحه‌بندی BO-F04 در دسترس باشد.
+
+`ProductsService` is the page's only data seam. The page knows no fixture and no `HttpClient`; it
+calls `list/get/create/update/remove/setStatus`. `list()` returns a `Page<ProductListItem>` (not a
+bare array) so the server's `total` is available to BO-F04's paginator.
+
+### یک درخواست، مرحله‌به‌مرحله / One request, traced
+
+ورودی:
+
+```ts
+products.list({
+  query: 'سونی',
+  categoryId: '3',
+  page: 2,
+  pageSize: 10,
+  sort: 'price',
+  dir: 'desc',
+});
+```
+
+| گام | چه اتفاقی می‌افتد                                                                                                             |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- |
+| ۱   | `buildQuery` فیلترها را به `query=سونی&categoryId=3&page=2&pageSize=10&sort=price&dir=desc` تبدیل می‌کند.                     |
+| ۲   | `ApiService.getPage('/products', params)` درخواست `GET /api/v1/products?…` را با هدر `X-Mock: 1` می‌فرستد.                    |
+| ۳   | `mockInterceptor` ماژول `products` را می‌شناسد و `filterProducts` را صدا می‌زند.                                              |
+| ۴   | فیلتر متن روی `name + slug + sku`، فیلتر `categoryId` و سپس سورت قیمت نزولی اعمال می‌شود.                                     |
+| ۵   | `paginate` ردیف‌های ۱۰ تا ۱۹ را برمی‌گرداند و `meta: { page: 2, pageSize: 10, total: N }` می‌دهد.                             |
+| ۶   | `ApiService` پاسخ را به `{ items, total, page, pageSize }` تخت می‌کند؛ صفحه `items` را در جدول و `total` را در فوتر می‌خواند. |
+
+`buildQuery` مقادیر `null`، `undefined`، رشتهٔ خالی و `page/pageSize` غیرمثبت را **حذف** می‌کند؛
+`dir` هم فقط همراه با `sort` فرستاده می‌شود.
+
+`buildQuery` drops `null`, `undefined`, empty strings and non-positive `page/pageSize`; `dir` only
+travels with a `sort`.
+
+### قاعده‌ها / Rules
+
+- **مدل‌ها فقط type هستند.** `features/products/models/product.model.ts` هیچ مقدار runtime ندارد
+  (همان قاعدهٔ cross-chunk در `AGENTS.md`).
+- **mock داده را ذخیره نمی‌کند.** fixture آرایهٔ ثابت است؛ نوشتن واقعی در فاز REAL-API انجام
+  می‌شود. این کار باعث می‌شود یک تست روی تست بعدی اثر نگذارد.
+- **`isActive` حذف شد.** وضعیت محصول یک منبع حقیقت دارد: `status: 'published' | 'draft' | 'inactive'`.
+- **خطا قرارداد جهانی دارد.** `ApiService` هر خطا را به `ApiError` تبدیل می‌کند؛ `get` روی id
+  نامعتبر `status: 404` و پیام فارسی سرور را می‌دهد.
+
+- **Models are types only.** `product.model.ts` carries no runtime value (the cross-chunk rule in
+  `AGENTS.md`).
+- **The mock does not persist.** The fixture array is frozen; real writes belong to the REAL-API
+  phase, so one test cannot affect the next.
+- **`isActive` is gone.** A product has one source of truth for its state:
+  `status: 'published' | 'draft' | 'inactive'`.
+- **Errors keep the global contract.** `ApiService` normalises every failure to `ApiError`; `get`
+  with an unknown id yields `status: 404` and the server's Persian message.

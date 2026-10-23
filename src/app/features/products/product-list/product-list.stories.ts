@@ -1,4 +1,5 @@
 import { provideRouter } from '@angular/router';
+import type { Page } from '@shared/models';
 import { applicationConfig, Meta, StoryObj } from '@storybook/angular';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
@@ -50,13 +51,25 @@ const SAMPLE_PRODUCTS: readonly ProductListItem[] = [
   },
 ];
 
+/** Wrap rows in the one-page shape `ProductsService.list()` returns. */
+function pageOf(rows: readonly ProductListItem[]): Page<ProductListItem> {
+  return { items: [...rows], total: rows.length, page: 1, pageSize: 20 };
+}
+
+/** The default story's data source — deterministic, and never touches the network. */
+class StaticProductsService implements Pick<ProductsService, 'list'> {
+  list(): Observable<Page<ProductListItem>> {
+    return of(pageOf(SAMPLE_PRODUCTS));
+  }
+}
+
 /** A service that refuses once, then answers — so «تلاش دوباره» has somewhere to go. */
 class FlakyProductsService implements Pick<ProductsService, 'list'> {
   private failed = false;
 
-  list(): Observable<readonly ProductListItem[]> {
+  list(): Observable<Page<ProductListItem>> {
     if (this.failed) {
-      return of(SAMPLE_PRODUCTS);
+      return of(pageOf(SAMPLE_PRODUCTS));
     }
     this.failed = true;
     return throwError(() => new Error('offline'));
@@ -88,6 +101,8 @@ const meta: Meta<ProductList> = {
           '`<app-empty-state>` with a way out to the create form.',
           '',
           'The `cols` array carries `field/header/width/sortable`; the sort click itself is BO-F04.',
+          'BO-F05 changed the service to return a `Page`, so the footer can print the server total',
+          'rather than the number of rows currently on screen.',
         ].join('\n'),
       },
     },
@@ -97,7 +112,38 @@ const meta: Meta<ProductList> = {
 export default meta;
 type Story = StoryObj<ProductList>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  render: () => ({
+    template: '<app-product-list />',
+    moduleMetadata: {
+      providers: [{ provide: ProductsService, useValue: new StaticProductsService() }],
+    },
+  }),
+};
+
+/**
+ * The footer prints the SERVER total, not the rows on screen (BO-F05).
+ *
+ * The stub returns four rows and `total: 137`, which is what page 1 of a
+ * 137-row catalogue looks like once BO-F04 adds the paginator. The table shows
+ * four products; the footer says «۱۳۷ محصول». This is the visible proof that
+ * `list()` returns a `Page` whose `total` survives the trip from the API.
+ */
+export const ServerTotal: Story = {
+  render: () => ({
+    template: '<app-product-list />',
+    moduleMetadata: {
+      providers: [
+        {
+          provide: ProductsService,
+          useValue: {
+            list: () => of({ items: [...SAMPLE_PRODUCTS], total: 137, page: 1, pageSize: 20 }),
+          },
+        },
+      ],
+    },
+  }),
+};
 
 /** The request has not answered yet (tc 9). */
 export const Loading: Story = {
@@ -111,7 +157,14 @@ export const Loading: Story = {
 export const Empty: Story = {
   render: () => ({
     template: '<app-product-list />',
-    moduleMetadata: { providers: [{ provide: ProductsService, useValue: { list: () => of([]) } }] },
+    moduleMetadata: {
+      providers: [
+        {
+          provide: ProductsService,
+          useValue: { list: () => of({ items: [], total: 0, page: 1, pageSize: 20 }) },
+        },
+      ],
+    },
   }),
 };
 

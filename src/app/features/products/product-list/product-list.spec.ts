@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import type { Page } from '@shared/models';
 import { MessageService } from 'primeng/api';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
@@ -71,13 +72,13 @@ class ProductsServiceStub {
   /** `true` → the request never answers, i.e. the in-flight state. */
   hang = false;
 
-  list(): Observable<readonly ProductListItem[]> {
+  list(): Observable<Page<ProductListItem>> {
     this.listCalls += 1;
     if (this.hang) {
       return NEVER;
     }
     return this.failWith === null
-      ? of(this.rows)
+      ? of({ items: [...this.rows], total: this.rows.length, page: 1, pageSize: 20 })
       : throwError(() => new Error(this.failWith ?? 'request failed'));
   }
 }

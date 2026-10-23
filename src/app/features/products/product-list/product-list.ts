@@ -5,6 +5,7 @@ import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
+import type { Page } from '@shared/models';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
@@ -162,11 +163,17 @@ export class ProductList {
   readonly itemsError = signal<string | null>(null);
 
   /**
-   * The rows, as a signal. `null` is "not answered yet" — the skeleton — and is
-   * deliberately distinguishable from `[]`, which is "the shop has no products"
-   * (tc 9 vs tc 8).
+   * The current page, as a signal. `null` is "not answered yet" — the skeleton —
+   * and is deliberately distinguishable from a page with `items: []`, which is
+   * "the shop has no products" (tc 9 vs tc 8).
+   *
+   * BO-F05 changed the service from a bare array to `Page<ProductListItem>`, so
+   * the page now carries its own `total`. That is what lets BO-F04 print "of 137"
+   * instead of "of the 20 rows currently on screen"; until the paginator exists,
+   * the mock returns one page whose total equals the row count, and tc 10 keeps
+   * passing unchanged.
    */
-  readonly items = toSignal<readonly ProductListItem[] | null>(
+  readonly page = toSignal<Page<ProductListItem> | null>(
     this.reload$.pipe(
       // A new attempt clears the OLD failure the moment it starts, so clicking
       // «تلاش دوباره» trades the red block for the skeleton instead of leaving
@@ -184,6 +191,9 @@ export class ProductList {
     ),
     { initialValue: null },
   );
+
+  /** The rows of the current page; `null` while the first request is in flight. */
+  readonly items = computed<readonly ProductListItem[] | null>(() => this.page()?.items ?? null);
 
   /** The single branch condition for the template's `@switch` (BO-E07 tc 7). */
   readonly state = computed<ProductListState>(() => {
@@ -204,8 +214,11 @@ export class ProductList {
 
   readonly cols: readonly ProductColumn[] = COLUMNS;
 
-  /** Result count for the footer (tc 10) — `۰` while loading, not `۴`. */
-  readonly total = computed(() => this.items()?.length ?? 0);
+  /**
+   * Result count for the footer (tc 10) — the server's total, not the current
+   * page length, so BO-F04's "۱–۲۰ از ۱۳۷" has one number to read.
+   */
+  readonly total = computed(() => this.page()?.total ?? 0);
 
   /** Re-runs the failed fetch (BO-E07 tc 3). */
   retry(): void {

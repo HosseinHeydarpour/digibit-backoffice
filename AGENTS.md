@@ -351,6 +351,26 @@ and its `data`. Every feature page after it follows that shape.
   progress bar is BO-C05's loading interceptor. A resolver blocks navigation, so a page-level
   loading state is only reachable on a _re_-resolve (retry, return visit).
 
+### Products data layer — `Page`, `buildQuery`, and a mock that filters (BO-F05)
+
+- **`ProductsService.list(query)` returns `Page<ProductListItem>`, not an array.** The table needs the
+  server's `total` for BO-F04's paginator, and `null`/`[]` already mean different things to the page
+  (`loading` vs `empty`). `ProductList` reads `page().items` and `page().total`; its template did not
+  change.
+- **`buildQuery` is the only serializer.** `features/products/services/products.service.ts` owns the
+  filter/paging → `HttpParams` mapping, and drops `null`/`undefined`/whitespace/non-positive paging.
+  `ApiService.get`/`getPage` accept either a record or an `HttpParams` (the latter forwarded as-is),
+  so a new filter is one entry in `buildQuery`, not a second URL builder in a component.
+- **The mock filters, sorts and paginates `GET /products`.** It reads the same `query`/`categoryId`/
+  `brandId`/`status`/`sort`/`dir`/`page`/`pageSize` parameters BO-F03/F04 will put in the URL, so the
+  list page is testable before a backend exists. It does **not persist** writes: the fixture array is
+  frozen, so one test cannot affect the next.
+- **One status field.** `MockProduct.isActive` was replaced by `status` (`published` / `draft` /
+  `inactive`); keeping both would have been two answers to one question.
+- **The trace lives with the method.** The `TRACE` block above `ProductsService.list()` follows one
+  `list({ query: 'سونی', page: 2, … })` through `buildQuery` → `ApiService` → `mockInterceptor` →
+  `Page` → the component, for the next reader who needs to know what a call actually does.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

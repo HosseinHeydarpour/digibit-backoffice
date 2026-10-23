@@ -3,7 +3,7 @@ import type { SessionUser } from '@shared/models/session.model';
 import { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
 
 export { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
-export type { MockProduct } from './products.fixture';
+export type { MockProduct, MockProductStatus } from './products.fixture';
 export type { SessionUser } from '@shared/models/session.model';
 
 /** 12 modules, matching the 12 feature folders. */

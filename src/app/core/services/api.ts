@@ -10,6 +10,14 @@ import { Observable, catchError, map, throwError } from 'rxjs';
 export type QueryValue = string | number | boolean | null | undefined;
 
 /**
+ * A query can arrive as a plain record (the common case) or as an already-built
+ * `HttpParams`. The second form exists for feature-level builders such as
+ * `buildQuery` in the products service, which own the "drop empty values" rule
+ * themselves; re-encoding their result through a record would lose that rule.
+ */
+export type QueryParams = Record<string, QueryValue> | HttpParams;
+
+/**
  * Sent on every request. Angular does not set `Accept` itself, so without this
  * a server doing content negotiation could answer with HTML instead of JSON.
  *
@@ -25,7 +33,7 @@ export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = environment.API_BASE_URL;
 
-  get<T>(path: string, params?: Record<string, QueryValue>): Observable<T> {
+  get<T>(path: string, params?: QueryParams): Observable<T> {
     return this.http
       .get<ApiResponse<T>>(this.url(path), {
         params: toHttpParams(params),
@@ -35,7 +43,7 @@ export class ApiService {
   }
 
   /** GET a list endpoint and flatten envelope + meta into a `Page<T>`. */
-  getPage<T>(path: string, params?: Record<string, QueryValue>): Observable<Page<T>> {
+  getPage<T>(path: string, params?: QueryParams): Observable<Page<T>> {
     return this.http
       .get<ApiResponse<T[]>>(this.url(path), {
         params: toHttpParams(params),
@@ -93,9 +101,14 @@ function toPage<T>(response: ApiResponse<T[]>): Page<T> {
 /**
  * Build HttpParams, dropping null/undefined/empty so a cleared filter is
  * genuinely absent from the URL rather than sent as `?query=`.
+ *
+ * An `HttpParams` argument is returned as-is: a feature builder that already
+ * produced one (see `QueryParams`) has applied the same rule with more context,
+ * and copying it through a record would be lossy.
  */
-export function toHttpParams(params?: Record<string, QueryValue>): HttpParams | undefined {
+export function toHttpParams(params?: QueryParams): HttpParams | undefined {
   if (!params) return undefined;
+  if (params instanceof HttpParams) return params;
 
   let httpParams = new HttpParams();
   for (const [key, value] of Object.entries(params)) {
