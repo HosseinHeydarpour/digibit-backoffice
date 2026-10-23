@@ -356,6 +356,45 @@ four tabs share one `FormGroup`; switching only changes `activeTab`, so no value
   refresh/close is covered by `beforeunload`.
 - **Save:** BO-F13 owns the POST; the button validates and reports missing fields for now.
 
+## اعتبارسنجی فرم / Form validation (BO-F08)
+
+قواعد اعتبارسنجی در `product-create/product-validators.ts` هستند؛ توابعی خالص که بدون
+`TestBed` تست می‌شوند. فرم همان `FormGroup` مرکزی F07 را نگه می‌دارد و فقط ولیدیتورها
+عوض شده‌اند.
+
+The rules live in `product-create/product-validators.ts` as pure functions; the central
+`FormGroup` from F07 is unchanged apart from its validators.
+
+| فیلد            | قاعده                                           | پیام                                         |
+| --------------- | ----------------------------------------------- | -------------------------------------------- |
+| نام             | required، trim، ۳–۲۰۰                           | «نام محصول الزامی است.» / «حداقل ۳ کاراکتر…» |
+| slug            | required، `[a-z0-9]` با خط تیرهٔ تکی، حداکثر ۸۰ | «فقط حروف انگلیسی، عدد و خط تیره…»           |
+| دسته            | required                                        | «دسته‌بندی را انتخاب کنید.»                  |
+| قیمت            | required، عددی، بزرگ‌تر از صفر                  | «قیمت باید بزرگ‌تر از صفر باشد.»             |
+| موجودی / آستانه | required، عددی، نامنفی                          | «مقدار نمی‌تواند منفی باشد.»                 |
+| توضیح کوتاه     | اختیاری، حداکثر ۱۶۰ code point                  | «حداکثر ۱۶۰ کاراکتر مجاز است.»               |
+
+### رفتارها / Behaviour
+
+- **خطا فقط بعد از touched.** `fieldError` اگر کنترل touched نباشد `null` برمی‌گرداند؛ فرم
+  دست‌نخورده دیوار قرمز نیست (tc 9). `next()` کنترل‌های تب فعلی را touched می‌کند تا خطاها
+  دیده شوند.
+- **اصلاح خودکار.** هر تغییر مقدار، ولیدیتورها را دوباره اجرا می‌کند و پیام را برمی‌دارد
+  (tc 10).
+- **خطای سرور.** `applyServerErrors({ slug: ['این نامک تکراری است.'] })` کلید `server` را روی
+  کنترل می‌گذارد و `fieldError` آن را بالاتر از خطای محلی نشان می‌دهد (tc 7). BO-F13 همین
+  متد را با `ApiError.fields` صدا می‌زند.
+- **پیام‌ها یک‌جا.** قالب هیچ‌جا `control.errors` را نمی‌خواند؛ فقط `errorFor('field')` را
+  صدا می‌زند. تغییر متن خطاها یعنی تغییر `REQUIRED_MESSAGE`/`fieldError`، نه جست‌وجو در HTML.
+
+- **Errors only after touch.** `fieldError` returns `null` for an untouched control, so a fresh
+  form is not a wall of red (tc 9). `next()` touches the current tab's controls.
+- **Auto-correction.** Editing a value re-runs the validators and removes the message (tc 10).
+- **Server errors.** `applyServerErrors({ slug: […] })` sets the `server` key and `fieldError`
+  prefers it over a local key (tc 7); BO-F13 will feed it `ApiError.fields`.
+- **Messages live in one place.** The template calls `errorFor('field')`; it never reads
+  `control.errors`.
+
 ## حالت‌های صفحه / Page states
 
 سه حالت غیر دادهٔ صفحه: در حال بارگذاری، خالی و خطا. هر سه از یک `state()` می‌آیند و

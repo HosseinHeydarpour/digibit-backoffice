@@ -461,6 +461,25 @@ and its `data`. Every feature page after it follows that shape.
   page injects `ProductsService` for the category/brand lookups at construction; without an HTTP
   backend the test fails with `No provider for HttpClient`.
 
+### Product form validation: one message table (BO-F08)
+
+- **Rules are pure functions in `product-validators.ts`.** Name trims before counting (a
+  three-space name is not a name), slug is the same ASCII/hyphen regex the hint promises, price is
+  strictly positive, stock/threshold accept zero but not negatives, and short description counts
+  code points against 160. The spec pins each function without a `TestBed` (tc 8).
+- **`fieldError()` is the only error reader.** It returns `null` until the control is touched
+  (tc 9), prefers a `server` key over a local one (tc 7), and formats lengths with Persian digits.
+  The template calls `errorFor('field')`; it must not inspect `control.errors` directly, or the
+  messages and the touched rule will drift across fields.
+- **Server errors use `applyServerErrors`.** BO-F13 passes `ApiError.fields`; each message is written
+  as a `server` error and the control is marked touched. Editing the value re-runs the validators
+  and clears it (tc 10), so no manual "clear server error" bookkeeping is needed.
+- **`SHORT_DESCRIPTION_MAX` is exposed through a getter.** It is a runtime import shared with the
+  eager spec bundle; a field initialiser could run before that module is ready (same hazard as
+  `TOMAN_UNIT`).
+- **Validation is per-tab, not per-form.** `next()` still touches only the current tab's controls;
+  a valid main tab can advance even while the (empty) variants/gallery arrays are untouched.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

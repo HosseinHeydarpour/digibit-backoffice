@@ -24,6 +24,16 @@ import type {
 import { ProductsService } from '../services/products.service';
 
 import { slugify } from './product-slug';
+import {
+  SHORT_DESCRIPTION_MAX,
+  fieldError,
+  nonNegativeNumberValidator,
+  positivePriceValidator,
+  productNameValidator,
+  productSlugValidator,
+  shortDescriptionValidator,
+} from './product-validators';
+import type { ProductField } from './product-validators';
 
 /** The four sections of the create form (BO-F07). */
 type ProductTabId = 'main' | 'variants' | 'gallery' | 'inventory';
@@ -47,8 +57,7 @@ const STATUS_OPTIONS: readonly { value: ProductStatus; label: string }[] = [
   { value: 'inactive', label: 'غیرفعال' },
 ];
 
-/** The short-description limit is shown in the counter and enforced by the validator. */
-const SHORT_DESCRIPTION_MAX = 160;
+/** The short-description limit is enforced by `shortDescriptionValidator`. */
 
 /**
  * Products create page — `/products/new` (BO-F07).
@@ -106,16 +115,16 @@ export class ProductCreate {
    * until BO-F10/F11; they exist so the shape of the payload is stable now.
    */
   readonly form = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
-    slug: ['', [Validators.required, Validators.pattern(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)]],
+    name: ['', productNameValidator],
+    slug: ['', productSlugValidator],
     sku: [''],
     categoryId: ['', Validators.required],
     brandId: [''],
-    shortDescription: ['', Validators.maxLength(SHORT_DESCRIPTION_MAX)],
+    shortDescription: ['', shortDescriptionValidator],
     description: [''],
-    price: [0, [Validators.required, Validators.min(1)]],
-    stock: [0, [Validators.min(0)]],
-    lowStockThreshold: [5, [Validators.min(0)]],
+    price: [0, positivePriceValidator],
+    stock: [0, nonNegativeNumberValidator],
+    lowStockThreshold: [5, nonNegativeNumberValidator],
     status: ['draft' as ProductStatus, Validators.required],
     variants: this.fb.array<FormGroup>([]),
     images: this.fb.array<FormGroup>([]),
@@ -152,7 +161,14 @@ export class ProductCreate {
 
   readonly statusOptions = STATUS_OPTIONS;
 
-  readonly shortDescriptionMax = SHORT_DESCRIPTION_MAX;
+  /**
+   * A getter, not a field: `SHORT_DESCRIPTION_MAX` is a runtime import shared
+   * with the eager spec bundle; a field initialiser could run before that module
+   * is ready (the same hazard as `TOMAN_UNIT`).
+   */
+  get shortDescriptionMax(): number {
+    return SHORT_DESCRIPTION_MAX;
+  }
 
   /** True once the user edits the slug by hand; stops the name→slug sync. */
   private slugEdited = false;
@@ -257,6 +273,39 @@ export class ProductCreate {
 
     event.preventDefault();
     event.returnValue = '';
+  }
+
+  /**
+   * First visible message for a field (BO-F08). `fieldError` hides it until the
+   * control is touched, so an untouched form is not a wall of red (tc 9).
+   */
+  errorFor(field: ProductField): string | null {
+    return fieldError(field, this.form.controls[field]);
+  }
+
+  /**
+   * Map a server validation envelope onto the form (tc 7).
+   *
+   * BO-F13 will call this with `ApiError.fields`: `{ slug: ['این نامک تکراری
+   * است.'] }` puts the message under the slug input. Editing the control runs
+   * the validators again, which replaces the `server` key (tc 10).
+   */
+  applyServerErrors(fields: Readonly<Record<string, readonly string[]>> | undefined): void {
+    if (!fields) {
+      return;
+    }
+
+    for (const [name, messages] of Object.entries(fields)) {
+      const control = this.form.get(name);
+      const message = messages[0];
+
+      if (!control || !message) {
+        continue;
+      }
+
+      control.setErrors({ ...(control.errors ?? {}), server: message });
+      control.markAsTouched();
+    }
   }
 
   private isTabValid(tab: ProductTabId): boolean {

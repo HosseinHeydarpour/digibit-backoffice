@@ -80,9 +80,9 @@
                   placeholder="نام محصول"
                   class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 />
-                @if (form.controls.name.touched && form.controls.name.invalid) {
+                @if (errorFor('name')) {
                   <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    نام محصول باید بین ۳ تا ۲۰۰ کاراکتر باشد.
+                    {{ errorFor('name') }}
                   </p>
                 }
               </div>
@@ -122,9 +122,9 @@
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   از نام محصول ساخته می‌شود و قابل ویرایش است؛ فقط حروف انگلیسی، عدد و خط تیره.
                 </p>
-                @if (form.controls.slug.touched && form.controls.slug.invalid) {
+                @if (errorFor('slug')) {
                   <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    نامک باید با حروف انگلیسی، عدد یا خط تیره باشد.
+                    {{ errorFor('slug') }}
                   </p>
                 }
               </div>
@@ -146,9 +146,9 @@
                     <option [value]="category.id">{{ category.name }}</option>
                   }
                 </select>
-                @if (form.controls.categoryId.touched && form.controls.categoryId.invalid) {
+                @if (errorFor('categoryId')) {
                   <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    دسته‌بندی را انتخاب کنید.
+                    {{ errorFor('categoryId') }}
                   </p>
                 }
               </div>
@@ -180,7 +180,15 @@
                   >
                     توضیح کوتاه
                   </label>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">
+                  <span
+                    class="text-xs"
+                    [class]="
+                      form.controls.shortDescription.touched &&
+                      form.controls.shortDescription.invalid
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    "
+                  >
                     {{ form.controls.shortDescription.value.length | persianDigits }} /
                     {{ shortDescriptionMax | persianDigits }}
                   </span>
@@ -193,9 +201,9 @@
                   placeholder="یک جملهٔ کوتاه برای معرفی محصول"
                   class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 ></textarea>
-                @if (form.controls.shortDescription.invalid) {
+                @if (errorFor('shortDescription')) {
                   <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    توضیح کوتاه حداکثر {{ shortDescriptionMax | persianDigits }} کاراکتر است.
+                    {{ errorFor('shortDescription') }}
                   </p>
                 }
               </div>
@@ -262,9 +270,9 @@
                     placeholder="قیمت اصلی"
                     class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   />
-                  @if (form.controls.price.touched && form.controls.price.invalid) {
+                  @if (errorFor('price')) {
                     <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                      قیمت باید بزرگ‌تر از صفر باشد.
+                      {{ errorFor('price') }}
                     </p>
                   }
                 </div>
@@ -358,9 +366,9 @@
                 formControlName="stock"
                 class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
-              @if (form.controls.stock.touched && form.controls.stock.invalid) {
+              @if (errorFor('stock')) {
                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                  موجودی نمی‌تواند منفی باشد.
+                  {{ errorFor('stock') }}
                 </p>
               }
             </div>
@@ -380,11 +388,9 @@
                 formControlName="lowStockThreshold"
                 class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
-              @if (
-                form.controls.lowStockThreshold.touched && form.controls.lowStockThreshold.invalid
-              ) {
+              @if (errorFor('lowStockThreshold')) {
                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                  آستانه نمی‌تواند منفی باشد.
+                  {{ errorFor('lowStockThreshold') }}
                 </p>
               }
             </div>

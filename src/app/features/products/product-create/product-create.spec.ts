@@ -197,4 +197,74 @@ describe('ProductCreate (BO-F07)', () => {
     expect(card.className).toContain('dark:bg-gray-800');
     expect(card.className).toContain('dark:border-gray-700');
   });
+
+  it('tc 9: hides a message until touched, then shows the typed error', async () => {
+    await mount();
+
+    expect(component.errorFor('name')).toBeNull();
+
+    component.form.controls.name.markAsTouched();
+    fixture.detectChanges();
+
+    expect(component.errorFor('name')).toContain('الزامی');
+    expect(fixture.nativeElement.textContent).toContain('نام محصول الزامی است.');
+  });
+
+  it('tc 1/2/3/5/6: each field rejects its documented invalid value', async () => {
+    await mount();
+
+    const controls = component.form.controls;
+
+    controls.name.setValue('ab');
+    expect(controls.name.hasError('minlength')).toBe(true);
+
+    controls.name.setValue('   ');
+    expect(controls.name.hasError('required')).toBe(true);
+
+    controls.slug.setValue('BAD SLUG');
+    expect(controls.slug.hasError('pattern')).toBe(true);
+
+    controls.categoryId.setValue('');
+    expect(controls.categoryId.hasError('required')).toBe(true);
+
+    controls.price.setValue(0);
+    expect(controls.price.hasError('positive')).toBe(true);
+
+    controls.stock.setValue(-1);
+    expect(controls.stock.hasError('negative')).toBe(true);
+  });
+
+  it('tc 7: maps a server slug error onto the control and shows it', async () => {
+    await mount();
+
+    component.applyServerErrors({ slug: ['این نامک قبلاً استفاده شده است.'] });
+    fixture.detectChanges();
+
+    expect(component.form.controls.slug.hasError('server')).toBe(true);
+    expect(component.errorFor('slug')).toBe('این نامک قبلاً استفاده شده است.');
+    expect(fixture.nativeElement.textContent).toContain('این نامک قبلاً استفاده شده است.');
+  });
+
+  it('tc 10: a server error clears when the value is corrected', async () => {
+    await mount();
+
+    component.applyServerErrors({ slug: ['این نامک قبلاً استفاده شده است.'] });
+    component.form.controls.slug.setValue('new-slug');
+    fixture.detectChanges();
+
+    expect(component.form.controls.slug.hasError('server')).toBe(false);
+    expect(component.errorFor('slug')).toBeNull();
+  });
+
+  it('tc 10: correcting a local value clears its error immediately', async () => {
+    await mount();
+
+    const name = component.form.controls.name;
+    name.setValue('ab');
+    name.markAsTouched();
+    expect(component.errorFor('name')).toContain('حداقل');
+
+    name.setValue('کیف');
+    expect(component.errorFor('name')).toBeNull();
+  });
 });
