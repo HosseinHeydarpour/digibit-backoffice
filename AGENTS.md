@@ -982,6 +982,17 @@ the source is right. Measured on 17.10: tables stayed broken with `remark-gfm` o
 until the server was restarted; the restart alone fixed every page. Restart
 `npm run storybook` first, then look at `main.ts`.
 
+### `Canvas of` needs one title for the docs page and its stories
+
+An MDX page that imports a CSF file and renders `<Canvas of={Stories.Default} />` must use the
+**same title** in its `<Meta>` and in the stories file. The docs context resolves a story export by
+looking it up in the CSF attached to that title; if the docs page is `Features/Products` and the
+stories are `Features/Products/ProductList`, the object is treated as a component and the page dies
+with _"Invalid value passed to the 'of' prop … component or unknown"_. When the MDX page is the
+docs, give the stories the matching title and leave `tags: ['autodocs']` off — otherwise two docs
+entries fight for the same `…--docs` id. String story IDs are **not** accepted by this `Canvas`
+version; it only maps story exports/inputs.
+
 ### Rules for adding an entry
 
 - Stories live **next to what they document**: `stat-card.stories.ts` beside

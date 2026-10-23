@@ -134,9 +134,8 @@ class FlakyProductsService extends StaticProductsService {
 }
 
 const meta: Meta<ProductList> = {
-  title: 'Features/Products/ProductList',
+  title: 'Features/Products',
   component: ProductList,
-  tags: ['autodocs'],
   decorators: [
     applicationConfig({
       providers: [
