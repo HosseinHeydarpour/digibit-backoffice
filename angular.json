@@ -3,7 +3,9 @@
   "version": 1,
   "cli": {
     "packageManager": "npm",
-    "schematicCollections": ["angular-eslint"]
+    "schematicCollections": [
+      "angular-eslint"
+    ]
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -22,7 +24,9 @@
           "builder": "@angular/build:application",
           "options": {
             "browser": "src/main.ts",
-            "polyfills": ["zone.js"],
+            "polyfills": [
+              "zone.js"
+            ],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
@@ -31,8 +35,13 @@
                 "input": "public"
               }
             ],
-            "styles": ["node_modules/primeicons/primeicons.css", "src/styles.scss"],
-            "allowedCommonJsDependencies": ["jalali-ts"]
+            "styles": [
+              "node_modules/primeicons/primeicons.css",
+              "src/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "jalali-ts"
+            ]
           },
           "configurations": {
             "production": {
@@ -44,6 +53,10 @@
                 {
                   "replace": "src/app/core/mock/mock-interceptor.ts",
                   "with": "src/environments/mock-interceptor.prod.ts"
+                },
+                {
+                  "replace": "src/app/core/mock/fixtures/products-data.ts",
+                  "with": "src/environments/products-data.prod.ts"
                 }
               ],
               "budgets": [
@@ -67,7 +80,12 @@
               "sourceMap": true
             },
             "storybook": {
-              "allowedCommonJsDependencies": ["jalali-ts", "axe-core", "semver", "strip-ansi"]
+              "allowedCommonJsDependencies": [
+                "jalali-ts",
+                "axe-core",
+                "semver",
+                "strip-ansi"
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -90,7 +108,10 @@
         "lint": {
           "builder": "@angular-eslint/builder:lint",
           "options": {
-            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
+            "lintFilePatterns": [
+              "src/**/*.ts",
+              "src/**/*.html"
+            ]
           }
         },
         "storybook": {
