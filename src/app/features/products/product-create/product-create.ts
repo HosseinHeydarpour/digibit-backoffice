@@ -16,7 +16,9 @@ import { PageHeader } from '@shared/components/page-header/page-header';
 import type { SelectOption } from '@shared/models';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { PrimeTemplate } from 'primeng/api';
+import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
+import { Textarea } from 'primeng/textarea';
 
 import type { ProductBrandOption, ProductStatus } from '../models/product.model';
 import { ProductVariantEditor } from '../product-variants/product-variant-editor';
@@ -104,11 +106,13 @@ const STATUS_OPTIONS: SelectOption<ProductStatus>[] = [
   selector: 'app-product-create',
   imports: [
     PageHeader,
+    InputText,
     PersianDigitsPipe,
     ProductVariantEditor,
     ReactiveFormsModule,
     RouterLink,
     Select,
+    Textarea,
     PrimeTemplate,
   ],
   templateUrl: './product-create.html',

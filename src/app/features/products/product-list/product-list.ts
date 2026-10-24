@@ -20,6 +20,8 @@ import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { formatDigits, PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
 import type { MenuItem } from 'primeng/api';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
 import { Menu } from 'primeng/menu';
 import { Select } from 'primeng/select';
 import {
@@ -186,6 +188,8 @@ const PRODUCT_STATUS_META: Record<
     FormsModule,
     ReactiveFormsModule,
     RouterLink,
+    IconField,
+    InputIcon,
     Menu,
     Select,
     PersianDatePipe,

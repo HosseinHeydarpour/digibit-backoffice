@@ -81,13 +81,14 @@
       <input
         [id]="'variant-sku-' + index()"
         type="text"
+        pInputText
         formControlName="sku"
         dir="ltr"
         autocomplete="off"
         spellcheck="false"
         placeholder="SONY-WH1000-BLK"
         [attr.data-variant-sku]="index()"
-        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left font-mono text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        class="w-full text-left font-mono"
       />
       @if (skuError(); as message) {
         <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ message }}</p>
@@ -111,9 +112,10 @@
         type="number"
         min="1"
         inputmode="decimal"
+        pInputText
         formControlName="price"
         [attr.data-variant-price]="index()"
-        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        class="w-full text-left"
       />
       @if (priceError(); as message) {
         <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ message }}</p>
@@ -138,9 +140,10 @@
         min="0"
         step="1"
         inputmode="numeric"
+        pInputText
         formControlName="stock"
         [attr.data-variant-stock]="index()"
-        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        class="w-full text-left"
       />
       @if (stockError(); as message) {
         <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ message }}</p>
@@ -175,12 +178,13 @@
           <input
             [id]="'variant-image-' + index()"
             type="url"
+            pInputText
             formControlName="imageUrl"
             dir="ltr"
             autocomplete="off"
             placeholder="/images/products/…"
             [attr.data-variant-image]="index()"
-            class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-left font-mono text-xs text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            class="w-full text-left font-mono"
           />
           @if (imageError(); as message) {
             <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ message }}</p>
@@ -253,18 +257,20 @@
                   <div class="sm:w-44">
                     <input
                       type="text"
+                      pInputText
                       formControlName="key"
                       placeholder="نام ویژگی"
-                      class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      class="w-full"
                     />
                   </div>
 
                   <div class="min-w-0 flex-1">
                     <input
                       type="text"
+                      pInputText
                       formControlName="value"
                       placeholder="مقدار"
-                      class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      class="w-full"
                     />
                   </div>
 

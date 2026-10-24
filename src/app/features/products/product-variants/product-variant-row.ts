@@ -36,6 +36,7 @@ import { FormArray, FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import type { AbstractControl, FormGroup } from '@angular/forms';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
+import { InputText } from 'primeng/inputtext';
 
 import {
   VARIANT_ATTRIBUTE_SUGGESTIONS,
@@ -52,7 +53,7 @@ import {
 
 @Component({
   selector: 'app-product-variant-row',
-  imports: [ReactiveFormsModule, PersianDigitsPipe, TomanPipe],
+  imports: [InputText, ReactiveFormsModule, PersianDigitsPipe, TomanPipe],
   templateUrl: './product-variant-row.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

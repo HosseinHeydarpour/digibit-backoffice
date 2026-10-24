@@ -43,19 +43,17 @@
         جستجو
       </label>
 
-      <div class="relative">
-        <i
-          class="pi pi-search pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"
-          aria-hidden="true"
-        ></i>
+      <p-iconfield class="w-full">
+        <p-inputicon class="pi pi-search" />
         <input
           id="product-search"
           type="search"
+          pInputText
           [formControl]="searchControl"
           placeholder="نام یا SKU محصول…"
-          class="w-full rounded-lg border border-gray-300 bg-white py-2 ps-10 pe-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          class="w-full"
         />
-      </div>
+      </p-iconfield>
     </div>
 
     <div>
