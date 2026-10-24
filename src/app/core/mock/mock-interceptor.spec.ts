@@ -31,11 +31,16 @@ describe('mockInterceptor', () => {
 
   it('answers from fixtures when X-Mock: 1 is set', async () => {
     const body = await firstValueFrom(
-      http.get<ApiResponse<unknown[]>>('/api/v1/products', { headers: { [MOCK_HEADER]: '1' } }),
+      http.get<ApiResponse<unknown[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        // The whole export in one page — the default page size is 20.
+        params: { pageSize: 100 },
+      }),
     );
 
-    // no httpMock.expectOne — nothing reached the network
-    expect(body.data.length).toBe(20);
+    // no httpMock.expectOne — nothing reached the network.
+    // 99 = the real shop export in products-data.ts.
+    expect(body.data.length).toBe(99);
   });
 
   it('passes through to the network without the header', () => {
@@ -68,19 +73,22 @@ describe('mockInterceptor', () => {
     expect(body.data.length).toBe(5);
     expect(meta.page).toBe(2);
     expect(meta.pageSize).toBe(5);
-    expect(meta.total).toBe(20);
+    expect(meta.total).toBe(99);
   });
 
   it('filters products by Persian name and by Latin SKU (BO-F03 tc 1, tc 10)', async () => {
+    // «غلط گیر» names exactly one row of the shop export («غلط گیر قلمی») —
+    // deliberately a two-word term: a single word can sit inside another
+    // («طلق» also matches «دفتر طلقی»).
     const byName = await firstValueFrom(
       http.get<ApiResponse<{ name: string }[]>>('/api/v1/products', {
         headers: { [MOCK_HEADER]: '1' },
-        params: { query: 'هدفون' },
+        params: { query: 'غلط گیر' },
       }),
     );
 
     expect(byName.data).toHaveLength(1);
-    expect(byName.data[0].name).toContain('هدفون');
+    expect(byName.data[0].name).toContain('غلط گیر');
 
     const bySku = await firstValueFrom(
       http.get<ApiResponse<{ sku: string }[]>>('/api/v1/products', {
@@ -97,13 +105,13 @@ describe('mockInterceptor', () => {
     const body = await firstValueFrom(
       http.get<ApiResponse<{ categoryId: string; status: string }[]>>('/api/v1/products', {
         headers: { [MOCK_HEADER]: '1' },
-        params: { categoryId: '4', status: 'inactive' },
+        params: { categoryId: 'pcat-stationery', status: 'inactive' },
       }),
     );
 
     expect(body.data.length).toBeGreaterThan(0);
     for (const row of body.data) {
-      expect(row.categoryId).toBe('4');
+      expect(row.categoryId).toBe('pcat-stationery');
       expect(row.status).toBe('inactive');
     }
   });

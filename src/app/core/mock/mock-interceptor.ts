@@ -294,7 +294,8 @@ function toListItem(product: fixtures.MockProduct): Record<string, unknown> {
     categoryId: product.categoryId,
     categoryName: categoryName(product.categoryId),
     brandId: product.brandId,
-    brandName: brandName(product.brandId),
+    // An unbranded row (no brand named in the source export) reads «—».
+    brandName: product.brandId === null ? '—' : brandName(product.brandId),
     price: product.price,
     stock: product.stock,
     status: product.status,
@@ -302,24 +303,24 @@ function toListItem(product: fixtures.MockProduct): Record<string, unknown> {
   };
 }
 
-/** The full record `GET /products/:id` returns. */
-function toProduct(product: fixtures.MockProduct): Record<string, unknown> {
-  return {
-    ...toListItem(product),
-    slug: product.slug,
-    shortDescription: `${product.name} — توضیح کوتاه نمونه.`,
-    description: `${product.name} — توضیحات کامل نمونه برای محیط آزمایشی.`,
-    lowStockThreshold: 5,
-    images: [
-      {
-        id: `${product.id}-img-1`,
-        url: `/mock/products/${product.id}-1.jpg`,
-        alt: product.name,
-        isPrimary: true,
-        order: 1,
-      },
-    ],
-    variants: [
+/** The source's raw HTML reduced to the 160-code-point short-description field. */
+function shortDescription(product: fixtures.MockProduct): string {
+  const plain = product.description
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return plain === '' ? `${product.name} — توضیح کوتاه نمونه.` : plain.slice(0, 160);
+}
+
+/**
+ * The variants the source export carries, mapped to the panel's variant shape
+ * (`attributes` is an open record; a capacity like «64 گیگ» reads as the
+ * `گزینه` key). A product without variations keeps one placeholder row so the
+ * edit form's variants tab always has something to bind.
+ */
+function toVariants(product: fixtures.MockProduct): Record<string, unknown>[] {
+  if (product.variants.length === 0) {
+    return [
       {
         id: `${product.id}-variant-1`,
         sku: `${product.sku}-1`,
@@ -328,7 +329,41 @@ function toProduct(product: fixtures.MockProduct): Record<string, unknown> {
         stock: product.stock,
         imageUrl: null,
       },
+    ];
+  }
+
+  return product.variants.map((variant, index) => ({
+    id: variant.id,
+    sku: `${product.sku}-${index + 1}`,
+    attributes: { گزینه: variant.name },
+    price: variant.price,
+    stock: variant.quantity,
+    imageUrl: null,
+  }));
+}
+
+/** The full record `GET /products/:id` returns. */
+function toProduct(product: fixtures.MockProduct): Record<string, unknown> {
+  return {
+    ...toListItem(product),
+    slug: product.slug,
+    shortDescription: shortDescription(product),
+    description: product.description || `${product.name} — توضیحات کامل نمونه برای محیط آزمایشی.`,
+    lowStockThreshold: 5,
+    colors: product.colors,
+    isSpecialOffer: product.isSpecialOffer,
+    images: [
+      {
+        id: `${product.id}-img-1`,
+        // The shop's real photo (a WebP data URL) when it has one; otherwise the
+        // old placeholder path, which 404s silently exactly as before.
+        url: product.image || `/mock/products/${product.id}-1.jpg`,
+        alt: product.name,
+        isPrimary: true,
+        order: 1,
+      },
     ],
+    variants: toVariants(product),
     updatedAt: product.createdAt,
   };
 }
@@ -338,6 +373,11 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function text(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : fallback;
+}
+
+/** Like `text`, but the fallback may be `null` — a row with no brand. */
+function brandRef(value: unknown, fallback: string | null): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : fallback;
 }
 
@@ -368,11 +408,18 @@ function createProduct(body: unknown): fixtures.MockProduct {
     sku: text(data['sku'], `SKU-${2000 + Number(nextId)}`),
     slug: text(data['slug'], `product-${nextId}`),
     categoryId: text(data['categoryId'], base.categoryId),
-    brandId: text(data['brandId'], base.brandId),
+    brandId: brandRef(data['brandId'], base.brandId),
     price: amount(data['price'], base.price),
     stock: amount(data['stock'], 0),
     status: isStatus(data['status']) ? data['status'] : 'draft',
     createdAt: fixtures.FIXTURE_NOW,
+    // Fields the create payload does not carry (BO-F13's DTO has no colours,
+    // gallery or offer flag) start as the source export's empty defaults.
+    image: '',
+    colors: [],
+    variants: [],
+    description: '',
+    isSpecialOffer: false,
   };
 }
 
@@ -386,7 +433,7 @@ function updateProduct(product: fixtures.MockProduct, body: unknown): fixtures.M
     sku: text(data['sku'], product.sku),
     slug: text(data['slug'], product.slug),
     categoryId: text(data['categoryId'], product.categoryId),
-    brandId: text(data['brandId'], product.brandId),
+    brandId: brandRef(data['brandId'], product.brandId),
     price: amount(data['price'], product.price),
     stock: amount(data['stock'], product.stock),
     status: isStatus(data['status']) ? data['status'] : product.status,

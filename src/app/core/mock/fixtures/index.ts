@@ -2,7 +2,7 @@ import type { SessionUser } from '@shared/models/session.model';
 
 import { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
 
-export { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
+export { FIXTURE_NOW, MOCK_BRANDS, MOCK_PRODUCTS } from './products.fixture';
 export type { MockProduct, MockProductStatus } from './products.fixture';
 export type { SessionUser } from '@shared/models/session.model';
 
@@ -25,50 +25,85 @@ const pad = (n: number): string => String(n);
 /** Single clock for every fixture, so generated dates are consistent. */
 const now = FIXTURE_NOW;
 const DAY = 86_400_000;
-const NAMES = [
-  'کیف چرم دستدوز',
-  'کفش ورزشی مردانه',
-  'ساعت هوشمند',
-  'هدفون بیسیم',
-  'عطر زنانه',
-  'کوله پشتی',
-  'عینک آفتابی',
-  'محافظ صفحه',
-  'پاوربانک ۲۰۰۰۰',
-  'کیبورد مکانیکی',
-  'ماوس گیمینگ',
-  'هدست گیمینگ',
-  'شارژر سریع ۶۵ وات',
-  'کابل تایپسی',
-  'اسپیکر بلوتوثی',
-  'موس پد',
-  'لامپ هوشمند',
-  'دوربین تحت شبکه',
-  'هارد اکسترنال',
-  'فلش مموری ۶۴',
-];
 
 /** Generic list generator — enough shape for any table to render. */
 function makeList<T extends Record<string, unknown>>(count: number, build: (i: number) => T): T[] {
   return Array.from({ length: count }, (_, i) => build(i));
 }
 
-export const MOCK_CATEGORIES = makeList(6, (i) => ({
-  id: pad(i + 1),
-  parentId: i === 0 ? null : '1',
-  name: ['لوازم برقی', 'مد و پوشاک', 'خانه و آشپزخانه', 'ورزشی', 'زیبایی', 'کتاب'][i],
-  slug: `category-${i + 1}`,
-  order: i + 1,
-  isActive: true,
-}));
-
-export const MOCK_BRANDS = makeList(5, (i) => ({
-  id: pad(i + 1),
-  name: ['سامسونگ', 'ال جی', 'اپل', 'شیائومی', 'سونی'][i],
-  slug: `brand-${i + 1}`,
-  logo: null,
-  isActive: true,
-}));
+/**
+ * The categories the product export actually references (`pcat-*` ids are the
+ * source's own ids, kept verbatim so `product.categoryId` resolves). The source
+ * carries ids but no names, so the Persian labels are inferred from what each
+ * category sells; the three rows with an empty `categoryId` land in
+ * «بدون دسته‌بندی». Flat on purpose — the export has no hierarchy either.
+ */
+export const MOCK_CATEGORIES = [
+  {
+    id: 'pcat-stationery',
+    parentId: null,
+    name: 'لوازم تحریر',
+    slug: 'stationery',
+    order: 1,
+    isActive: true,
+  },
+  {
+    id: 'pcat-storage',
+    parentId: null,
+    name: 'حافظه و ذخیره‌سازی',
+    slug: 'storage',
+    order: 2,
+    isActive: true,
+  },
+  {
+    id: 'pcat-cables',
+    parentId: null,
+    name: 'کابل و تبدیل',
+    slug: 'cables',
+    order: 3,
+    isActive: true,
+  },
+  {
+    id: 'pcat-mu9z7h08e5pm5',
+    parentId: null,
+    name: 'لوازم جانبی موبایل',
+    slug: 'mobile-accessories',
+    order: 4,
+    isActive: true,
+  },
+  {
+    id: 'pcat-accessories',
+    parentId: null,
+    name: 'لوازم کامپیوتر',
+    slug: 'computer-accessories',
+    order: 5,
+    isActive: true,
+  },
+  {
+    id: 'pcat-muaw2q5j55ern',
+    parentId: null,
+    name: 'باتری',
+    slug: 'batteries',
+    order: 6,
+    isActive: true,
+  },
+  {
+    id: 'pcat-mu9z8q1hpcc7r',
+    parentId: null,
+    name: 'روشنایی',
+    slug: 'lighting',
+    order: 7,
+    isActive: true,
+  },
+  {
+    id: 'pcat-uncategorized',
+    parentId: null,
+    name: 'بدون دسته‌بندی',
+    slug: 'uncategorized',
+    order: 8,
+    isActive: true,
+  },
+];
 
 export const MOCK_ORDERS = makeList(18, (i) => ({
   id: pad(i + 1),
@@ -145,8 +180,10 @@ export const MOCK_BANNERS = makeList(8, (i) => ({
 
 export const MOCK_COMMENTS = makeList(5, (i) => ({
   id: pad(i + 1),
-  productId: pad((i % 3) + 1),
-  productName: NAMES[i % NAMES.length],
+  // Comments hang off real catalogue rows, so a comment's product link is never
+  // a dangling id now that product ids are the export's `pcat`-style strings.
+  productId: MOCK_PRODUCTS[i].id,
+  productName: MOCK_PRODUCTS[i].name,
   userName: ['کاربر مهمان', 'زهرا م.', 'علی ر.', 'مریم ح.', 'رضا ک.'][i],
   body: 'کیفیت محصول خوب بود و سریع ارسال شد. پیشنهاد میکنم.',
   rating: (i % 5) + 1,
