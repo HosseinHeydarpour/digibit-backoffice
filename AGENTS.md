@@ -729,6 +729,41 @@ second toggle — the two systems would then disagree and half the UI would stay
   own syntax and strips the semicolons from Tailwind's `@theme` block. Sass also requires
   every `@use` to come before other rules, so `@use './styles/fonts'` goes first.
 
+### Forms are PrimeNG everywhere, and the pointer cursor is one global rule
+
+Form controls render through PrimeNG, never as bare native elements. The preset owns the
+field chrome (border, background, focus ring, dark mode), so a hand-rolled
+`rounded-lg border …` class string on an input is a second copy of the theme that drifts
+the day the preset changes. `FormField` already follows this; every feature template must
+too.
+
+- **Dropdowns are `p-select`.** A native `<select>` is not allowed — filter bars and
+  page-size pickers included. The established field pattern: `inputId` matching the
+  `<label for>`, `class="w-full"` plus `styleClass="w-full"`, and `appendTo="body"` so the
+  overlay escapes an `overflow-hidden` card. Options are `SelectOption` `{label, value}`
+  objects — and they must be a MUTABLE array; PrimeNG's `[options]` input is typed `any[]`,
+  so a `readonly` one fails template type-checking (TS4104).
+- **A filter that means "everything" declares an explicit «همه …» option with value `''`.**
+  Do not reach for `showClear` instead: its clear button emits `null`, not `''`, and the
+  URL contract drops empty strings, not nulls.
+- **`[ngModel]` inside a `<form>` needs a `name` attribute** (or `ngModelOptions`
+  `{standalone: true}`), or Angular throws NG01352. The filter bar binds `[ngModel]`
+  one-way for the label and acts on `(onChange)` — the URL signal state stays the single
+  writer.
+- **Text inputs carry `pInputText`, textareas `pTextarea`**, and the long
+  border/background/focus class strings are then DELETED, not kept beside the directive.
+  RTL-only concerns stay in the class list (`dir="ltr"`, `text-left`, `font-mono`).
+- **A field with a leading icon uses `p-iconfield` + `p-inputicon`** (the products search
+  box), not an absolutely-positioned `<i>` fighting the theme's padding.
+- **Pointer cursor comes from ONE base-layer rule** in `src/styles/tailwind.css` (`a`,
+  `button:not(:disabled)`, `[role='button']:not([aria-disabled='true'])`, `[role='tab']`).
+  Do not sprinkle `cursor-pointer` utilities per element; disabled controls keep their
+  per-template `disabled:cursor-not-allowed`.
+- **Every new task applies this from the first template it touches**; touching an older
+  page includes converting its controls. PrimeNG test note: the v21 Select puts `inputId`
+  on the label `<span>` itself, so a spec asserts `#id.p-select-label` (same element), and
+  drives values by emitting the component's `onChange` output.
+
 ### Fonts
 
 **Payda** (FaNum variant, Persian digits) lives in `public/fonts/` and is served from the
