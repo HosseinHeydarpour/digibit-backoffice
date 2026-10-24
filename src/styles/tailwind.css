@@ -74,6 +74,28 @@
 }
 
 /* ============================================================================
+   ICONFIELD START PADDING (RTL-safe insurance)
+
+   PrimeNG positions the iconfield's glyph with `inset-inline-start` and opens
+   room for it with `padding-inline-start: calc(...)` over two design-token
+   variables. That CSS is correct and logical-property based, but the padding
+   is one `calc()`: if either variable ever fails to resolve in a runtime, the
+   whole declaration is discarded (invalid at computed-value time) and the
+   padding collapses to 0 — the glyph then sits ON the placeholder, which is
+   what the product-filters search box showed after the pInputText migration.
+
+   This unlayered restatement carries var() FALLBACKS, so it produces the same
+   value while the tokens exist and a sane one if they ever do not. It must
+   stay unlayered and !important to out-rank PrimeNG's runtime-injected rule
+   (unlayered, appended to <head> after this stylesheet).
+   ========================================================================== */
+.p-iconfield > .p-inputtext:not(:first-child) {
+  padding-inline-start: calc(
+    (var(--p-form-field-padding-x, 0.75rem) * 2) + var(--p-icon-size, 1rem)
+  ) !important;
+}
+
+/* ============================================================================
    PRINT / PDF (BO-E06 tc 9)
 
    The panel is a screen application, so the shell is built to fill a viewport:
