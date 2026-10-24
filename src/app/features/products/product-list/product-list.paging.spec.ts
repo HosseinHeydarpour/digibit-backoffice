@@ -1,7 +1,7 @@
 import { EventEmitter } from '@angular/core';
 import type { ComponentFixture } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import type { Page } from '@shared/models';
