@@ -21,6 +21,8 @@ import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
 
 import type { ProductBrandOption, ProductStatus } from '../models/product.model';
+import { createImageArray, revokeImageUrl } from '../product-gallery/gallery-form';
+import { ProductGalleryUploader } from '../product-gallery/product-gallery-uploader';
 import { ProductVariantEditor } from '../product-variants/product-variant-editor';
 import { createVariantArray } from '../product-variants/variant-form';
 import { ProductLookupsService } from '../services/product-lookups.service';
@@ -72,8 +74,8 @@ const STATUS_OPTIONS: SelectOption<ProductStatus>[] = [
  * ------------------------
  * Every tab binds to the SAME `form` object; switching a tab only changes the
  * `activeTab` signal, so a value entered in «اطلاعات اصلی» is still there after
- * a trip to «موجودی» (tc 3). `variants` is a live BO-F10 array; `images` is
- * still a placeholder for BO-F11. Both live on the central group, which is what
+ * a trip to «موجودی» (tc 3). `variants` is the live BO-F10 array and `images`
+ * the live BO-F11 gallery array. Both live on the central group, which is what
  * lets it "cover every tab" (tc 2).
  *
  * TRACE — a user creates «لپ‌تاپ ایسوس»:
@@ -87,9 +89,10 @@ const STATUS_OPTIONS: SelectOption<ProductStatus>[] = [
  *   3. The user picks a category and a price. `next()` validates only the
  *      controls owned by the current tab; an empty name/price keeps the tab open
  *      and marks those controls touched (tc 4).
- *   4. The variants tab hosts the real BO-F10 editor; the gallery tab still
- *      renders a placeholder until BO-F11. The inventory tab edits `stock` and
- *      `lowStockThreshold` on the same group (tc 2/3).
+ *   4. The variants tab hosts the real BO-F10 editor and the gallery tab the
+ *      real BO-F11 uploader — both receive THEIR array from this page and never
+ *      build their own. The inventory tab edits `stock` and `lowStockThreshold`
+ *      on the same group (tc 2/3).
  *   5. The back link or the sidebar triggers `unsavedProductChangesGuard`: if
  *      `form.dirty`, `ConfirmService` asks before leaving (tc 7). A browser
  *      refresh is covered by the `beforeunload` listener.
@@ -108,6 +111,7 @@ const STATUS_OPTIONS: SelectOption<ProductStatus>[] = [
     PageHeader,
     InputText,
     PersianDigitsPipe,
+    ProductGalleryUploader,
     ProductVariantEditor,
     ReactiveFormsModule,
     RouterLink,
@@ -130,9 +134,9 @@ export class ProductCreate {
   /**
    * The central form.
    *
-   * `variants` is a real FormArray with the min-one validator (BO-F10); each
-   * row is its own FormGroup and the editor mutates this same array. `images`
-   * stays empty until BO-F11, but it exists so the payload shape is stable.
+   * `variants` is a real FormArray with the min-one validator (BO-F10) and
+   * `images` a real one without any (a gallery is optional, BO-F11); each row
+   * is its own FormGroup and the tab editors mutate these same arrays.
    */
   readonly form = this.fb.nonNullable.group({
     name: ['', productNameValidator],
@@ -147,7 +151,7 @@ export class ProductCreate {
     lowStockThreshold: [5, nonNegativeNumberValidator],
     status: ['draft' as ProductStatus, Validators.required],
     variants: createVariantArray(this.fb),
-    images: this.fb.array<FormGroup>([]),
+    images: createImageArray(this.fb),
   });
 
   /** Guarantees the FormArray is visible to the template and to BO-F10/F11. */
@@ -231,6 +235,19 @@ export class ProductCreate {
 
         this.form.controls.slug.setValue(slugify(name), { emitEvent: false });
       });
+
+    /**
+     * The gallery rows point at `blob:` object URLs (BO-F11). The PAGE owns the
+     * array, so the PAGE releases them: the gallery panel is an `@if`, and
+     * revoking in the uploader's own destroy hook would kill live previews on
+     * every tab switch. Only `blob:` strings are touched, so BO-F14's server
+     * URLs pass through untouched.
+     */
+    this.destroyRef.onDestroy(() => {
+      for (const group of this.images.controls) {
+        revokeImageUrl(group);
+      }
+    });
   }
 
   /** A manual edit wins over the generated slug (tc 8). */

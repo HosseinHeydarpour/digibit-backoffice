@@ -1,11 +1,13 @@
 import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import type { Observable } from 'rxjs';
 import { of } from 'rxjs';
 
 import type { ProductBrandOption, ProductCategoryOption } from '../models/product.model';
+import { ProductGalleryUploader } from '../product-gallery/product-gallery-uploader';
 import { ProductsService } from '../services/products.service';
 
 import { ProductCreate } from './product-create';
@@ -301,5 +303,55 @@ describe('ProductCreate (BO-F07)', () => {
 
     name.setValue('کیف');
     expect(component.errorFor('name')).toBeNull();
+  });
+
+  it('BO-F11 tc 9: the gallery tab hosts the uploader with both Arino dropzones', async () => {
+    await mount();
+    fillMainTab();
+    await settle();
+
+    (fixture.nativeElement.querySelector('[data-tab="gallery"]') as HTMLButtonElement).click();
+    await settle();
+
+    const panel = fixture.nativeElement.querySelector('#panel-gallery') as HTMLElement;
+    expect(panel.querySelector('app-product-gallery-uploader')).toBeTruthy();
+    expect(panel.querySelector('[data-primary-dropzone]')).toBeTruthy();
+    expect(panel.querySelector('[data-gallery-dropzone]')).toBeTruthy();
+    expect(panel.textContent).toContain('تصویر اصلی');
+    expect(panel.textContent).toContain('تصاویر گالری');
+    expect(panel.textContent).toContain('هنوز تصویری اضافه نشده است');
+  });
+
+  it('BO-F11: rows the uploader adds land on the page-owned images array', async () => {
+    // jsdom has no createObjectURL; the wiring test only needs stable strings.
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn(() => 'blob:wired-1');
+    URL.revokeObjectURL = vi.fn();
+
+    try {
+      await mount();
+      fillMainTab();
+      await settle();
+
+      (fixture.nativeElement.querySelector('[data-tab="gallery"]') as HTMLButtonElement).click();
+      await settle();
+
+      const uploader = fixture.debugElement.query(By.css('app-product-gallery-uploader'));
+      await (uploader.componentInstance as ProductGalleryUploader).addFiles(
+        [new File([new Uint8Array(10)], 'cover.png', { type: 'image/png' })],
+        'gallery',
+      );
+      await settle();
+
+      expect(component.images.length).toBe(1);
+      expect(component.images.at(0).get('url')?.value).toBe('blob:wired-1');
+      expect(component.images.at(0).get('isPrimary')?.value).toBe(true);
+      expect(component.images.at(0).get('alt')?.value).toBe('هدفون سونی - تصویر ۱');
+      expect(component.hasUnsavedChanges()).toBe(true);
+    } finally {
+      URL.createObjectURL = originalCreate;
+      URL.revokeObjectURL = originalRevoke;
+    }
   });
 });

@@ -1,0 +1,249 @@
+<section class="space-y-6" aria-labelledby="gallery-uploader-title">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="min-w-0">
+      <h2 id="gallery-uploader-title" class="text-lg font-bold text-gray-900 dark:text-white">
+        تصاویر محصول
+      </h2>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+        تصویر شاخص، کاور محصول در لیست و صفحهٔ فروشگاه است. تا وقتی محصول ذخیره نشده، فایل‌ها فقط در
+        حافظهٔ مرورگر نگه داشته می‌شوند.
+      </p>
+    </div>
+
+    @if (count() > 0) {
+      <span
+        class="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary dark:bg-primary/15"
+        data-image-count
+      >
+        {{ count() | persianDigits }} از {{ maxImages | persianDigits }} تصویر
+      </span>
+    }
+  </div>
+
+  @if (fileError(); as message) {
+    <p
+      class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300"
+      role="alert"
+      data-gallery-error
+    >
+      {{ message }}
+    </p>
+  }
+
+  <!--
+    The two dropzones are the Arino card's own markup (تصویر اصلی + تصاویر
+    گالری). Both accept files dropped on them; the primary one REPLACES the
+    current cover, the gallery one appends until the 5-slot ceiling.
+  -->
+  <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+    <div>
+      <span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        تصویر اصلی <span class="text-red-500">*</span>
+      </span>
+      <div
+        class="mt-1 flex justify-center rounded-lg border-2 border-dashed border-gray-300 px-6 pb-6 pt-5 dark:border-gray-600"
+        (dragover)="onDropzoneDragOver($event)"
+        (drop)="onDropzoneDrop('primary', $event)"
+        data-primary-dropzone
+      >
+        <div class="space-y-1 text-center">
+          <svg
+            class="mx-auto h-12 w-12 text-gray-400"
+            stroke="currentColor"
+            fill="none"
+            viewBox="0 0 48 48"
+            aria-hidden="true"
+          >
+            <path
+              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <div class="flex flex-wrap justify-center text-sm text-gray-600 dark:text-gray-400">
+            <label
+              for="gallery-main-image"
+              class="relative cursor-pointer rounded-md bg-white font-medium text-primary hover:text-primary/80 dark:bg-gray-800 dark:text-primary"
+            >
+              <span>آپلود تصویر</span>
+              <input
+                id="gallery-main-image"
+                type="file"
+                class="sr-only"
+                accept="image/png,image/jpeg,image/gif"
+                (change)="onPrimarySelected($event)"
+                data-primary-input
+              />
+            </label>
+            <p class="ms-1">یا کشیدن و رها کردن</p>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400">PNG، JPG یا GIF تا ۲ مگابایت</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        تصاویر گالری
+      </span>
+      <div
+        class="mt-1 flex justify-center rounded-lg border-2 border-dashed border-gray-300 px-6 pb-6 pt-5 dark:border-gray-600"
+        (dragover)="onDropzoneDragOver($event)"
+        (drop)="onDropzoneDrop('gallery', $event)"
+        data-gallery-dropzone
+      >
+        <div class="space-y-1 text-center">
+          <svg
+            class="mx-auto h-12 w-12 text-gray-400"
+            stroke="currentColor"
+            fill="none"
+            viewBox="0 0 48 48"
+            aria-hidden="true"
+          >
+            <path
+              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <div class="flex flex-wrap justify-center text-sm text-gray-600 dark:text-gray-400">
+            <label
+              for="gallery-images"
+              class="relative cursor-pointer rounded-md bg-white font-medium text-primary hover:text-primary/80 dark:bg-gray-800 dark:text-primary"
+            >
+              <span>آپلود تصاویر</span>
+              <input
+                id="gallery-images"
+                type="file"
+                class="sr-only"
+                accept="image/png,image/jpeg,image/gif"
+                multiple
+                (change)="onGallerySelected($event)"
+                data-gallery-input
+              />
+            </label>
+            <p class="ms-1">یا کشیدن و رها کردن</p>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            PNG، JPG یا GIF تا ۲ مگابایت (حداکثر {{ maxImages | persianDigits }} تصویر)
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (count() > 0) {
+    <!--
+      `track group` keeps every card's DOM node when a sibling is added,
+      removed or moved — the same focus rule as the variant rows. The whole
+      card is the drag handle on desktop; the buttons below carry the same
+      job for keyboards and touch, which HTML5 drag does not reach.
+    -->
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5" data-image-list>
+      @for (group of rows(); track group; let i = $index) {
+        <article
+          [formGroup]="group"
+          draggable="true"
+          (dragstart)="onCardDragStart(i, $event)"
+          (dragenter)="onCardDragEnter(i)"
+          (dragover)="onCardDragOver($event)"
+          (drop)="onCardDrop(i, $event)"
+          (dragend)="onCardDragEnd()"
+          [attr.data-image-card]="i"
+          class="overflow-hidden rounded-xl border bg-white shadow-sm transition-shadow dark:bg-gray-800"
+          [class]="
+            dragOverIndex() === i
+              ? 'border-primary ring-2 ring-primary'
+              : 'border-gray-200 dark:border-gray-700'
+          "
+        >
+          <div class="relative">
+            <img
+              [src]="group.controls['url'].value"
+              [alt]="altAttribute(i, group)"
+              class="h-32 w-full bg-gray-100 object-cover dark:bg-gray-700"
+              loading="lazy"
+            />
+
+            @if (group.controls['isPrimary'].value) {
+              <span
+                class="absolute start-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-white shadow"
+                data-primary-badge
+              >
+                تصویر شاخص
+              </span>
+            }
+          </div>
+
+          <div class="space-y-2 p-3">
+            <div class="flex items-center justify-between gap-1">
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  (click)="makePrimary(i)"
+                  [disabled]="group.controls['isPrimary'].value"
+                  [attr.aria-label]="'تعیین به‌عنوان تصویر شاخص ' + (i + 1 | persianDigits)"
+                  [title]="'تعیین به‌عنوان تصویر شاخص'"
+                  data-make-primary
+                  class="inline-flex h-8 w-8 max-sm:h-11 max-sm:w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:bg-gray-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  <i class="pi pi-star text-xs" aria-hidden="true"></i>
+                </button>
+
+                <button
+                  type="button"
+                  (click)="moveUp(i)"
+                  [disabled]="i === 0"
+                  [attr.aria-label]="'جابه‌جایی به راست، تصویر ' + (i + 1 | persianDigits)"
+                  [title]="'جابه‌جایی به راست'"
+                  data-move-up
+                  class="inline-flex h-8 w-8 max-sm:h-11 max-sm:w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  <i class="pi pi-chevron-right text-xs" aria-hidden="true"></i>
+                </button>
+
+                <button
+                  type="button"
+                  (click)="moveDown(i)"
+                  [disabled]="i === count() - 1"
+                  [attr.aria-label]="'جابه‌جایی به چپ، تصویر ' + (i + 1 | persianDigits)"
+                  [title]="'جابه‌جایی به چپ'"
+                  data-move-down
+                  class="inline-flex h-8 w-8 max-sm:h-11 max-sm:w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  <i class="pi pi-chevron-left text-xs" aria-hidden="true"></i>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                (click)="remove(i)"
+                [attr.aria-label]="'حذف تصویر ' + (i + 1 | persianDigits)"
+                [title]="'حذف تصویر'"
+                data-remove-image
+                class="inline-flex h-8 w-8 max-sm:h-11 max-sm:w-11 items-center justify-center rounded-lg border border-red-200 text-red-500 transition hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
+              >
+                <i class="pi pi-trash text-xs" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <input
+              type="text"
+              formControlName="alt"
+              [placeholder]="defaultAlt(i)"
+              [attr.aria-label]="'متن جایگزین تصویر ' + (i + 1 | persianDigits)"
+              data-alt-input
+              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+        </article>
+      }
+    </div>
+  } @else {
+    <p class="text-center text-sm text-gray-400 dark:text-gray-500" data-image-empty>
+      هنوز تصویری اضافه نشده است؛ اولین تصویر به‌عنوان کاور انتخاب می‌شود.
+    </p>
+  }
+</section>

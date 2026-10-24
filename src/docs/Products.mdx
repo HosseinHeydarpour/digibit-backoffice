@@ -341,7 +341,7 @@ four tabs share one `FormGroup`; switching only changes `activeTab`, so no value
   `ConfirmService` می‌پرسد. رفرش/بستن مرورگر با `beforeunload` پوشش داده می‌شود (tc 7).
 - **ذخیره:** BO-F13 هنوز POST را ندارد؛ دکمه همهٔ کنترل‌ها را touched می‌کند و اگر فرم
   معتبر باشد پیام «در BO-F13 فعال می‌شود» می‌دهد.
-- **تب‌های بعدی:** واریانت‌ها (F10) و گالری (F11) placeholder دارند؛ موجودی (F12) از همین
+- **تب‌های بعدی:** واریانت‌ها (F10) و گالری (F11) ویرایشگر واقعی دارند؛ موجودی (F12) از همین
   حالا `stock` و `lowStockThreshold` را ویرایش می‌کند.
 
 <a href="?path=/story/features-products-create--default" target="_top">
@@ -470,6 +470,51 @@ SKU (`SONY-1` → `SONY-1-2`), and removal goes through the shared confirmation 
 <a href="?path=/story/features-products-variants--default" target="_top">
   مشاهدهٔ ویرایشگر واریانت در Storybook
 </a>
+
+## گالری تصاویر / Gallery uploader (BO-F11)
+
+تب «گالری تصاویر» همان کارت «تصاویر محصول» قالب آرینو است: دو ناحیهٔ آپلود — **تصویر اصلی** و
+**تصاویر گالری** — که هر دو در یک `FormArray` می‌ریزند. تا وقتی محصول ذخیره نشده، فایل‌ها فقط در
+مرورگر می‌زیند؛ هر ردیف به یک `blob:` object URL اشاره می‌کند و `File` (احتمالاً فشرده‌شده) را
+برای آپلود BO-F13 نگه می‌دارد.
+
+The gallery tab is the Arino card's «تصاویر محصول»: two dropzones — the cover and the gallery —
+feeding one `FormArray`. Until the product is saved the files exist only in the browser; each row
+points at a `blob:` object URL and keeps its (possibly compressed) `File` for BO-F13 to upload.
+
+### رفتارها / Behaviour
+
+- **قواعد فایل از خود آرینو آمده‌اند:** PNG، JPG یا GIF، حداکثر ۲ مگابایت و ۵ تصویر؛
+  `MAX_IMAGES` و `MAX_IMAGE_SIZE` یک‌جا تعریف شده‌اند. فایل غیرتصویری یا بزرگ‌تر از حد، ردیف
+  نمی‌سازد؛ جملهٔ خطا در کادر inline زیر dropzone می‌ماند تا تلاش بعدی آن را برطرف کند.
+- **تصویر شاخص یک پرچم است، نه یک جایگاه:** جابه‌جایی ترتیب، کاور را عوض نمی‌کند. حذف کاور،
+  اولین تصویر بعدی را ارتقا می‌دهد تا «گالری با ردیف اما بدون کاور» ممکن نشود.
+- **چیدمان با drag در دسکتاپ و دکمه در همه‌جا:** `moveImage` تابعی خالص و محافظت‌شده است؛
+  drag فقط لایه‌ای نازک روی همان تابع است و کشیدنِ متن انتخابی inputهای alt، کارت را نمی‌کشد.
+- **فشرده‌سازی best-effort است:** فایل‌های بالای ۱ مگابایت در ۱۹۲۰px و JPEG با کیفیت ۰٫۸۲
+  دوباره encode می‌شوند و هر مسیر شکست، فایل اصلی را برمی‌گرداند. GIF مستثنی است، چون canvas فقط
+  فریم اول را می‌کشد و انیمیشن بی‌صدا از بین می‌رفت.
+- **حذف بدون تأیید است:** برخلاف ردیف واریانت که دادهٔ تایپ‌شده دارد، یک تصویر با یک کلیک
+  دوباره اضافه می‌شود و دیالوگ، اصطکاک بی‌دلیل است.
+- **آزادسازی حافظه دو نقطه دارد:** حذف یا تعویض ردیف، و نابودی صفحهٔ `ProductCreate` — نه
+  سوییچ تب، که uploader را از بین می‌برد اما آرایه را زنده نگه می‌دارد.
+
+<a href="?path=/story/features-products-gallery--default" target="_top">
+  مشاهدهٔ گالری تصاویر در Storybook
+</a>
+
+- **File rules come from Arino:** PNG/JPG/GIF, 2 MB and 5 images, exported once (`MAX_IMAGES`,
+  `MAX_IMAGE_SIZE`). A rejected file never becomes a row; its sentence stays in the inline error
+  box until the next attempt replaces it.
+- **The cover is a flag, not a position:** reordering never changes the cover, and deleting it
+  promotes the first survivor — a coverless gallery is unreachable.
+- **Drag on desktop, buttons everywhere:** `moveImage` is pure and bounds-checked; drag is a thin
+  wrapper that ignores text selections inside the alt inputs.
+- **Compression is best-effort:** files over 1 MB are re-encoded at 1920px / JPEG-0.82 and every
+  failure path returns the original. GIF is exempt because canvas keeps one frame.
+- **Delete asks no confirmation** — unlike a typed variant row, an image is one click to re-add.
+- **Object URLs are freed in two places:** row remove/replace, and the create page's destroy —
+  never the tab switch, which destroys the uploader but keeps the array.
 
 ## حالت‌های صفحه / Page states
 
