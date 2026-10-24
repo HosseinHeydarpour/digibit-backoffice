@@ -384,8 +384,8 @@
               class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-200"
               aria-label="راهنما"
             >
-              واریانت‌ها در همین فرم تعریف می‌شوند. گالری تصاویر در BO-F11 و محاسبهٔ موجودی از روی
-              واریانت‌ها در BO-F12 کامل می‌شود.
+              واریانت‌ها و گالری تصاویر در همین فرم تعریف می‌شوند. محاسبهٔ موجودی از روی واریانت‌ها
+              در BO-F12 کامل می‌شود.
             </section>
           </aside>
         </div>
@@ -405,23 +405,13 @@
 
     @if (activeTab() === 'gallery') {
       <div id="panel-gallery" role="tabpanel" class="p-6">
-        <div
-          class="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center dark:border-gray-600"
-        >
-          <i class="pi pi-images text-3xl text-gray-400" aria-hidden="true"></i>
-          <h2 class="mt-4 text-lg font-bold text-gray-900 dark:text-white">گالری تصاویر</h2>
-          <p class="mx-auto mt-2 max-w-lg text-sm text-gray-500 dark:text-gray-400">
-            آپلود چندتایی، پیش‌نمایش، انتخاب تصویر شاخص و تغییر ترتیب در BO-F11 اضافه می‌شود.
-          </p>
-          <button
-            type="button"
-            disabled
-            class="mt-4 inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-400 dark:border-gray-600 dark:text-gray-500"
-          >
-            <i class="pi pi-upload" aria-hidden="true"></i>
-            آپلود تصویر
-          </button>
-        </div>
+        <!--
+          Same contract as the variant editor: the uploader receives the
+          page-owned `images` array and the product name for the default alt
+          texts. The rows it pushes are part of the central FormGroup, and the
+          page — not the uploader — frees their object URLs on destroy.
+        -->
+        <app-product-gallery-uploader [images]="images" [productName]="form.controls.name.value" />
       </div>
     }
 
