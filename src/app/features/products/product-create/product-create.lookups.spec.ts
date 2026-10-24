@@ -111,20 +111,25 @@ describe('ProductCreate lookups (BO-F09)', () => {
     await mount();
 
     const selects = fixture.debugElement.queryAll(By.directive(Select));
-    expect(selects.length).toBe(2);
+    expect(selects.length).toBe(3);
     expect(selects[0].componentInstance.filter).toBe(true);
     expect(selects[0].componentInstance.filterBy).toBe('path');
     expect(selects[1].componentInstance.filterBy).toBe('name');
+    // The publish-status select is a plain p-select: no local search (the input
+    // is absent, hence falsy), and the form control carries the 'draft' default.
+    expect(selects[2].componentInstance.filter).toBeFalsy();
 
     const hosts = fixture.nativeElement.querySelectorAll('p-select') as NodeListOf<HTMLElement>;
     expect(hosts[0].className).toContain('w-full');
     expect(hosts[1].className).toContain('w-full');
+    expect(hosts[2].className).toContain('w-full');
 
     const labels = fixture.nativeElement.querySelectorAll(
       '.p-select-label',
     ) as NodeListOf<HTMLElement>;
     expect(labels[0].textContent).toContain('انتخاب دسته‌بندی');
     expect(labels[1].textContent).toContain('بدون برند');
+    expect(labels[2].textContent).toContain('پیش‌نویس');
   });
 
   it('tc 3: keeps the brand logo on the option model', async () => {

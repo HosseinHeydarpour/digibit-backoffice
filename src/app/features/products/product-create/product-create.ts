@@ -13,6 +13,7 @@ import type { AbstractControl } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '@core/services/toast';
 import { PageHeader } from '@shared/components/page-header/page-header';
+import type { SelectOption } from '@shared/models';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { PrimeTemplate } from 'primeng/api';
 import { Select } from 'primeng/select';
@@ -52,7 +53,9 @@ const TABS: readonly ProductTab[] = [
   { id: 'inventory', label: 'موجودی', icon: 'pi pi-warehouse' },
 ];
 
-const STATUS_OPTIONS: readonly { value: ProductStatus; label: string }[] = [
+// Mutable array: PrimeNG's `[options]` input is typed `any[]`, and a readonly
+// one fails template type-checking (TS4104).
+const STATUS_OPTIONS: SelectOption<ProductStatus>[] = [
   { value: 'published', label: 'منتشر شده' },
   { value: 'draft', label: 'پیش‌نویس' },
   { value: 'inactive', label: 'غیرفعال' },

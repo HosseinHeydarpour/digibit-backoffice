@@ -1,4 +1,6 @@
+import { EventEmitter } from '@angular/core';
 import type { ComponentFixture } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -126,10 +128,26 @@ describe('ProductList filters (BO-F03)', () => {
     input.dispatchEvent(new Event('input'));
   }
 
-  function choose(selector: string, value: string): void {
-    const select = fixture.nativeElement.querySelector(selector) as HTMLSelectElement;
-    select.value = value;
-    select.dispatchEvent(new Event('change'));
+  /**
+   * The filters are `p-select` components now, not native `<select>` elements:
+   * the test emits the component's `onChange` output — the same event the
+   * template binds — and lets the handler's signal update flow back into the
+   * label through `[ngModel]`.
+   */
+  function choose(id: string, value: string): void {
+    const select = fixture.debugElement.query(By.css(`#${id}`))!.componentInstance as unknown as {
+      onChange: EventEmitter<{ originalEvent: Event; value: unknown }>;
+    };
+    select.onChange.emit({ originalEvent: new Event('change'), value });
+    fixture.detectChanges();
+  }
+
+  /**
+   * The closed select's visible label. In v21 the label `<span>` itself carries
+   * the `inputId`, so the id and the class are the SAME element.
+   */
+  function selectLabel(id: string): string {
+    return fixture.nativeElement.querySelector(`#${id}.p-select-label`)?.textContent?.trim() ?? '';
   }
 
   function lastQuery(): ProductQuery {
@@ -184,11 +202,11 @@ describe('ProductList filters (BO-F03)', () => {
   it('tc 3/5: category and brand combine and both appear in the URL', async () => {
     await mount();
 
-    choose('#filter-category', '3');
+    choose('filter-category', '3');
     await settle();
     expect(lastQuery().categoryId).toBe('3');
 
-    choose('#filter-brand', '5');
+    choose('filter-brand', '5');
     await settle();
 
     expect(lastQuery().categoryId).toBe('3');
@@ -200,7 +218,7 @@ describe('ProductList filters (BO-F03)', () => {
   it('tc 4: the status filter is applied and stored', async () => {
     await mount();
 
-    choose('#filter-status', 'draft');
+    choose('filter-status', 'draft');
     await settle();
 
     expect(lastQuery().status).toBe('draft');
@@ -221,15 +239,9 @@ describe('ProductList filters (BO-F03)', () => {
     expect((fixture.nativeElement.querySelector('#product-search') as HTMLInputElement).value).toBe(
       'هدفون',
     );
-    expect(
-      (fixture.nativeElement.querySelector('#filter-category') as HTMLSelectElement).value,
-    ).toBe('3');
-    expect((fixture.nativeElement.querySelector('#filter-brand') as HTMLSelectElement).value).toBe(
-      '5',
-    );
-    expect((fixture.nativeElement.querySelector('#filter-status') as HTMLSelectElement).value).toBe(
-      'draft',
-    );
+    expect(selectLabel('filter-category')).toBe('لوازم برقی');
+    expect(selectLabel('filter-brand')).toBe('سونی');
+    expect(selectLabel('filter-status')).toBe('پیش‌نویس');
   });
 
   it('tc 7: clearing removes all four keys and returns to the full list', async () => {
@@ -281,12 +293,16 @@ describe('ProductList filters (BO-F03)', () => {
   it('renders the category and brand options from the service', async () => {
     await mount();
 
-    const texts = (selector: string): string[] =>
-      Array.from(fixture.nativeElement.querySelectorAll(`${selector} option`)).map((option) =>
-        (option as HTMLOptionElement).textContent!.trim(),
-      );
+    // The options live on the component instance (the overlay listbox renders
+    // only when open), so the assertion reads the `options` input.
+    const optionLabels = (id: string): string[] => {
+      const select = fixture.debugElement.query(By.css(`#${id}`))!.componentInstance as unknown as {
+        options: readonly { label: string }[];
+      };
+      return select.options.map((option) => option.label);
+    };
 
-    expect(texts('#filter-category')).toEqual(['همه دسته‌ها', 'لوازم برقی', 'صوتی']);
-    expect(texts('#filter-brand')).toEqual(['همه برندها', 'سونی', 'ریزر']);
+    expect(optionLabels('filter-category')).toEqual(['همه دسته‌ها', 'لوازم برقی', 'صوتی']);
+    expect(optionLabels('filter-brand')).toEqual(['همه برندها', 'سونی', 'ریزر']);
   });
 });

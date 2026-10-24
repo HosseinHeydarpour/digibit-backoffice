@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ConfirmService } from '@core/services/confirm';
@@ -15,12 +15,13 @@ import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
-import type { EntityId, Page, SortOrder } from '@shared/models';
+import type { EntityId, Page, SelectOption, SortOrder } from '@shared/models';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
-import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
+import { formatDigits, PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
 import type { MenuItem } from 'primeng/api';
 import { Menu } from 'primeng/menu';
+import { Select } from 'primeng/select';
 import {
   BehaviorSubject,
   catchError,
@@ -140,11 +141,6 @@ const PRODUCT_STATUS_META: Record<
   },
 };
 
-/** Read the selected value out of a native `<select>` change event. */
-function selectValue(event: Event): string {
-  return (event.target as HTMLSelectElement).value;
-}
-
 /**
  * Products list page — `/products` (BO-F02 + BO-F03 + BO-F04).
  *
@@ -187,9 +183,11 @@ function selectValue(event: Event): string {
   selector: 'app-product-list',
   imports: [
     PageHeader,
+    FormsModule,
     ReactiveFormsModule,
     RouterLink,
     Menu,
+    Select,
     PersianDatePipe,
     PersianDigitsPipe,
     TomanPipe,
@@ -377,6 +375,32 @@ export class ProductList {
   ).map((value) => ({ value, label: PRODUCT_STATUS_META[value].label }));
 
   /**
+   * The `p-select` option lists for the filter bar. Each leads with an explicit
+   * «همه …» row carrying value `''` — the same "everything" semantics the native
+   * `<option value="">` had. (`showClear` is no substitute: its clear emits
+   * `null`, and `filtersToQueryParams` drops empty strings, not nulls, by
+   * contract.) Getters, not fields: they read signals and runtime imports, and
+   * the lookup lists can arrive after construction.
+   */
+  get categoryFilterOptions(): SelectOption<string>[] {
+    return [
+      { label: 'همه دسته‌ها', value: '' },
+      ...this.categories().map((category) => ({ label: category.name, value: category.id })),
+    ];
+  }
+
+  get brandFilterOptions(): SelectOption<string>[] {
+    return [
+      { label: 'همه برندها', value: '' },
+      ...this.brands().map((brand) => ({ label: brand.name, value: brand.id })),
+    ];
+  }
+
+  get statusFilterOptions(): SelectOption<string>[] {
+    return [{ label: 'همه وضعیت‌ها', value: '' }, ...this.statusOptions];
+  }
+
+  /**
    * The mobile row-action menu (BO-F06).
    *
    * PrimeNG's popup is appended to `<body>`, so the table's `overflow-x-auto`
@@ -445,6 +469,16 @@ export class ProductList {
     return PAGE_SIZE_OPTIONS;
   }
 
+  /**
+   * The page-size select's options with Persian-digit labels. Same getter rule
+   * as `pageSizeOptions`: `PAGE_SIZE_OPTIONS` is a runtime import reachable from
+   * both the eager spec bundle and the lazy chunk, so a field initialiser is a
+   * hazard.
+   */
+  get pageSizeSelectOptions(): SelectOption<PageSize>[] {
+    return PAGE_SIZE_OPTIONS.map((size) => ({ label: formatDigits(size), value: size }));
+  }
+
   /** Whether the clear button should be enabled and the empty copy should mention filters. */
   readonly hasFilters = computed(() => hasActiveFilters(this.filters()));
 
@@ -487,19 +521,17 @@ export class ProductList {
   }
 
   /** Category select → apply immediately (no debounce; one deliberate choice). */
-  setCategory(event: Event): void {
-    this.applyFilters({ ...this.filters(), category: selectValue(event) });
+  setCategory(category: string): void {
+    this.applyFilters({ ...this.filters(), category });
   }
 
   /** Brand select → apply immediately. */
-  setBrand(event: Event): void {
-    this.applyFilters({ ...this.filters(), brand: selectValue(event) });
+  setBrand(brand: string): void {
+    this.applyFilters({ ...this.filters(), brand });
   }
 
   /** Status select → apply immediately, ignoring an unexpected value. */
-  setStatus(event: Event): void {
-    const status = selectValue(event);
-
+  setStatus(status: string): void {
     if (status === '' || isProductStatus(status)) {
       this.applyFilters({ ...this.filters(), status });
     }
@@ -560,9 +592,7 @@ export class ProductList {
   }
 
   /** Page-size select; the allowed sizes are the closed 10/20/50 union (tc 2). */
-  onPageSizeChange(event: Event): void {
-    const size = Number(selectValue(event));
-
+  onPageSizeChange(size: number): void {
     if (!isPageSize(size)) {
       return;
     }

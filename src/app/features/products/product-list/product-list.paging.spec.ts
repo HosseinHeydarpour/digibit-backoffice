@@ -1,6 +1,7 @@
+import { EventEmitter } from '@angular/core';
 import type { ComponentFixture } from '@angular/core/testing';
-import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import type { Page } from '@shared/models';
@@ -120,10 +121,28 @@ describe('ProductList paging and sort (BO-F04)', () => {
     return fixture.nativeElement.querySelector(`[data-sort="${field}"]`) as HTMLButtonElement;
   }
 
-  function changePageSize(size: string): void {
-    const select = fixture.nativeElement.querySelector('#page-size') as HTMLSelectElement;
-    select.value = size;
-    select.dispatchEvent(new Event('change'));
+  /**
+   * The page size is a `p-select` component now: the test emits the component's
+   * `onChange` output — the same event the template binds — and lets the state
+   * update flow back into the label through `[ngModel]`.
+   */
+  function changePageSize(size: number): void {
+    const select = fixture.debugElement.query(By.css('#page-size'))!
+      .componentInstance as unknown as {
+      onChange: EventEmitter<{ originalEvent: Event; value: unknown }>;
+    };
+    select.onChange.emit({ originalEvent: new Event('change'), value: size });
+    fixture.detectChanges();
+  }
+
+  /**
+   * The closed select's visible label. In v21 the label `<span>` itself carries
+   * the `inputId`, so the id and the class are the SAME element.
+   */
+  function selectLabel(): string {
+    return (
+      fixture.nativeElement.querySelector('#page-size.p-select-label')?.textContent?.trim() ?? ''
+    );
   }
 
   function lastQuery(): ProductQuery {
@@ -147,9 +166,7 @@ describe('ProductList paging and sort (BO-F04)', () => {
     expect(pageButton(1).getAttribute('aria-current')).toBe('page');
     expect(pageButton(2)).toBeTruthy();
     expect(pageButton(3)).toBeTruthy();
-    expect((fixture.nativeElement.querySelector('#page-size') as HTMLSelectElement).value).toBe(
-      '20',
-    );
+    expect(selectLabel()).toBe('۲۰');
 
     expect(footer().textContent).toContain('۱');
     expect(footer().textContent).toContain('۲۰');
@@ -174,7 +191,7 @@ describe('ProductList paging and sort (BO-F04)', () => {
   it('tc 2: changing the page size returns to page 1 and changes the slice', async () => {
     await mount('/products?page=2');
 
-    changePageSize('10');
+    changePageSize(10);
     await settle();
 
     expect(lastQuery()).toMatchObject({ page: 1, pageSize: 10 });
@@ -188,13 +205,11 @@ describe('ProductList paging and sort (BO-F04)', () => {
   it('tc 2: the 50-row size is selectable and reflected in the control', async () => {
     await mount();
 
-    changePageSize('50');
+    changePageSize(50);
     await settle();
 
     expect(lastQuery()).toMatchObject({ page: 1, pageSize: 50 });
-    expect((fixture.nativeElement.querySelector('#page-size') as HTMLSelectElement).value).toBe(
-      '50',
-    );
+    expect(selectLabel()).toBe('۵۰');
     expect(component.items()!.length).toBe(45);
   });
 
@@ -241,9 +256,7 @@ describe('ProductList paging and sort (BO-F04)', () => {
       dir: 'desc',
     });
     expect(pageButton(2).getAttribute('aria-current')).toBe('page');
-    expect((fixture.nativeElement.querySelector('#page-size') as HTMLSelectElement).value).toBe(
-      '10',
-    );
+    expect(selectLabel()).toBe('۱۰');
     expect(component.items()!.length).toBe(10);
   });
 

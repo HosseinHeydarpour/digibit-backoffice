@@ -65,18 +65,18 @@
       >
         دسته‌بندی
       </label>
-      <select
-        id="filter-category"
-        (change)="setCategory($event)"
-        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-      >
-        <option value="" [selected]="filters().category === ''">همه دسته‌ها</option>
-        @for (category of categories(); track category.id) {
-          <option [value]="category.id" [selected]="category.id === filters().category">
-            {{ category.name }}
-          </option>
-        }
-      </select>
+      <p-select
+        inputId="filter-category"
+        name="filter-category"
+        [ngModel]="filters().category"
+        (onChange)="setCategory($event.value)"
+        [options]="categoryFilterOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
     </div>
 
     <div>
@@ -86,18 +86,18 @@
       >
         برند
       </label>
-      <select
-        id="filter-brand"
-        (change)="setBrand($event)"
-        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-      >
-        <option value="" [selected]="filters().brand === ''">همه برندها</option>
-        @for (brand of brands(); track brand.id) {
-          <option [value]="brand.id" [selected]="brand.id === filters().brand">
-            {{ brand.name }}
-          </option>
-        }
-      </select>
+      <p-select
+        inputId="filter-brand"
+        name="filter-brand"
+        [ngModel]="filters().brand"
+        (onChange)="setBrand($event.value)"
+        [options]="brandFilterOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
     </div>
 
     <div>
@@ -107,18 +107,18 @@
       >
         وضعیت
       </label>
-      <select
-        id="filter-status"
-        (change)="setStatus($event)"
-        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-      >
-        <option value="" [selected]="filters().status === ''">همه وضعیت‌ها</option>
-        @for (option of statusOptions; track option.value) {
-          <option [value]="option.value" [selected]="option.value === filters().status">
-            {{ option.label }}
-          </option>
-        }
-      </select>
+      <p-select
+        inputId="filter-status"
+        name="filter-status"
+        [ngModel]="filters().status"
+        (onChange)="setStatus($event.value)"
+        [options]="statusFilterOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
     </div>
 
     <div class="flex items-end">
@@ -464,17 +464,17 @@
             <label for="page-size" class="text-xs text-gray-500 dark:text-gray-400">
               تعداد در صفحه
             </label>
-            <select
-              id="page-size"
-              (change)="onPageSizeChange($event)"
-              class="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
-            >
-              @for (size of pageSizeOptions; track size) {
-                <option [value]="size" [selected]="size === paging().pageSize">
-                  {{ size | persianDigits }}
-                </option>
-              }
-            </select>
+            <p-select
+              inputId="page-size"
+              [ngModel]="paging().pageSize"
+              (onChange)="onPageSizeChange($event.value)"
+              [options]="pageSizeSelectOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              class="w-28 sm:w-auto"
+              styleClass="w-28 sm:w-auto"
+            />
           </div>
 
           <nav class="flex items-center gap-1" aria-label="صفحه‌بندی محصولات">

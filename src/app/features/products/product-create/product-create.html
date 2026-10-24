@@ -332,15 +332,16 @@
                   >
                     وضعیت انتشار
                   </label>
-                  <select
-                    id="product-status"
+                  <p-select
+                    inputId="product-status"
                     formControlName="status"
-                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  >
-                    @for (option of statusOptions; track option.value) {
-                      <option [value]="option.value">{{ option.label }}</option>
-                    }
-                  </select>
+                    [options]="statusOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    appendTo="body"
+                    class="w-full"
+                    styleClass="w-full"
+                  />
                 </div>
 
                 <div>
