@@ -427,7 +427,8 @@ with retry, and full width on a phone. Category options come from the root-scope
 - `filterBy="name"` جستجوی محلی روی نام برند.
 - item/selected template اگر `logo` داشته باشد تصویر کوچک ۲۰px و در غیر این صورت دایرهٔ
   حرف اول را نشان می‌دهد (tc 3).
-- `[showClear]="true"` گزینهٔ «بدون برند» را با پاک‌کردن مقدار فراهم می‌کند.
+- `[showClear]="false"` و یک option واقعی «بدون برند» با `id: ''`؛ کنترل non-nullable می‌ماند و
+  مقدار پاک نمی‌شود.
 
 ### حالت‌ها / States
 
@@ -448,6 +449,27 @@ with retry, and full width on a phone. Category options come from the root-scope
 - **Prefill** relies on `formControlName` + `optionValue="id"`; options arriving later still
   match the current id (tc 5).
 - **Mobile** is full width via `class="w-full"` + `styleClass="w-full"` (tc 7).
+
+## ویرایشگر واریانت / Variant editor (BO-F10)
+
+تب «واریانت‌ها» اکنون یک ویرایشگر کامل است: هر ردیف یک `FormGroup` مستقل با SKU، قیمت، موجودی،
+تصویر اختیاری و فهرست باز ویژگی‌ها. ردیف تازه قیمت پایهٔ محصول را می‌گیرد، «تکرار» یک SKU آزاد
+می‌سازد (`SONY-1` → `SONY-1-2`)، و حذف از دیالوگ تأیید مشترک عبور می‌کند.
+
+The variants tab is now a real editor: one `FormGroup` per row with SKU, price, stock, an optional
+image and an open attribute list. A new row takes the product base price, «تکرار» allocates an unused
+SKU (`SONY-1` → `SONY-1-2`), and removal goes through the shared confirmation dialog.
+
+- **یکتایی SKU دو لایه است:** ولیدیتور همان ردیف، کنترل‌های همسایه را می‌شمارد تا میکروتسک
+  ثبت `formControlName` نشانگر را پاک نکند؛ `syncVariantErrors` بقیهٔ ردیف‌ها را تازه می‌کند.
+- **ویژگی‌ها جفت نام/مقدار هستند:** «رنگ» و «سایز» فقط میان‌برند؛ «ویژگی دلخواه» هر کلیدی را
+  می‌پذیرد. جفت نیمه‌پر خطا می‌دهد و جفت کاملاً خالی مجاز است، نه خطا.
+- **حداقل یک واریانت:** `createVariantArray` ولیدیتور `requiredVariants` را روی خود آرایه می‌گذارد؛
+  «ذخیره» کاربر را به همین تب می‌برد اگر فقط همین مانع باشد.
+
+<a href="?path=/story/features-products-variants--default" target="_top">
+  مشاهدهٔ ویرایشگر واریانت در Storybook
+</a>
 
 ## حالت‌های صفحه / Page states
 

@@ -1,7 +1,7 @@
 import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import type { Observable } from 'rxjs';
 import { of } from 'rxjs';
 
@@ -41,6 +41,7 @@ describe('ProductCreate (BO-F07)', () => {
       providers: [
         { provide: ProductsService, useValue: new ProductsServiceStub() },
         provideRouter([]),
+        ConfirmationService,
         MessageService,
       ],
     }).compileComponents();
@@ -101,9 +102,45 @@ describe('ProductCreate (BO-F07)', () => {
     await settle();
 
     expect(component.activeTab()).toBe('variants');
-    expect(fixture.nativeElement.querySelector('#panel-variants')?.textContent).toContain(
-      'ویرایشگر واریانت',
-    );
+
+    const panel = fixture.nativeElement.querySelector('#panel-variants') as HTMLElement;
+    expect(panel.querySelector('app-product-variant-editor')).toBeTruthy();
+    expect(panel.textContent).toContain('ویرایشگر واریانت');
+    expect(panel.textContent).toContain('هنوز واریانتی اضافه نشده');
+  });
+
+  it('tc 4/6: an empty variants tab is invalid and its first row takes the base price', async () => {
+    await mount();
+    fillMainTab();
+    await settle();
+
+    component.selectTab('variants');
+    await settle();
+
+    const panel = fixture.nativeElement.querySelector('#panel-variants') as HTMLElement;
+
+    expect(component.form.controls.variants.length).toBe(0);
+    expect(component.form.controls.variants.hasError('requiredVariants')).toBe(true);
+
+    (panel.querySelector('app-empty-state button') as HTMLButtonElement).click();
+    await settle();
+
+    expect(component.form.controls.variants.length).toBe(1);
+    expect(component.form.controls.variants.at(0).get('price')?.value).toBe(2_100_000);
+    expect(component.form.controls.variants.hasError('requiredVariants')).toBe(false);
+    expect(panel.querySelectorAll('app-product-variant-row').length).toBe(1);
+  });
+
+  it('tc 11: saving a valid main tab opens the variants tab when that is what blocks it', async () => {
+    await mount();
+    fillMainTab();
+    await settle();
+
+    component.save();
+    await settle();
+
+    expect(component.form.controls.variants.hasError('requiredVariants')).toBe(true);
+    expect(component.activeTab()).toBe('variants');
   });
 
   it('tc 3: a value entered on the main tab survives a trip to another tab', async () => {

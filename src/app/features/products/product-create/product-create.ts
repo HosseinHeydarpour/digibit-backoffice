@@ -18,6 +18,8 @@ import { PrimeTemplate } from 'primeng/api';
 import { Select } from 'primeng/select';
 
 import type { ProductBrandOption, ProductStatus } from '../models/product.model';
+import { ProductVariantEditor } from '../product-variants/product-variant-editor';
+import { createVariantArray } from '../product-variants/variant-form';
 import { ProductLookupsService } from '../services/product-lookups.service';
 
 import { buildCategoryOptions } from './category-options';
@@ -65,9 +67,9 @@ const STATUS_OPTIONS: readonly { value: ProductStatus; label: string }[] = [
  * ------------------------
  * Every tab binds to the SAME `form` object; switching a tab only changes the
  * `activeTab` signal, so a value entered in «اطلاعات اصلی» is still there after
- * a trip to «موجودی» (tc 3). The `variants` and `images` FormArrays are created
- * now even though BO-F10/F11 fill them, which is what lets the central group
- * "cover every tab" (tc 2).
+ * a trip to «موجودی» (tc 3). `variants` is a live BO-F10 array; `images` is
+ * still a placeholder for BO-F11. Both live on the central group, which is what
+ * lets it "cover every tab" (tc 2).
  *
  * TRACE — a user creates «لپ‌تاپ ایسوس»:
  *
@@ -80,8 +82,9 @@ const STATUS_OPTIONS: readonly { value: ProductStatus; label: string }[] = [
  *   3. The user picks a category and a price. `next()` validates only the
  *      controls owned by the current tab; an empty name/price keeps the tab open
  *      and marks those controls touched (tc 4).
- *   4. The variants/gallery tabs render placeholders; the inventory tab edits
- *      `stock` and `lowStockThreshold` on the same group (tc 2/3).
+ *   4. The variants tab hosts the real BO-F10 editor; the gallery tab still
+ *      renders a placeholder until BO-F11. The inventory tab edits `stock` and
+ *      `lowStockThreshold` on the same group (tc 2/3).
  *   5. The back link or the sidebar triggers `unsavedProductChangesGuard`: if
  *      `form.dirty`, `ConfirmService` asks before leaving (tc 7). A browser
  *      refresh is covered by the `beforeunload` listener.
@@ -96,7 +99,15 @@ const STATUS_OPTIONS: readonly { value: ProductStatus; label: string }[] = [
  */
 @Component({
   selector: 'app-product-create',
-  imports: [PageHeader, ReactiveFormsModule, RouterLink, PersianDigitsPipe, Select, PrimeTemplate],
+  imports: [
+    PageHeader,
+    PersianDigitsPipe,
+    ProductVariantEditor,
+    ReactiveFormsModule,
+    RouterLink,
+    Select,
+    PrimeTemplate,
+  ],
   templateUrl: './product-create.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -110,8 +121,11 @@ export class ProductCreate {
   private readonly destroyRef = inject(DestroyRef);
 
   /**
-   * The central form. The `variants`/`images` arrays are deliberately empty
-   * until BO-F10/F11; they exist so the shape of the payload is stable now.
+   * The central form.
+   *
+   * `variants` is a real FormArray with the min-one validator (BO-F10); each
+   * row is its own FormGroup and the editor mutates this same array. `images`
+   * stays empty until BO-F11, but it exists so the payload shape is stable.
    */
   readonly form = this.fb.nonNullable.group({
     name: ['', productNameValidator],
@@ -125,7 +139,7 @@ export class ProductCreate {
     stock: [0, nonNegativeNumberValidator],
     lowStockThreshold: [5, nonNegativeNumberValidator],
     status: ['draft' as ProductStatus, Validators.required],
-    variants: this.fb.array<FormGroup>([]),
+    variants: createVariantArray(this.fb),
     images: this.fb.array<FormGroup>([]),
   });
 
@@ -278,6 +292,13 @@ export class ProductCreate {
     this.form.markAllAsTouched();
 
     if (this.form.invalid) {
+      // The user may be on «اطلاعات اصلی» while the only problem is an empty
+      // variants tab. Move them to the tab that actually blocks the save, but
+      // never skip a broken main tab to do it.
+      if (this.isTabValid('main') && this.form.controls.variants.invalid) {
+        this.activeTab.set('variants');
+      }
+
       this.toast.info('لطفاً خطاهای فرم را برطرف کنید.');
       return;
     }
