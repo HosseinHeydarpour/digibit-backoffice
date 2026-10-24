@@ -438,8 +438,8 @@ and its `data`. Every feature page after it follows that shape.
 
 - **One `FormGroup`, four tabs.** `ProductCreate.form` owns every field and both `FormArray`s
   (`variants`, `images`); switching `activeTab` never swaps a control. Inventory edits `stock`/
-  `lowStockThreshold` now; variants/gallery are placeholders until BO-F10/F11, but the arrays
-  already exist so the payload shape is stable.
+  `lowStockThreshold` now; `variants` is the BO-F10 editor and `images` is a placeholder until
+  BO-F11, but both arrays live on the central group so the payload shape is stable.
 - **Tab validation is per-tab.** `next()`/`selectTab()` validate only the controls the current tab
   owns and `markAsTouched` them; an invalid main tab cannot be skipped (tc 4). BO-F08 adds the
   complete validator set.
@@ -503,6 +503,35 @@ and its `data`. Every feature page after it follows that shape.
 - **Prefill is the form's value, not a component field.** `formControlName` + `optionValue="id"`
   means an id set before the options arrive still selects the right row (tc 5); F14 reuses this on
   the edit page.
+
+### Variant editor: one array, one row component (BO-F10)
+
+- **The page owns the array, the editor mutates it.** `ProductCreate.form.controls.variants` is a
+  `FormArray<FormGroup>` built by `createVariantArray` (which attaches `atLeastOneVariantValidator`).
+  `ProductVariantEditor` takes it as a required input and never creates a second array, so every row
+  is already in the payload when BO-F13 reads the form.
+- **A row is its own component.** `ProductVariantRow` receives `[group]` and `[index]`; the editor
+  only handles add/duplicate/remove. The row owns its nested attributes array.
+- **Two pieces enforce SKU uniqueness.** `variantSkuValidator` counts sibling values, so a
+  `formControlName` registration microtask (which calls `updateValueAndValidity`) cannot erase the
+  marker; `syncVariantErrors` re-scans the whole array on every value change to refresh the row
+  Angular did not re-validate. The same split applies to duplicate attribute keys. Comparison is
+  trimmed and case-insensitive.
+- **`rows` must return a fresh array.** `FormArray.controls` is the same mutable array; returning it
+  from a `computed` makes `Object.is` say “unchanged” and the `@for` never re-renders. `rows` returns
+  `[...controls]` and depends on a `version` signal bumped by the array subscription.
+- **Base price seeds new rows, never old ones.** `add()`/`duplicate()` read `basePrice()`; an
+  existing row's price is data and is not rewritten when the main tab changes (tc 4).
+- **Removal goes through `ConfirmService`.** The row emits `remove`; the editor awaits the shared
+  dialog, re-checks `at(index) === group` after the await, then calls `removeAt`. The label prefers
+  the SKU and falls back to the row number.
+- **Attributes are open key/value pairs.** `createAttributeGroup` validates a pair only when one half
+  is filled; `variantAttributes()` skips empty/half pairs and turns the array into
+  `ProductVariantInput.attributes`. Duplicate keys are rejected because the payload is a record.
+- **`track group`, not `$index`.** Existing rows keep their DOM node when another is inserted or
+  removed, so focus survives (tc 9).
+- **`variantsPayload()` is the F13 boundary.** It coerces cleared numeric inputs to 0 and `''` image
+  URLs to `null`; F13 should send its result, not raw form values.
 
 ### Sales chart and Chart.js testing (BO-E03)
 

@@ -377,8 +377,8 @@
               class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-200"
               aria-label="راهنما"
             >
-              بعد از ذخیرهٔ محصول می‌توانید واریانت‌ها، گالری و موجودی را کامل کنید. این بخش‌ها در
-              تسک‌های بعدی فعال می‌شوند.
+              واریانت‌ها در همین فرم تعریف می‌شوند. گالری تصاویر در BO-F11 و محاسبهٔ موجودی از روی
+              واریانت‌ها در BO-F12 کامل می‌شود.
             </section>
           </aside>
         </div>
@@ -387,19 +387,12 @@
 
     @if (activeTab() === 'variants') {
       <div id="panel-variants" role="tabpanel" class="p-6">
-        <div
-          class="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center dark:border-gray-600"
-        >
-          <i class="pi pi-box text-3xl text-gray-400" aria-hidden="true"></i>
-          <h2 class="mt-4 text-lg font-bold text-gray-900 dark:text-white">واریانت‌های محصول</h2>
-          <p class="mx-auto mt-2 max-w-lg text-sm text-gray-500 dark:text-gray-400">
-            ویرایشگر واریانت در BO-F10 اضافه می‌شود. ساختار FormArray از همین حالا در فرم مرکزی
-            آماده است.
-          </p>
-          <p class="mt-3 text-xs text-gray-400 dark:text-gray-500">
-            تعداد فعلی: {{ variants.length | persianDigits }} ردیف
-          </p>
-        </div>
+        <!--
+          The editor receives the page-owned FormArray. It does not create a
+          second one, so every row is already part of the central FormGroup when
+          the wizard validates this tab or BO-F13 builds the payload.
+        -->
+        <app-product-variant-editor [variants]="variants" [basePrice]="form.controls.price.value" />
       </div>
     }
 
