@@ -53,6 +53,27 @@
 }
 
 /* ============================================================================
+   POINTER CURSOR (project standard, see AGENTS.md)
+
+   Every clickable control shows the hand cursor: links, buttons, tabs. The
+   browser default is an arrow on <button> and a hand only on real <a href>,
+   which made the two feel inconsistent across the panel. ONE base-layer rule
+   owns this — do not sprinkle cursor-pointer utilities on individual elements
+   and do not re-declare the rule per component.
+
+   `:not(:disabled)` leaves disabled controls to the per-template
+   `disabled:cursor-not-allowed` utilities (and the browser's default arrow).
+   ========================================================================== */
+@layer base {
+  a,
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'] {
+    cursor: pointer;
+  }
+}
+
+/* ============================================================================
    PRINT / PDF (BO-E06 tc 9)
 
    The panel is a screen application, so the shell is built to fill a viewport:
