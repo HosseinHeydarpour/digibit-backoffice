@@ -27,6 +27,13 @@ import { MENU_PERMISSIONS } from './layout/sidebar/menu';
  * Every PrimeNG component reads `--p-primary-*` from this, so the brand orange
  * reaches buttons, tables and focus rings without any per-component overrides.
  * The value matches `--color-primary` in src/styles/tailwind.css.
+ *
+ * The dark `formField.background` override exists because Aura's dark scheme
+ * paints fields with `{surface.950}` (near-black #020617), which reads as a
+ * black hole on the project's #1e293b dark cards. The project palette is
+ * slate, so the field sits on slate-700 — the same tone the pre-PrimeNG inputs
+ * carried as `dark:bg-gray-700`. Light mode keeps Aura's `{surface.0}`; every
+ * other form-field token (borders, placeholder, focus) is untouched.
  */
 const DigibitPreset = definePreset(Aura, {
   semantic: {
@@ -42,6 +49,13 @@ const DigibitPreset = definePreset(Aura, {
       800: '#8c4a1a',
       900: '#6b3814',
       950: '#3d1f0a',
+    },
+    colorScheme: {
+      dark: {
+        formField: {
+          background: '#334155',
+        },
+      },
     },
   },
 });
