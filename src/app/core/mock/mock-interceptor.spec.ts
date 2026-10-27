@@ -297,4 +297,49 @@ describe('mockInterceptor', () => {
     expect(error.error.error.fields.name[0]).toBe('نام محصول الزامی است.');
     expect(error.error.error.fields.sku[0]).toContain('قبلاً');
   });
+  it('rejects a duplicate slug on UPDATE but accepts the product own values', async () => {
+    const ids = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 2 },
+      }),
+    );
+
+    const detail = (id: string) =>
+      firstValueFrom(
+        http.get<ApiResponse<Record<string, unknown> & { slug: string }>>(
+          `/api/v1/products/${id}`,
+          {
+            headers: { [MOCK_HEADER]: '1' },
+          },
+        ),
+      );
+
+    const first = (await detail(ids.data[0].id)).data;
+    const second = (await detail(ids.data[1].id)).data;
+
+    // Resending its own slug is not a duplicate (BO-F14 tc 10).
+    const own = await firstValueFrom(
+      http.put<ApiResponse<{ slug: string }>>(`/api/v1/products/${ids.data[0].id}`, first, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(own.data.slug).toBe(first.slug);
+
+    // Taking another product's slug is (BO-F14 tc 13).
+    const clash = await firstValueFrom(
+      http
+        .put<HttpErrorResponse>(
+          `/api/v1/products/${ids.data[0].id}`,
+          { ...first, slug: second.slug },
+          {
+            headers: { [MOCK_HEADER]: '1' },
+          },
+        )
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+
+    expect(clash.status).toBe(422);
+    expect(clash.error.error.fields.slug[0]).toContain('قبلاً');
+  });
 });

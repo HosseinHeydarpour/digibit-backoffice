@@ -211,7 +211,7 @@ function resolveProducts(
 ): MockResolution {
   if (!id) {
     if (method === 'POST') {
-      const rejected = validateNewProduct(body);
+      const rejected = validateProduct(body);
 
       if (rejected) {
         return rejected;
@@ -239,6 +239,14 @@ function resolveProducts(
   }
 
   if (method === 'PUT' || method === 'PATCH') {
+    // BO-F14: an update carries a slug too, so the same uniqueness rules apply —
+    // skipping the product being edited, which owns its own slug and SKU.
+    const rejected = validateProduct(body, found.id);
+
+    if (rejected) {
+      return rejected;
+    }
+
     return ok(toProduct(updateProduct(found, body)), 'محصول به‌روزرسانی شد.');
   }
 
@@ -292,7 +300,8 @@ function brandName(id: string): string {
 }
 
 /**
- * The 422 a real `POST /products` answers when the payload is wrong (BO-F13 tc 3).
+ * The 422 a real product endpoint answers when the payload is wrong (BO-F13 tc 3,
+ * BO-F14 tc 13).
  *
  * Three rules are enough to make the form's error mapping demonstrable, and they
  * are the three a user actually hits: no name, a slug already in the catalogue,
@@ -300,15 +309,20 @@ function brandName(id: string): string {
  * banner) and each field in `error.fields` (the control), which is exactly the
  * envelope `ApiError` was built from.
  *
+ * `selfId` is the product being UPDATED: it owns its current slug and SKU, so an
+ * edit that resends them unchanged is not a duplicate. Without it, every save on
+ * the edit page would 422 on its own values.
+ *
  * TRACE: `{ name: '', slug: 'product-1', sku: 'SKU-1001' }` →
  *   `{ error: { code: 'VALIDATION', message: 'اطلاعات محصول معتبر نیست.',
  *               fields: { name: ['…'], slug: ['…'], sku: ['…'] } } }` with 422.
  */
-function validateNewProduct(body: unknown): MockResolution | null {
+function validateProduct(body: unknown, selfId?: string): MockResolution | null {
   const data = asRecord(body);
   const slug = text(data['slug'], '');
   const sku = text(data['sku'], '');
   const fields: Record<string, string[]> = {};
+  const others = fixtures.MOCK_PRODUCTS.filter((product) => product.id !== selfId);
 
   if (text(data['name'], '') === '') {
     fields['name'] = ['نام محصول الزامی است.'];
@@ -316,11 +330,11 @@ function validateNewProduct(body: unknown): MockResolution | null {
 
   if (slug === '') {
     fields['slug'] = ['نامک (slug) الزامی است.'];
-  } else if (fixtures.MOCK_PRODUCTS.some((product) => product.slug === slug)) {
+  } else if (others.some((product) => product.slug === slug)) {
     fields['slug'] = ['این نامک قبلاً استفاده شده است.'];
   }
 
-  if (sku !== '' && fixtures.MOCK_PRODUCTS.some((product) => product.sku === sku)) {
+  if (sku !== '' && others.some((product) => product.sku === sku)) {
     fields['sku'] = ['این کد محصول قبلاً ثبت شده است.'];
   }
 
