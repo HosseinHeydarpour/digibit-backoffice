@@ -111,6 +111,15 @@ export interface ProductListItem {
    * running out. The API owns the number; the table only compares.
    */
   readonly lowStockThreshold: number;
+  /**
+   * How many sellable variants the product has (BO-F15).
+   *
+   * The delete dialog needs it: deleting a product takes its variants with it,
+   * so the user is told how many before confirming. Zero is a real answer (a
+   * simple product), which is why the field is required and the dialog branches
+   * on it instead of treating a missing count as "none".
+   */
+  readonly variantsCount: number;
   readonly status: ProductStatus;
   /** Epoch ms — the table formats it through `persianDate`. */
   readonly createdAt: number;

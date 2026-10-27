@@ -634,6 +634,28 @@ form that fills in later.
 
 <Canvas of={ProductCreateStories.Edit} />
 
+## حذف محصول / Deleting a product (BO-F15)
+
+حذف نرم است: رکورد در سمت سرور می‌ماند اما هیچ خوانشی آن را برنمی‌گرداند. در پنل، دکمهٔ «حذف»
+همان دیالوگ قرمز را باز می‌کند (BO-F06) و حالا تعداد واریانت‌ها را هم می‌گوید: حذف محصول،
+واریانت‌هایش را هم از فروش خارج می‌کند.
+
+Deleting is soft: the record stays on the server and every read hides it. In the panel, «حذف» opens
+the same red dialog as BO-F06 and now names the variant count — deleting a product takes its
+variants off sale with it.
+
+- **تعداد از خودِ ردیف می‌آید.** `variantsCount` روی `ProductListItem` است، پس دیالوگ بدون
+  درخواست اضافه باز می‌شود. صفر یعنی محصول ساده است و جملهٔ ساده‌تری می‌آید، نه «۰ واریانت».
+- **لغو، هیچ کاری نمی‌کند.** `confirm` که `false` بدهد، نه overlay، نه درخواست، نه toast (tc 2).
+- **ردیف قبل از پاسخ می‌رود.** `removedIds` ردیف را فوری حذف می‌کند و اگر API رد کند برمی‌گردد
+  (tc 3/4)؛ toast موفقیت فقط بعد از پاسخ سرور.
+- **mock هم حذف نرم را بلد است.** `DELETE` شناسه را در یک `Set` نگه می‌دارد، لیست و جزئیات آن را
+  از آن به بعد برنمی‌گردانند و `resetMockDeleted()` برای تست‌ها آن را پاک می‌کند (tc 8).
+- **بازیابی ادمین طراحی نشده** و در این تسک انجام نشد (tc 9 مشروط است)، چون ستون/فیلتر
+  «حذف‌شده‌ها» در قرارداد API نیست.
+
+<Canvas of={ProductListStories.Default} />
+
 ## حالت‌های صفحه / Page states
 
 سه حالت غیر دادهٔ صفحه: در حال بارگذاری، خالی و خطا. هر سه از یک `state()` می‌آیند و

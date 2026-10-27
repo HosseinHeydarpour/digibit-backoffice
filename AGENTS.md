@@ -606,6 +606,24 @@ and its `data`. Every feature page after it follows that shape.
   baseline (`markAsPristine` + `hasChanges = false`), so a re-save without changes is legal (tc 10)
   and leaving does not ask about stored edits.
 
+### Deleting a product (BO-F15)
+
+- **Soft delete, and the mock knows it.** `DELETE /products/:id` keeps the fixture and adds the id
+  to a module-level `DELETED_IDS` set; `filterProducts` and the detail lookup skip it. Without that,
+  the optimistic row came back on the very next refetch and the feature could not be seen at all.
+  `resetMockDeleted()` is the test seam, called in the mock spec's `beforeEach` so one test cannot
+  hide a product from the next.
+- **The dialog names the variant count.** `ProductListItem.variantsCount` is computed from the
+  export's REAL variants (`toVariants()` fabricates a placeholder row, and warning about an invented
+  one would be a lie). Zero gets the plain sentence instead of «۰ واریانت» (tc 7).
+- **Cancel is a true no-op.** `confirm` resolving false returns before the overlay, the request and
+  the toast (tc 2).
+- **The row leaves before the answer arrives and comes back on failure.** `removedIds` is the
+  optimistic overlay; the success toast fires only after the server agrees (tc 3/4/5).
+- **A missing id on delete is a 404**, mapped to `ApiError` like any other failure (tc 10).
+- **Restore is out of scope.** tc 9 is conditional ("if designed"); there is no deleted-products
+  list in the API contract, so no restore column was invented.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

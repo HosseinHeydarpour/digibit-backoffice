@@ -226,11 +226,14 @@ function resolveProducts(
   // `/products/new` is a form route, not a record; the create screen only needs
   // a blank-ish shape to bind. Keep the old behaviour for compatibility.
   const found = id === 'new' ? fixtures.MOCK_PRODUCTS[0] : byId(fixtures.MOCK_PRODUCTS, id);
-  if (!found) {
+  if (!found || DELETED_IDS.has(found.id)) {
     return NOT_FOUND;
   }
 
   if (method === 'DELETE') {
+    // Soft delete: the row stays in the fixture, every read starts hiding it.
+    DELETED_IDS.add(found.id);
+
     return ok({ id: found.id }, 'محصول حذف شد.');
   }
 
@@ -271,6 +274,7 @@ function filterProducts(params: ParamReader): Record<string, unknown>[] {
     const haystack = `${product.name} ${product.slug} ${product.sku}`.toLowerCase();
 
     return (
+      !DELETED_IDS.has(product.id) &&
       (text === '' || haystack.includes(text)) &&
       (categoryId === null || product.categoryId === categoryId) &&
       (brandId === null || product.brandId === brandId) &&
@@ -362,9 +366,40 @@ function toListItem(product: fixtures.MockProduct): Record<string, unknown> {
     price: product.price,
     stock: product.stock,
     lowStockThreshold: product.lowStockThreshold,
+    // The REAL variants of the export; `toVariants()` fabricates one row for a
+    // variant-less product, and warning about that invented row would be a lie.
+    variantsCount: product.variants.length,
     status: product.status,
     createdAt: product.createdAt,
   };
+}
+
+/**
+ * Ids soft-deleted this session (BO-F15).
+ *
+ * The API soft-deletes: the record stays in the table but every read hides it.
+ * A mock that answers DELETE with 200 and then keeps returning the row cannot
+ * demonstrate the feature at all — the optimistic row came back on the refetch.
+ * The set is deliberately module-level (one browser session = one mock backend)
+ * and is cleared by `resetMockDeleted()` for tests, so one spec cannot leak a
+ * deleted product into the next.
+ *
+ * TRACE — `DELETE /products/mvdx…` on «طلق و شیرازه»:
+ *
+ *   1. `resolveProducts` finds the fixture, `found.id` is not in the set yet.
+ *   2. `DELETED_IDS.add(found.id)`; the response is 200 `{ data: { id } }`.
+ *   3. The list's refetch calls `filterProducts`, whose `!DELETED_IDS.has(id)`
+ *      drops the row, so `total` shrinks by one and the row cannot come back.
+ *   4. `GET /products/mvdx…` now answers 404 (the `found || deleted` check), which
+ *      is what the edit route's resolver turns into the 404 page.
+ *   5. `resetMockDeleted()` in a spec's `beforeEach` empties the set, so the next
+ *      spec sees the full catalogue again.
+ */
+const DELETED_IDS = new Set<string>();
+
+/** Test seam: forget every soft delete this session. */
+export function resetMockDeleted(): void {
+  DELETED_IDS.clear();
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */

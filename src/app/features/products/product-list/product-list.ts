@@ -712,11 +712,23 @@ export class ProductList {
   }
 
   /**
-   * حذف — a dangerous confirm, an optimistic row removal, and a rollback.
+   * حذف — a dangerous confirm that names the variants, an optimistic row
+   * removal, and a rollback (BO-F06 + BO-F15).
    *
-   * The row disappears and the footer total drops by one immediately; on error
-   * the id is removed from the overlay and the row returns (tc 4, tc 7). The
-   * confirm is `danger: true`, which routes it to the red dialog.
+   * TRACE — «هدفون سونی» with 3 variants:
+   *
+   *   1. `ConfirmService.confirm` asks
+   *      «محصول «هدفون سونی» و ۳ واریانت آن حذف شوند؟ این عمل قابل بازگشت نیست.»
+   *      (tc 7). Cancel resolves false and NOTHING happens: no overlay, no
+   *      request, no toast (tc 2).
+   *   2. Accept → the id enters `removedIds`, so the row leaves the table and the
+   *      footer total drops by one before the request (tc 3).
+   *   3. `DELETE /products/:id` answers 200 → success toast + refetch. The mock
+   *      soft-deletes, so the refetched page no longer contains the row and
+   *      `reconcileOptimistic` drops the overlay (tc 8).
+   *   4. A rejection removes the id from the overlay, which puts the row back
+   *      exactly where it was (tc 4). No toast here: the interceptor already
+   *      reported the failure (F06's one-message rule).
    */
   async removeProduct(product: ProductListItem): Promise<void> {
     if (!this.canManage()) {
@@ -724,7 +736,12 @@ export class ProductList {
     }
 
     const confirmed = await this.confirm.confirm({
-      message: `محصول «${product.name}» حذف شود؟ این عمل قابل بازگشت نیست.`,
+      // The count is the product's own; a simple product gets the plain sentence
+      // instead of a «۰ واریانت» that reads like a database field (tc 7).
+      message:
+        product.variantsCount > 0
+          ? `محصول «${product.name}» و ${formatDigits(product.variantsCount)} واریانت آن حذف شوند؟ این عمل قابل بازگشت نیست.`
+          : `محصول «${product.name}» حذف شود؟ این عمل قابل بازگشت نیست.`,
       header: 'حذف محصول',
       acceptLabel: 'حذف',
       danger: true,

@@ -18,6 +18,7 @@ const LIST_ITEM: ProductListItem = {
   price: 2_100_000,
   stock: 12,
   lowStockThreshold: 5,
+  variantsCount: 0,
   status: 'published',
   createdAt: 1728969600000,
 };
@@ -268,5 +269,20 @@ describe('ProductsService (BO-F05)', () => {
     });
 
     expect(await resultPromise).toEqual([{ id: '5', name: 'سونی', isActive: true }]);
+  });
+  it('BO-F15 tc 10: a delete on a missing id surfaces the API 404', async () => {
+    const resultPromise = firstValueFrom(service.remove('does-not-exist'));
+
+    httpMock
+      .expectOne((request) => request.url.endsWith('/products/does-not-exist'))
+      .flush(
+        { error: { code: 'NOT_FOUND', message: 'موردی با این شناسه یافت نشد.' } },
+        { status: 404, statusText: 'Not Found' },
+      );
+
+    const error = await resultPromise.catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(404);
   });
 });

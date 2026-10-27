@@ -31,6 +31,7 @@ const ROWS: ProductListItem[] = [
     price: 2_100_000,
     stock: 12,
     lowStockThreshold: 5,
+    variantsCount: 3,
     status: 'published',
     createdAt: 1728969600000,
   },
@@ -43,6 +44,7 @@ const ROWS: ProductListItem[] = [
     price: 1_850_000,
     stock: 0,
     lowStockThreshold: 5,
+    variantsCount: 0,
     status: 'draft',
     createdAt: 1728883200000,
   },
@@ -219,6 +221,17 @@ describe('ProductList row actions (BO-F06)', () => {
     expect(service.removeCalls).toEqual(['p-1']);
     expect(component.items()!.map((item) => item.id)).toEqual(['p-2']);
     expect(component.total()).toBe(1);
+  });
+
+  it('BO-F15 tc 7: the delete dialog names the variant count, or omits it at zero', async () => {
+    await mount();
+
+    await component.removeProduct(service.rows[0]); // variantsCount: 3
+    expect(confirm.calls[0].message).toContain('۳ واریانت');
+
+    await component.removeProduct(service.rows[1]); // variantsCount: 0
+    expect(confirm.calls[1].message).not.toContain('واریانت');
+    expect(confirm.calls[1].message).toContain('حذف شود؟');
   });
 
   it('tc 5/7: a failed status request rolls the pill back to the server value', async () => {

@@ -10,13 +10,17 @@ import { environment } from '@env/environment';
 import type { ApiResponse, PageMeta } from '@shared/models';
 import { catchError, firstValueFrom, of } from 'rxjs';
 
-import { MOCK_HEADER, mockInterceptor } from './mock-interceptor';
+import { MOCK_HEADER, mockInterceptor, resetMockDeleted } from './mock-interceptor';
 
 describe('mockInterceptor', () => {
   let http: HttpClient;
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
+    // The soft-delete set is module state: one spec must not hide a product
+    // from the next (BO-F15).
+    resetMockDeleted();
+
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([mockInterceptor])),
@@ -341,5 +345,51 @@ describe('mockInterceptor', () => {
 
     expect(clash.status).toBe(422);
     expect(clash.error.error.fields.slug[0]).toContain('قبلاً');
+  });
+  it('soft-deletes a product: every read hides it afterwards (BO-F15)', async () => {
+    const list = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 1 },
+      }),
+    );
+
+    const id = list.data[0].id;
+
+    const deleted = await firstValueFrom(
+      http.delete<ApiResponse<{ id: string }>>(`/api/v1/products/${id}`, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(deleted.data.id).toBe(id);
+
+    // The list no longer contains it (tc 3/8)…
+    const after = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 100 },
+      }),
+    );
+    expect(after.data.some((row) => row.id === id)).toBe(false);
+
+    // …and its detail answers 404, like the real soft-deleting endpoint.
+    const gone = await firstValueFrom(
+      http
+        .get<HttpErrorResponse>(`/api/v1/products/${id}`, { headers: { [MOCK_HEADER]: '1' } })
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+    expect(gone.status).toBe(404);
+  });
+
+  it('answers 404 when deleting an id that is already gone (BO-F15 tc 10)', async () => {
+    const missing = await firstValueFrom(
+      http
+        .delete<HttpErrorResponse>('/api/v1/products/does-not-exist', {
+          headers: { [MOCK_HEADER]: '1' },
+        })
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+
+    expect(missing.status).toBe(404);
   });
 });

@@ -28,6 +28,7 @@ const ROWS: readonly ProductListItem[] = Array.from({ length: 45 }, (_, index) =
   price: 100_000 + index * 10_000,
   stock: index,
   lowStockThreshold: 5,
+  variantsCount: 0,
   status: 'published',
   createdAt: 1728883200000 + index * 86_400_000,
 }));
