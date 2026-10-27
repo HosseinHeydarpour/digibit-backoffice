@@ -10,7 +10,7 @@ import { environment } from '@env/environment';
 import type { ApiResponse, PageMeta } from '@shared/models';
 import { catchError, firstValueFrom, of } from 'rxjs';
 
-import { MOCK_HEADER, mockInterceptor, resetMockDeleted } from './mock-interceptor';
+import { MOCK_HEADER, mockInterceptor, resetMockState } from './mock-interceptor';
 
 describe('mockInterceptor', () => {
   let http: HttpClient;
@@ -19,7 +19,7 @@ describe('mockInterceptor', () => {
   beforeEach(() => {
     // The soft-delete set is module state: one spec must not hide a product
     // from the next (BO-F15).
-    resetMockDeleted();
+    resetMockState();
 
     TestBed.configureTestingModule({
       providers: [
@@ -391,5 +391,56 @@ describe('mockInterceptor', () => {
     );
 
     expect(missing.status).toBe(404);
+  });
+  it('keeps a created product: it shows up in the list and on its detail page', async () => {
+    const created = await firstValueFrom(
+      http.post<ApiResponse<{ id: string; name: string; slug: string; variants: unknown[] }>>(
+        '/api/v1/products',
+        draft({ slug: 'created-this-session', name: 'محصول تازهٔ تست' }),
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    // The list the user returns to contains it (the bug this pins).
+    const list = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; name: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 200 },
+      }),
+    );
+    expect(list.data.some((row) => row.id === created.data.id)).toBe(true);
+
+    // …and the redirect target `/products/:id/edit` resolves instead of 404ing.
+    const detail = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }>>(`/api/v1/products/${created.data.id}`, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(detail.data.id).toBe(created.data.id);
+  });
+
+  it('updates a created product in place', async () => {
+    const created = await firstValueFrom(
+      http.post<ApiResponse<{ id: string }>>(
+        '/api/v1/products',
+        draft({ slug: 'created-edit-me', name: 'قبل از ویرایش' }),
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    await firstValueFrom(
+      http.put<ApiResponse<unknown>>(
+        `/api/v1/products/${created.data.id}`,
+        draft({ slug: 'created-edit-me', name: 'بعد از ویرایش' }),
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    const detail = await firstValueFrom(
+      http.get<ApiResponse<{ name: string }>>(`/api/v1/products/${created.data.id}`, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(detail.data.name).toBe('بعد از ویرایش');
   });
 });

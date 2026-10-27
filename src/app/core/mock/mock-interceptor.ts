@@ -217,7 +217,10 @@ function resolveProducts(
         return rejected;
       }
 
-      return created(toProduct(createProduct(body)), 'محصول با موفقیت ایجاد شد.');
+      const product = createProduct(body);
+      CREATED_PRODUCTS.push(product);
+
+      return created(toProduct(product), 'محصول با موفقیت ایجاد شد.');
     }
 
     return paged(filterProducts(params), page, pageSize);
@@ -225,7 +228,7 @@ function resolveProducts(
 
   // `/products/new` is a form route, not a record; the create screen only needs
   // a blank-ish shape to bind. Keep the old behaviour for compatibility.
-  const found = id === 'new' ? fixtures.MOCK_PRODUCTS[0] : byId(fixtures.MOCK_PRODUCTS, id);
+  const found = id === 'new' ? fixtures.MOCK_PRODUCTS[0] : byId(catalogue(), id);
   if (!found || DELETED_IDS.has(found.id)) {
     return NOT_FOUND;
   }
@@ -238,7 +241,13 @@ function resolveProducts(
   }
 
   if (method === 'PATCH' && sub === 'status') {
-    return ok(toProduct(updateProduct(found, body)), 'وضعیت محصول به‌روزرسانی شد.');
+    const updated = updateProduct(found, body);
+    const index = CREATED_PRODUCTS.findIndex((product) => product.id === updated.id);
+    if (index >= 0) {
+      CREATED_PRODUCTS[index] = updated;
+    }
+
+    return ok(toProduct(updated), 'وضعیت محصول به‌روزرسانی شد.');
   }
 
   if (method === 'PUT' || method === 'PATCH') {
@@ -250,7 +259,13 @@ function resolveProducts(
       return rejected;
     }
 
-    return ok(toProduct(updateProduct(found, body)), 'محصول به‌روزرسانی شد.');
+    const updated = updateProduct(found, body);
+    const index = CREATED_PRODUCTS.findIndex((product) => product.id === updated.id);
+    if (index >= 0) {
+      CREATED_PRODUCTS[index] = updated;
+    }
+
+    return ok(toProduct(updated), 'محصول به‌روزرسانی شد.');
   }
 
   return ok(toProduct(found));
@@ -270,7 +285,7 @@ function filterProducts(params: ParamReader): Record<string, unknown>[] {
   const sort = params.get('sort');
   const direction = params.get('dir') === 'desc' ? -1 : 1;
 
-  let rows = fixtures.MOCK_PRODUCTS.filter((product) => {
+  let rows = catalogue().filter((product) => {
     const haystack = `${product.name} ${product.slug} ${product.sku}`.toLowerCase();
 
     return (
@@ -381,7 +396,7 @@ function toListItem(product: fixtures.MockProduct): Record<string, unknown> {
  * A mock that answers DELETE with 200 and then keeps returning the row cannot
  * demonstrate the feature at all — the optimistic row came back on the refetch.
  * The set is deliberately module-level (one browser session = one mock backend)
- * and is cleared by `resetMockDeleted()` for tests, so one spec cannot leak a
+ * and is cleared by `resetMockState()` for tests, so one spec cannot leak a
  * deleted product into the next.
  *
  * TRACE — `DELETE /products/mvdx…` on «طلق و شیرازه»:
@@ -392,14 +407,15 @@ function toListItem(product: fixtures.MockProduct): Record<string, unknown> {
  *      drops the row, so `total` shrinks by one and the row cannot come back.
  *   4. `GET /products/mvdx…` now answers 404 (the `found || deleted` check), which
  *      is what the edit route's resolver turns into the 404 page.
- *   5. `resetMockDeleted()` in a spec's `beforeEach` empties the set, so the next
+ *   5. `resetMockState()` in a spec's `beforeEach` empties the set, so the next
  *      spec sees the full catalogue again.
  */
 const DELETED_IDS = new Set<string>();
 
-/** Test seam: forget every soft delete this session. */
-export function resetMockDeleted(): void {
+/** Test seam: forget every write this session (soft deletes and new products). */
+export function resetMockState(): void {
   DELETED_IDS.clear();
+  CREATED_PRODUCTS.length = 0;
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */
@@ -488,22 +504,47 @@ function isStatus(value: unknown): value is fixtures.MockProductStatus {
 }
 
 /**
+ * Products created this session (BO-F13/F15 demo).
+ *
+ * Kept apart from `MOCK_PRODUCTS` (the frozen shop export) so a test can clear
+ * what a previous test created: `resetMockState()` empties both this list and
+ * `DELETED_IDS`. Persisting is what makes the create flow demonstrable — without
+ * it the redirect after «ذخیره» landed on `/404` and the new product never
+ * appeared in the list.
+ *
+ * TRACE — «محصول تست افزودن»:
+ *
+ *   1. `POST /products` builds the record (id `1001`), pushes it here and
+ *      answers 201 with the full product.
+ *   2. The form navigates to `/products/1001/edit`; the edit resolver's
+ *      `GET /products/1001` finds it in `catalogue()` instead of 404ing.
+ *   3. Back on `/products`, `filterProducts` reads `catalogue()`, so the new row
+ *      is in the list and the search finds it by name or SKU.
+ *   4. `PUT` replaces that entry in place; `DELETE` hides it (soft delete).
+ */
+const CREATED_PRODUCTS: fixtures.MockProduct[] = [];
+
+/** Every product the mock knows about: the export plus this session's writes. */
+function catalogue(): fixtures.MockProduct[] {
+  return [...fixtures.MOCK_PRODUCTS, ...CREATED_PRODUCTS];
+}
+
+/**
  * Build the record a `POST /products` would create.
  *
- * The mock does not persist it — the fixture array is frozen data, and a write
- * that mutates module state would make one test affect the next. Echoing a
- * deterministic record is enough for the create screen to navigate to an edit
- * page; the real backend is the one that assigns and stores the id.
+ * The variants and the first image the form sent are stored too, so the edit
+ * page that the redirect opens shows what was typed instead of the fabricated
+ * placeholder row `toVariants()` otherwise produces.
  */
 function createProduct(body: unknown): fixtures.MockProduct {
   const data = asRecord(body);
   const base = fixtures.MOCK_PRODUCTS[0];
-  const nextId = String(fixtures.MOCK_PRODUCTS.length + 1);
+  const nextId = String(1000 + CREATED_PRODUCTS.length + 1);
 
   return {
     id: nextId,
     name: text(data['name'], base.name),
-    sku: text(data['sku'], `SKU-${2000 + Number(nextId)}`),
+    sku: text(data['sku'], `SKU-${nextId}`),
     slug: text(data['slug'], `product-${nextId}`),
     categoryId: text(data['categoryId'], base.categoryId),
     brandId: brandRef(data['brandId'], base.brandId),
@@ -512,14 +553,47 @@ function createProduct(body: unknown): fixtures.MockProduct {
     lowStockThreshold: amount(data['lowStockThreshold'], base.lowStockThreshold),
     status: isStatus(data['status']) ? data['status'] : 'draft',
     createdAt: fixtures.FIXTURE_NOW,
-    // Fields the create payload does not carry (BO-F13's DTO has no colours,
-    // gallery or offer flag) start as the source export's empty defaults.
-    image: '',
+    // Fields the create payload does not carry (BO-F13's DTO has no colours or
+    // offer flag) start as the source export's empty defaults.
+    image: firstImageUrl(data['images']),
     colors: [],
-    variants: [],
+    variants: toMockVariants(data['variants'], nextId),
     description: '',
     isSpecialOffer: false,
   };
+}
+
+/** The first gallery URL the form sent, or '' when it sent none. */
+function firstImageUrl(value: unknown): string {
+  if (!Array.isArray(value)) {
+    return '';
+  }
+
+  const first = value.find((image) => typeof image?.url === 'string' && image.url.trim() !== '');
+
+  return typeof first?.url === 'string' ? first.url.trim() : '';
+}
+
+/** `ProductVariantInput[]` → the fixture's flatter variant shape. */
+function toMockVariants(value: unknown, productId: string): fixtures.MockProduct['variants'] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((variant, index) => {
+    const data = asRecord(variant);
+    const attributes = asRecord(data['attributes']);
+    const label = Object.values(attributes)
+      .filter((part): part is string => typeof part === 'string')
+      .join(' / ');
+
+    return {
+      id: `${productId}-v${index + 1}`,
+      name: label === '' ? `واریانت ${index + 1}` : label,
+      price: amount(data['price'], 0),
+      quantity: amount(data['stock'], 0),
+    };
+  });
 }
 
 /** Merge the editable fields a `PUT`/`PATCH` sent over the existing record. */
