@@ -101,8 +101,15 @@ class ProductsServiceStub {
 
   slugChecks: string[] = [];
 
+  /** When true the lookup fails, which the field must survive quietly (tc 13). */
+  slugCheckFails = false;
+
   checkSlug(slug: string): Observable<SlugCheck> {
     this.slugChecks.push(slug);
+
+    if (this.slugCheckFails) {
+      return throwError(() => new Error('offline'));
+    }
 
     return of(this.slugCheck);
   }
@@ -770,5 +777,22 @@ describe('ProductCreate (BO-F07)', () => {
 
     expect(writeText).toHaveBeenCalledWith('copy-me');
     expect(component.slugCopied()).toBe(true);
+  });
+  it('BO-F16 tc 13: a failed lookup stays quiet and never disables saving', async () => {
+    await mount();
+    fillValidForm();
+    service.slugCheckFails = true;
+
+    component.form.controls.slug.setValue('unknown-slug');
+    await afterDebounce();
+    fixture.detectChanges();
+
+    expect(component.slugStatus()).toBe('error');
+    expect(component.slugSuggestion()).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('قبلاً استفاده شده است.');
+
+    // The save button is bound to `submitting`, not to the check.
+    const save = fixture.nativeElement.querySelector('app-page-header button:last-of-type');
+    expect((save as HTMLButtonElement).disabled).toBe(false);
   });
 });
