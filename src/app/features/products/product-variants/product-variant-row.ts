@@ -55,6 +55,10 @@ import {
   selector: 'app-product-variant-row',
   imports: [InputText, ReactiveFormsModule, PersianDigitsPipe, TomanPipe],
   templateUrl: './product-variant-row.html',
+  // A custom element is `display: inline` until told otherwise, and the editor
+  // separates rows with `space-y-*` (sibling margins), which an inline box
+  // ignores — two variants rendered flush against each other.
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductVariantRow {

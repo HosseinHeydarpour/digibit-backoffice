@@ -101,6 +101,12 @@ describe('ProductVariantEditor (BO-F10)', () => {
     expect(rows[0].className).toContain('rounded-xl');
     expect(text()).toContain('۲ واریانت');
     expect(text()).toContain('۵ عدد موجودی');
+
+    // `space-y-*` spaces siblings with MARGINS, and an inline custom element has
+    // no box to take a margin — two variants rendered flush (the fixed bug).
+    const hosts = fixture.nativeElement.querySelectorAll('app-product-variant-row');
+    expect(hosts.length).toBe(2);
+    expect(hosts[0].classList.contains('block')).toBe(true);
   });
 
   it('tc 7: prefills every control from the seed', () => {

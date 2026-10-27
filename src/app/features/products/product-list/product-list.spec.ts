@@ -287,6 +287,16 @@ describe('ProductList (BO-F02)', () => {
     expect(component.items()?.length).toBe(PRODUCTS.length);
   });
 
+  it('the search box is a real PrimeNG field, so the icon has its own padding', async () => {
+    await mount();
+
+    // `pInputText` is a DIRECTIVE: without `InputText` in this component's
+    // imports the attribute stays inert, the input loses its chrome and the
+    // glyph sits on the placeholder (the bug this test pins).
+    const input = fixture.nativeElement.querySelector('#product-search') as HTMLInputElement;
+    expect(input.className).toContain('p-inputtext');
+  });
+
   // ─── tc 8 · empty state ───────────────────────────────────────────────────
 
   it('tc 8: shows the empty state (not an empty table) when the shop has no products', async () => {

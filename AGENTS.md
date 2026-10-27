@@ -776,6 +776,12 @@ too.
 - **Text inputs carry `pInputText`, textareas `pTextarea`**, and the long
   border/background/focus class strings are then DELETED, not kept beside the directive.
   RTL-only concerns stay in the class list (`dir="ltr"`, `text-left`, `font-mono`).
+- **`pInputText` is a directive, so the component must import `InputText`.** A template
+  that writes `pInputText` without the import compiles (unknown attributes are allowed),
+  but the class list never arrives: the field loses its border and padding, and an
+  iconfield glyph lands on the placeholder. The products search box shipped that way.
+  The same trap applies to `pTextarea`, `p-select` and `p-iconfield` — an unknown
+  _attribute_ is silent, an unknown _element_ is not.
 - **A field with a leading icon uses `p-iconfield` + `p-inputicon`** (the products search
   box), not an absolutely-positioned `<i>` fighting the theme's padding.
 - **Pointer cursor comes from ONE base-layer rule** in `src/styles/tailwind.css` (`a`,

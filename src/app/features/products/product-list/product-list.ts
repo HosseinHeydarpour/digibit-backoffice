@@ -22,6 +22,7 @@ import { TomanPipe } from '@shared/pipes/toman.pipe';
 import type { MenuItem } from 'primeng/api';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
+import { InputText } from 'primeng/inputtext';
 import { Menu } from 'primeng/menu';
 import { Select } from 'primeng/select';
 import {
@@ -192,6 +193,7 @@ const PRODUCT_STATUS_META: Record<
     RouterLink,
     IconField,
     InputIcon,
+    InputText,
     Menu,
     Select,
     PersianDatePipe,
