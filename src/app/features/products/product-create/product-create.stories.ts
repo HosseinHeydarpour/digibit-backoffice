@@ -44,7 +44,10 @@ const CREATED: Product = {
 };
 
 /** The create page only reads the two lookup lists; the real endpoints are stubbed here. */
-class CreateProductsService implements Pick<ProductsService, 'categories' | 'brands' | 'create'> {
+class CreateProductsService implements Pick<
+  ProductsService,
+  'categories' | 'brands' | 'create' | 'checkSlug'
+> {
   categories() {
     return of(CATEGORIES);
   }
@@ -55,6 +58,11 @@ class CreateProductsService implements Pick<ProductsService, 'categories' | 'bra
 
   create() {
     return of(CREATED);
+  }
+
+  /** BO-F16: a free slug, unless the story asks for the taken state. */
+  checkSlug(slug: string) {
+    return of({ available: true, suggestion: slug });
   }
 }
 
@@ -112,6 +120,10 @@ const meta: Meta<ProductCreate> = {
           'input hydrates all four tabs before the first paint, and saving PUTs to the same id and',
           'stays on the page. A missing id redirects to the 404 page; a failed load shows a retry',
           'block instead of an empty wizard that could create a duplicate.',
+          '',
+          '**BO-F16 checks the slug while it is typed.** 400 ms after the last keystroke the form asks',
+          '`/products/slug-check` (with `excludeId` in edit mode), prints «آزاد است» or the conflict',
+          'plus a one-click alternative, previews the public URL and copies it with one button.',
         ].join('\n'),
       },
     },

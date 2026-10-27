@@ -656,6 +656,31 @@ variants off sale with it.
 
 <Canvas of={ProductListStories.Default} />
 
+## نامک و یکتایی / Slug and uniqueness (BO-F16)
+
+نامک از نام محصول ساخته می‌شود (`slugify`)، دستی قابل ویرایش است و ۴۰۰ میلی‌ثانیه پس از آخرین
+کلید از سرور می‌پرسد که آزاد است یا نه. اگر تکراری باشد، سرور یک جایگزین (`x-2`) می‌دهد و یک کلیک
+آن را جایگزین می‌کند؛ پیش‌نمایش `‎/products/…` و دکمهٔ کپی هم کنار همان فیلد هستند.
+
+The slug is built from the name (`slugify`), stays editable, and 400 ms after the last keystroke the
+form asks the server whether it is free. A duplicate comes back with an alternative (`x-2`) that one
+click applies; the public-URL preview and a copy button sit in the same field.
+
+- **تبدیل فارسی→انگلیسی یک تابع خالص است.** `slugify` با یک دیکشنری از کلمات رایج (`لپ‌تاپ` →
+  `laptop`) شروع می‌کند و برای بقیه حرف‌به‌حرف نگاشت می‌کند؛ خروجی همیشه `[a-z0-9-]` و حداکثر
+  ۸۰ کاراکتر است (tc 1/2/8).
+- **ویرایش نام در حالت ویرایش، نامک را عوض نمی‌کند.** `slugEdited` در hydrate ست می‌شود، وگرنه
+  تغییر نام یک محصول زنده آدرسش را عوض می‌کرد (tc 6).
+- **`switchMap` روی بررسی:** پاسخ دیررس یک مقدار قدیمی نمی‌تواند وضعیت «آزاد» را روی مقدار جدید
+  بنویسد (tc 4).
+- **`excludeId` در حالت ویرایش:** نامک خود محصول با خودش تعارض ندارد، پس فرم «آزاد» نشان می‌دهد.
+- **خطای بررسی، ذخیره را نمی‌بندد:** اگر درخواست بررسی شکست بخورد، فیلد ساکت می‌ماند و سرور در
+  لحظهٔ POST/PUT با ۴۲۲ جواب می‌دهد؛ یک lookup شکست‌خورده نباید دکمهٔ ذخیره را قفل کند.
+- **کپی با کلیک:** `navigator.clipboard` می‌تواند نباشد یا رد شود؛ در آن حالت دکمه فقط فلش نمی‌زند
+  و خطایی هم نشان نمی‌دهد (tc 10).
+
+<Canvas of={ProductCreateStories.Default} />
+
 ## حالت‌های صفحه / Page states
 
 سه حالت غیر دادهٔ صفحه: در حال بارگذاری، خالی و خطا. هر سه از یک `state()` می‌آیند و

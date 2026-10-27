@@ -125,6 +125,18 @@ export interface ProductListItem {
   readonly createdAt: number;
 }
 
+/**
+ * The answer of `GET /products/slug-check` (BO-F16).
+ *
+ * `suggestion` is always a usable slug: when the asked one is free it is the
+ * same string back, so the UI never has to build one itself (the server owns the
+ * catalogue and therefore the numbering).
+ */
+export interface SlugCheck {
+  readonly available: boolean;
+  readonly suggestion: string;
+}
+
 /** A category choice for the list filter (BO-F03) and the product form (BO-F09). */
 export interface ProductCategoryOption {
   readonly id: EntityId;

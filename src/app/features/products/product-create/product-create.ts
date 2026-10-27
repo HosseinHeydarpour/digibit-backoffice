@@ -23,9 +23,15 @@ import { PrimeTemplate } from 'primeng/api';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
-import { take } from 'rxjs';
+import type { Observable } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, map, of, switchMap, take } from 'rxjs';
 
-import type { Product, ProductBrandOption, ProductStatus } from '../models/product.model';
+import type {
+  Product,
+  ProductBrandOption,
+  ProductStatus,
+  SlugCheck,
+} from '../models/product.model';
 import type { ProductEditResult } from '../product-edit/product-edit.resolver';
 import {
   createImageArray,
@@ -60,6 +66,31 @@ import type { ProductField } from './product-validators';
 
 /** The four sections of the create form (BO-F07). */
 type ProductTabId = 'main' | 'variants' | 'gallery' | 'inventory';
+
+/**
+ * How long the slug field waits before asking the server about uniqueness
+ * (BO-F16). 400 ms is longer than the 300 ms search debounce on the list: a slug
+ * is typed in bursts, and every keystroke in it would otherwise be a request.
+ */
+const SLUG_DEBOUNCE_MS = 400;
+
+/** How long «کپی شد» stays on the copy button before it becomes a copy icon again. */
+const SLUG_COPY_FEEDBACK_MS = 1500;
+
+/** What the slug field knows at the moment. */
+type SlugStatus = 'idle' | 'checking' | 'free' | 'taken' | 'error';
+
+/**
+ * One answer from the uniqueness check.
+ *
+ * Three outcomes instead of `SlugCheck | null`, because `null` would have to
+ * mean both "nothing to check" and "the check failed", and the field shows a
+ * different sentence for each.
+ */
+type SlugCheckResult =
+  | { readonly kind: 'skip' }
+  | { readonly kind: 'error' }
+  | { readonly kind: 'done'; readonly check: SlugCheck };
 
 interface ProductTab {
   readonly id: ProductTabId;
@@ -200,6 +231,27 @@ export class ProductCreate {
   );
 
   readonly saveLabel = computed(() => (this.isEdit() ? 'ذخیره تغییرات' : 'ذخیره محصول'));
+
+  /**
+   * The live uniqueness state of the slug field (BO-F16).
+   *
+   * TRACE — the user types `sony-wh1000` which already exists:
+   *
+   *   1. `slug.valueChanges` → 400 ms of quiet → `verifySlug('sony-wh1000')`.
+   *   2. `GET /products/slug-check?slug=sony-wh1000` (plus `excludeId` in edit
+   *      mode) answers `{ available: false, suggestion: 'sony-wh1000-2' }`.
+   *   3. `slugStatus` = `taken`, `slugSuggestion` = `'sony-wh1000-2'`; the field
+   *      prints «این نامک قابل استفاده نیست» and a button with the suggestion.
+   *   4. Clicking the button writes the suggestion into the control, which
+   *      re-runs the check and ends at `free`.
+   */
+  readonly slugStatus = signal<SlugStatus>('idle');
+
+  /** The server's alternative while the typed slug is taken; `null` otherwise. */
+  readonly slugSuggestion = signal<string | null>(null);
+
+  /** True for a moment after the copy button succeeds. */
+  readonly slugCopied = signal(false);
 
   /**
    * The central form.
@@ -348,8 +400,23 @@ export class ProductCreate {
           return;
         }
 
-        this.form.controls.slug.setValue(slugify(name), { emitEvent: false });
+        this.form.controls.slug.setValue(slugify(name));
       });
+
+    /**
+     * Slug uniqueness, debounced (BO-F16).
+     *
+     * `switchMap` cancels the previous request, so a fast typist can never be
+     * told "free" by an answer that arrived for an older value.
+     */
+    this.form.controls.slug.valueChanges
+      .pipe(
+        debounceTime(SLUG_DEBOUNCE_MS),
+        distinctUntilChanged(),
+        switchMap((slug) => this.verifySlug(slug)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result) => this.applySlugCheck(result));
 
     /**
      * The gallery rows point at `blob:` object URLs (BO-F11). The PAGE owns the
@@ -489,6 +556,56 @@ export class ProductCreate {
   /** A manual edit wins over the generated slug (tc 8). */
   onSlugInput(): void {
     this.slugEdited = true;
+  }
+
+  /**
+   * Take the server's suggestion in one click (BO-F16 tc 4).
+   *
+   * Writing the value triggers the debounced check again, so the field ends on
+   * «آزاد» instead of keeping a stale red line.
+   *
+   * TRACE — the field says «قبلاً استفاده شده» with `suggestion = 'sony-2'`:
+   *
+   *   1. The method reads the suggestion signal; with none it returns (the state
+   *      is then «checking» or «free», where the button does not render).
+   *   2. `slugEdited = true` — from here on the name field may not overwrite the
+   *      slug, exactly as if the user had typed it.
+   *   3. `setValue('sony-2')` emits `valueChanges`, the debounce waits 400 ms and
+   *      `verifySlug` asks again; this time the server answers `available: true`
+   *      and the amber line becomes the green one.
+   */
+  useSlugSuggestion(): void {
+    const suggestion = this.slugSuggestion();
+
+    if (!suggestion) {
+      return;
+    }
+
+    this.slugEdited = true;
+    this.form.controls.slug.setValue(suggestion);
+  }
+
+  /**
+   * Copy the slug to the clipboard (tc 10).
+   *
+   * The clipboard API can be missing (older browsers) or blocked (a non-secure
+   * context, permissions) — both reject/throw, and neither is worth an error
+   * message: the slug is right there, selectable. The button just does not flip.
+   */
+  async copySlug(): Promise<void> {
+    const slug = this.form.controls.slug.value;
+
+    if (slug === '') {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(slug);
+      this.slugCopied.set(true);
+      setTimeout(() => this.slugCopied.set(false), SLUG_COPY_FEEDBACK_MS);
+    } catch {
+      this.slugCopied.set(false);
+    }
   }
 
   /** Retry the category lookup after a failed request (BO-F09 tc 9). */
@@ -752,6 +869,45 @@ export class ProductCreate {
 
   private isTabValid(tab: ProductTabId): boolean {
     return this.controlsFor(tab).every((control) => control.valid);
+  }
+
+  /**
+   * Ask the server whether `slug` is free, or skip when there is nothing to ask.
+   *
+   * Local validity comes first: an empty or malformed slug already has its own
+   * red message from the validator, and asking the API about it would only add a
+   * spinner beside it.
+   */
+  private verifySlug(slug: string): Observable<SlugCheckResult> {
+    const value = slug.trim();
+
+    if (value === '' || this.form.controls.slug.invalid) {
+      return of<SlugCheckResult>({ kind: 'skip' });
+    }
+
+    this.slugStatus.set('checking');
+
+    return this.products.checkSlug(value, this.editedProduct()?.id ?? null).pipe(
+      map((check): SlugCheckResult => ({ kind: 'done', check })),
+      catchError(() => of<SlugCheckResult>({ kind: 'error' })),
+    );
+  }
+
+  /** Map one answer onto the two signals the template reads. */
+  private applySlugCheck(result: SlugCheckResult): void {
+    switch (result.kind) {
+      case 'skip':
+        this.slugStatus.set('idle');
+        this.slugSuggestion.set(null);
+        return;
+      case 'error':
+        this.slugStatus.set('error');
+        this.slugSuggestion.set(null);
+        return;
+      case 'done':
+        this.slugStatus.set(result.check.available ? 'free' : 'taken');
+        this.slugSuggestion.set(result.check.available ? null : result.check.suggestion);
+    }
   }
 
   /**

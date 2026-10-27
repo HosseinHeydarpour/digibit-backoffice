@@ -443,4 +443,47 @@ describe('mockInterceptor', () => {
     );
     expect(detail.data.name).toBe('بعد از ویرایش');
   });
+  it('answers the slug check with the availability and a free alternative (BO-F16)', async () => {
+    const first = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; slug: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 1 },
+      }),
+    );
+
+    const detail = await firstValueFrom(
+      http.get<ApiResponse<{ slug: string }>>(`/api/v1/products/${first.data[0].id}`, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    const taken = await firstValueFrom(
+      http.get<ApiResponse<{ available: boolean; suggestion: string }>>(
+        '/api/v1/products/slug-check',
+        {
+          headers: { [MOCK_HEADER]: '1' },
+          params: { slug: detail.data.slug },
+        },
+      ),
+    );
+    expect(taken.data.available).toBe(false);
+    expect(taken.data.suggestion).toBe(`${detail.data.slug}-2`);
+
+    // The same slug is free when it belongs to the product being edited.
+    const own = await firstValueFrom(
+      http.get<ApiResponse<{ available: boolean }>>('/api/v1/products/slug-check', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { slug: detail.data.slug, excludeId: first.data[0].id },
+      }),
+    );
+    expect(own.data.available).toBe(true);
+
+    const free = await firstValueFrom(
+      http.get<ApiResponse<{ available: boolean }>>('/api/v1/products/slug-check', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { slug: 'nobody-uses-this-slug' },
+      }),
+    );
+    expect(free.data.available).toBe(true);
+  });
 });

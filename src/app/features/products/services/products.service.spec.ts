@@ -285,4 +285,33 @@ describe('ProductsService (BO-F05)', () => {
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).status).toBe(404);
   });
+  it('BO-F16: asks the slug-check endpoint with the value and the edited id', async () => {
+    const resultPromise = firstValueFrom(service.checkSlug('sony-wh1000', '7'));
+
+    const request = httpMock.expectOne(
+      (r) => r.url === `${environment.API_BASE_URL}/products/slug-check`,
+    );
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('slug')).toBe('sony-wh1000');
+    expect(request.request.params.get('excludeId')).toBe('7');
+
+    request.flush({ data: { available: false, suggestion: 'sony-wh1000-2' }, message: '' });
+
+    await expect(resultPromise).resolves.toEqual({
+      available: false,
+      suggestion: 'sony-wh1000-2',
+    });
+  });
+
+  it('BO-F16: a create-mode check sends no excludeId', async () => {
+    const resultPromise = firstValueFrom(service.checkSlug('fresh-slug'));
+
+    const request = httpMock.expectOne(
+      (r) => r.url === `${environment.API_BASE_URL}/products/slug-check`,
+    );
+    expect(request.request.params.has('excludeId')).toBe(false);
+    request.flush({ data: { available: true, suggestion: 'fresh-slug' }, message: '' });
+
+    await resultPromise;
+  });
 });

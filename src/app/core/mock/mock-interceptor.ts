@@ -103,6 +103,50 @@ function ok(data: unknown, message = ''): MockResolution {
   return { status: 200, body: { data, message } };
 }
 
+/**
+ * The uniqueness answer `GET /products/slug-check` gives (BO-F16 tc 4).
+ *
+ * TRACE — `?slug=product-mvdxp0oajc1dk` (an existing product):
+ *
+ *   1. `taken` is every catalogue slug except `excludeId` (the product being
+ *      edited, whose own slug must not count against it).
+ *   2. The asked slug is in `taken` → `available: false`.
+ *   3. The suggestion loop appends `-2`, `-3`, … until it finds a free one, and
+ *      trims the root so the result never exceeds the 80-character limit.
+ *   4. The form renders «قابل استفاده نیست» plus a one-click «استفاده از x-2».
+ *
+ * A free slug comes back with `suggestion` equal to itself, so the client never
+ * has to invent a string.
+ */
+function checkSlug(params: ParamReader): { available: boolean; suggestion: string } {
+  const slug = (params.get('slug') ?? '').trim();
+  const excludeId = params.get('excludeId');
+  const taken = new Set(
+    catalogue()
+      .filter((product) => product.id !== excludeId)
+      .map((product) => product.slug),
+  );
+
+  if (slug === '' || !taken.has(slug)) {
+    return { available: slug !== '', suggestion: slug };
+  }
+
+  let counter = 2;
+
+  while (taken.has(withSuffix(slug, counter))) {
+    counter += 1;
+  }
+
+  return { available: false, suggestion: withSuffix(slug, counter) };
+}
+
+/** `slug` + `-N`, shortened so the whole value stays within the 80-char limit. */
+function withSuffix(slug: string, counter: number): string {
+  const suffix = `-${counter}`;
+
+  return `${slug.slice(0, 80 - suffix.length)}${suffix}`;
+}
+
 /** Same envelope with 201, so a create is distinguishable from a read. */
 function created(data: unknown, message = ''): MockResolution {
   return { status: 201, body: { data, message } };
@@ -224,6 +268,13 @@ function resolveProducts(
     }
 
     return paged(filterProducts(params), page, pageSize);
+  }
+
+  // `GET /products/slug-check?slug=…` (BO-F16) has to be matched BEFORE the
+  // `:id` branch: the router's `id` segment happily carries the literal
+  // «slug-check», and the detail lookup would answer 404 for it.
+  if (id === 'slug-check') {
+    return ok(checkSlug(params));
   }
 
   // `/products/new` is a form route, not a record; the create screen only needs

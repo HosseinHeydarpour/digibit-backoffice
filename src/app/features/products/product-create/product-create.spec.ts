@@ -13,6 +13,7 @@ import type {
   Product,
   ProductBrandOption,
   ProductCategoryOption,
+  SlugCheck,
 } from '../models/product.model';
 import { ProductGalleryUploader } from '../product-gallery/product-gallery-uploader';
 import { createVariantGroup } from '../product-variants/variant-form';
@@ -93,6 +94,17 @@ class ProductsServiceStub {
 
   brands(): Observable<readonly ProductBrandOption[]> {
     return of(BRANDS);
+  }
+
+  /** The answer checkSlug gives next, and every slug it was asked about. */
+  slugCheck: SlugCheck = { available: true, suggestion: 'free-slug' };
+
+  slugChecks: string[] = [];
+
+  checkSlug(slug: string): Observable<SlugCheck> {
+    this.slugChecks.push(slug);
+
+    return of(this.slugCheck);
   }
 
   create(dto: CreateProductDto): Observable<Product> {
@@ -701,5 +713,62 @@ describe('ProductCreate (BO-F07)', () => {
     const retry = fixture.nativeElement.querySelector('[data-retry-load]') as HTMLButtonElement;
     expect(retry).toBeTruthy();
     expect(fixture.nativeElement.textContent).toContain('ناموفق');
+  });
+  // ─── BO-F16 · slug uniqueness, suggestion, copy ───────────────────────────
+
+  /** The debounce is 400 ms; `settle` would resolve before the request fires. */
+  function afterDebounce(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 450));
+  }
+
+  it('BO-F16 tc 4: a taken slug shows the server suggestion and applies it in one click', async () => {
+    await mount();
+    fillMainTab();
+    service.slugCheck = { available: false, suggestion: 'hdfon-sony-2' };
+
+    component.form.controls.slug.setValue('hdfon-sony');
+    await afterDebounce();
+    fixture.detectChanges();
+
+    expect(component.slugStatus()).toBe('taken');
+    expect(component.slugSuggestion()).toBe('hdfon-sony-2');
+    expect(fixture.nativeElement.textContent).toContain('این نامک قبلاً استفاده شده است.');
+
+    const suggestion = fixture.nativeElement.querySelector(
+      '[data-use-suggestion]',
+    ) as HTMLButtonElement;
+    expect(suggestion.textContent).toContain('hdfon-sony-2');
+
+    service.slugCheck = { available: true, suggestion: 'hdfon-sony-2' };
+    suggestion.click();
+    await afterDebounce();
+    fixture.detectChanges();
+
+    expect(component.form.controls.slug.value).toBe('hdfon-sony-2');
+    expect(component.slugStatus()).toBe('free');
+  });
+
+  it('BO-F16 tc 9: a free slug says so and the preview prints the URL', async () => {
+    await mount();
+    fillMainTab();
+
+    component.form.controls.slug.setValue('free-slug');
+    await afterDebounce();
+    fixture.detectChanges();
+
+    expect(component.slugStatus()).toBe('free');
+    expect(fixture.nativeElement.textContent).toContain('/products/free-slug');
+  });
+
+  it('BO-F16 tc 10: the copy button puts the slug on the clipboard', async () => {
+    await mount();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+    component.form.controls.slug.setValue('copy-me');
+    await component.copySlug();
+
+    expect(writeText).toHaveBeenCalledWith('copy-me');
+    expect(component.slugCopied()).toBe(true);
   });
 });

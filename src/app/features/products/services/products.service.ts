@@ -33,6 +33,7 @@ import type {
   ProductListItem,
   ProductQuery,
   ProductStatus,
+  SlugCheck,
   UpdateProductDto,
 } from '../models/product.model';
 
@@ -168,6 +169,22 @@ export class ProductsService {
   /** `GET /products/:id` → the full record, variants and gallery included. */
   get(id: EntityId): Observable<Product> {
     return this.api.get<Product>(`${PRODUCTS_PATH}/${encodeURIComponent(id)}`);
+  }
+
+  /**
+   * `GET /products/slug-check` → is this slug free, and what else could be used?
+   *
+   * `excludeId` is the product being EDITED: its own slug is not a conflict with
+   * itself, so the edit form must say "free" for a value it already owns (BO-F16).
+   */
+  checkSlug(slug: string, excludeId?: EntityId | null): Observable<SlugCheck> {
+    let params = new HttpParams().set('slug', slug);
+
+    if (excludeId) {
+      params = params.set('excludeId', excludeId);
+    }
+
+    return this.api.get<SlugCheck>(`${PRODUCTS_PATH}/slug-check`, params);
   }
 
   /** `POST /products` → the created record, with the server-assigned id. */

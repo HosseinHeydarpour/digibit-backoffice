@@ -624,6 +624,24 @@ and its `data`. Every feature page after it follows that shape.
 - **Restore is out of scope.** tc 9 is conditional ("if designed"); there is no deleted-products
   list in the API contract, so no restore column was invented.
 
+### Slug generation and uniqueness (BO-F16)
+
+- **`slugify` is the only generator, and it is pure.** Dictionary first (`لپ‌تاپ` → `laptop`), then a
+  letter map, then a `[a-z0-9-]` sweep capped at 80. The name→slug watcher now emits (it used to
+  write with `emitEvent: false`), which is what lets the uniqueness check see the generated value.
+- **The check is debounced 400 ms and `switchMap`ped.** A slow answer for an older value cannot paint
+  «آزاد» over the current one. `excludeId` carries the edited product so its own slug is not a
+  conflict with itself.
+- **The server owns the suggestion.** `GET /products/slug-check` answers
+  `{ available, suggestion }` and the suggestion is always usable (`slug-2`, `slug-3`, … trimmed to
+  80). The client never builds one, and the mock implements the same contract.
+- **A failed check is quiet.** It must not disable saving: the API still answers 422 on POST/PUT if
+  the slug is really taken, and F13's mapping puts the message on the field.
+- **Edit mode keeps the slug** — `slugEdited` is set during hydration, so renaming a live product
+  cannot silently rewrite its URL (tc 6).
+- **Copy is best-effort.** `navigator.clipboard` may be missing or blocked; the button then simply
+  does not flip to «کپی شد». No error toast for a convenience action.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`
