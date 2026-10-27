@@ -4,7 +4,9 @@ import {
   DestroyRef,
   HostListener,
   computed,
+  effect,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -23,12 +25,21 @@ import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
 import { take } from 'rxjs';
 
-import type { ProductBrandOption, ProductStatus } from '../models/product.model';
-import { createImageArray, revokeImageUrl } from '../product-gallery/gallery-form';
+import type { Product, ProductBrandOption, ProductStatus } from '../models/product.model';
+import type { ProductEditResult } from '../product-edit/product-edit.resolver';
+import {
+  createImageArray,
+  createImageGroup,
+  revokeImageUrl,
+} from '../product-gallery/gallery-form';
 import { ProductGalleryUploader } from '../product-gallery/product-gallery-uploader';
 import { STOCK_LEVEL_META, stockLevel } from '../product-stock';
 import { ProductVariantEditor } from '../product-variants/product-variant-editor';
-import { createVariantArray, sumVariantStock } from '../product-variants/variant-form';
+import {
+  createVariantArray,
+  createVariantGroup,
+  sumVariantStock,
+} from '../product-variants/variant-form';
 import { ProductLookupsService } from '../services/product-lookups.service';
 import { ProductsService } from '../services/products.service';
 
@@ -155,6 +166,40 @@ export class ProductCreate {
   private readonly toast = inject(ToastService);
 
   private readonly destroyRef = inject(DestroyRef);
+
+  /**
+   * The edit route's resolved data (BO-F14); `null` on `/products/new`.
+   *
+   * Bound from the router's `resolve: { edit: productEditResolver }` through
+   * `withComponentInputBinding()`. It is a WRAPPER because the page has three
+   * inputs to tell apart: create (null), a product to hydrate, and a load that
+   * failed (tc 6).
+   */
+  readonly edit = input<ProductEditResult | null>(null);
+
+  readonly isEdit = computed(() => this.edit() !== null);
+
+  /** The product being edited, or null on the create route / after a failed load. */
+  readonly editedProduct = computed<Product | null>(() => {
+    const result = this.edit();
+
+    return result && 'product' in result ? result.product : null;
+  });
+
+  /** The sentence the error block prints when the resolver could not load (tc 6). */
+  readonly loadError = computed<string | null>(() => {
+    const result = this.edit();
+
+    return result && 'error' in result ? result.error : null;
+  });
+
+  readonly pageTitle = computed(() => (this.isEdit() ? 'ویرایش محصول' : 'افزودن محصول'));
+
+  readonly pageDescription = computed(() =>
+    this.isEdit() ? 'اطلاعات کالای انتخابی را تغییر دهید' : 'محصول جدید را به فروشگاه اضافه کنید',
+  );
+
+  readonly saveLabel = computed(() => (this.isEdit() ? 'ذخیره تغییرات' : 'ذخیره محصول'));
 
   /**
    * The central form.
@@ -320,6 +365,89 @@ export class ProductCreate {
     });
 
     this.syncInventory();
+
+    /**
+     * Hydrate once the route hands over a product (BO-F14).
+     *
+     * An effect, not constructor code: `edit` is an input, so its value is set
+     * by the router AFTER construction. The guard `if (product)` makes it a
+     * no-op on the create route and after a failed load.
+     */
+    effect(() => {
+      const product = this.editedProduct();
+
+      if (product) {
+        this.hydrate(product);
+      }
+    });
+  }
+
+  /**
+   * Fill every tab from one resolved product (tc 1-4).
+   *
+   * TRACE — the resolver returned `GET /products/7`:
+   *
+   *   1. `slugEdited = true` BEFORE touching the name: a saved slug is data. If
+   *      the name→slug watcher were still armed, renaming the product would
+   *      silently rewrite the URL and break every existing link.
+   *   2. `patchValue` fills the main tab, price, status, stock and threshold.
+   *   3. `variants.clear()` then one `createVariantGroup` per row with a seed —
+   *      the same factory the «افزودن» button uses, so a hydrated row and a
+   *      typed row cannot drift apart.
+   *   4. `images.clear()` then one `createImageGroup` per server image. These
+   *      URLs are http(s), not `blob:`, so the destroy hook leaves them alone.
+   *   5. `syncInventory()` recomputes the tab's total from the rows, then the
+   *      form is marked pristine and `hasChanges` cleared — otherwise the
+   *      unsaved-changes guard would ask before letting the user leave a page
+   *      they have not edited yet.
+   */
+  private hydrate(product: Product): void {
+    this.slugEdited = true;
+
+    this.form.patchValue({
+      name: product.name,
+      slug: product.slug,
+      sku: product.sku,
+      categoryId: product.categoryId,
+      brandId: product.brandId ?? '',
+      shortDescription: product.shortDescription,
+      description: product.description,
+      price: product.price,
+      stock: product.stock,
+      lowStockThreshold: product.lowStockThreshold,
+      status: product.status,
+    });
+
+    this.variants.clear();
+    for (const variant of product.variants) {
+      this.variants.push(
+        createVariantGroup(this.fb, {
+          basePrice: product.price,
+          seed: {
+            sku: variant.sku,
+            attributes: variant.attributes,
+            price: variant.price,
+            stock: variant.stock,
+            imageUrl: variant.imageUrl,
+          },
+        }),
+      );
+    }
+
+    this.images.clear();
+    for (const image of product.images) {
+      this.images.push(
+        createImageGroup(this.fb, {
+          url: image.url,
+          alt: image.alt,
+          isPrimary: image.isPrimary,
+        }),
+      );
+    }
+
+    this.syncInventory();
+    this.form.markAsPristine();
+    this.hasChanges.set(false);
   }
 
   /**
@@ -465,30 +593,65 @@ export class ProductCreate {
     this.submitting.set(true);
     this.saveError.set(null);
 
-    this.products
-      .create(toCreateProductDto(this.form))
-      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (product) => {
-          this.saved.set(true);
-          this.submitting.set(false);
-          this.toast.success('محصول با موفقیت ایجاد شد.');
-          void this.router.navigate(['/products', product.id, 'edit']);
-        },
-        error: (error: unknown) => {
-          this.submitting.set(false);
+    const editing = this.editedProduct();
+    const request = editing
+      ? this.products.update(editing.id, toCreateProductDto(this.form))
+      : this.products.create(toCreateProductDto(this.form));
 
-          if (error instanceof ApiError && error.isValidation) {
-            this.applyServerErrors(error.fields);
-            this.saveError.set(error.message);
-            this.activeTab.set(this.tabOwningField(error.fields));
+    request.pipe(take(1), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (product) => {
+        this.submitting.set(false);
 
-            return;
-          }
+        if (editing) {
+          // Stay on the page and make the current values the new baseline: a
+          // second save without changes is legal (tc 10) and leaving the page
+          // must not ask about edits that are already stored (tc 7).
+          this.form.markAsPristine();
+          this.hasChanges.set(false);
+          this.toast.success('محصول به‌روزرسانی شد.');
+          return;
+        }
 
-          this.saveError.set('ارسال محصول ناموفق بود. اتصال خود را بررسی و دوباره تلاش کنید.');
-        },
-      });
+        this.saved.set(true);
+        this.toast.success('محصول با موفقیت ایجاد شد.');
+        void this.router.navigate(['/products', product.id, 'edit']);
+      },
+      error: (error: unknown) => {
+        this.submitting.set(false);
+
+        if (error instanceof ApiError && error.isValidation) {
+          this.applyServerErrors(error.fields);
+          this.saveError.set(error.message);
+          this.activeTab.set(this.tabOwningField(error.fields));
+
+          return;
+        }
+
+        this.saveError.set('ارسال محصول ناموفق بود. اتصال خود را بررسی و دوباره تلاش کنید.');
+      },
+    });
+  }
+
+  /**
+   * Re-run the route's resolver after a failed load (tc 6).
+   *
+   * Both halves are required: `onSameUrlNavigation: 'reload'` stops the router
+   * from dropping a navigation to the URL it is already on, and the route's
+   * `runGuardsAndResolvers: 'always'` stops it from reusing the cached `edit`
+   * data. Miss either one and the button silently does nothing.
+   *
+   * TRACE — the product page failed with a 500 and the user clicks «تلاش دوباره»:
+   *
+   *   1. `router.url` is `/products/7/edit`; `navigateByUrl` is called with it and
+   *      `onSameUrlNavigation: 'reload'`, so the router does not skip it as a
+   *      same-URL navigation.
+   *   2. Because the route declares `runGuardsAndResolvers: 'always'`, guards and
+   *      the resolver run again instead of replaying the stored `edit` value.
+   *   3. The resolver's `GET /products/7` answers 200 this time → `{ product }`
+   *      → `hydrate()` → the form appears. A repeat failure keeps the same block.
+   */
+  reload(): void {
+    void this.router.navigateByUrl(this.router.url, { onSameUrlNavigation: 'reload' });
   }
 
   /** Read by the route's CanDeactivate guard (BO-F07 tc 7). */

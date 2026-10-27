@@ -584,6 +584,28 @@ and its `data`. Every feature page after it follows that shape.
 - **Service stubs used by specs and stories now need `create()`.** A page that injects
   `ProductsService` and calls it cannot be mounted against a stub that only implements the lookups.
 
+### Editing a product (BO-F14)
+
+- **One form, two modes.** `:id/edit` renders `ProductCreate` with a resolver instead of a second
+  page: the wizard, payload builder, validators and error mapping are already there, and a separate
+  edit component would have to keep all four tabs in step with it. The `edit` input is a wrapper
+  (`{ product }` or `{ error }`) because `null` already means "create route".
+- **Hydrate before the first paint.** The resolver fetches the full record, so the page never shows
+  an empty form that fills in later — a user typing during that window would lose the text.
+  `hydrate()` rebuilds the variant and gallery arrays with the same factories the add buttons use,
+  then marks the form pristine and clears `hasChanges`, or the leave guard would fire on a page the
+  user has not edited.
+- **`slugEdited` is set before hydration.** A saved slug is data; leaving the name→slug watcher
+  armed would rewrite the URL of a live product the moment somebody renames it.
+- **A 404 redirects, a 500 does not.** The resolver returns `RedirectCommand('/404')` for a missing
+  id (tc 5) and `{ error }` for anything else, which the page renders as a retry block (tc 6). An
+  empty form on a failed load would let the user create a duplicate of the product that exists.
+- **Retry needs TWO router settings.** `navigateByUrl(url, { onSameUrlNavigation: 'reload' })` plus
+  `runGuardsAndResolvers: 'always'` on the route; miss either and the resolver is never re-run.
+- **Saving in edit mode PUTs and stays.** After a successful `PUT` the form becomes the new
+  baseline (`markAsPristine` + `hasChanges = false`), so a re-save without changes is legal (tc 10)
+  and leaving does not ask about stored edits.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

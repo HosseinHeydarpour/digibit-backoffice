@@ -8,17 +8,23 @@
 // services read.
 
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router, RouterOutlet, type Route, type Routes } from '@angular/router';
+import {
+  provideRouter,
+  Router,
+  RouterOutlet,
+  withComponentInputBinding,
+  type Route,
+  type Routes,
+} from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { routes as APP_ROUTES } from '../../app.routes';
 
 import { ProductCreate } from './product-create/product-create';
 import { ProductDetail } from './product-detail/product-detail';
-import { ProductEdit } from './product-edit/product-edit';
 import { ProductList } from './product-list/product-list';
 import { PRODUCTS_ROUTES } from './products.routes';
 
@@ -40,7 +46,9 @@ function setup(): { fixture: ReturnType<typeof TestBed.createComponent<Host>>; r
     // which is root-provided but is not itself a root provider of PrimeNG's
     // message bus. Same provider `app.config.ts` registers.
     providers: [
-      provideRouter(ROUTES),
+      // `withComponentInputBinding()` is what writes `resolve.edit` into the
+      // form's `edit` input (BO-F14); the app config enables it too.
+      provideRouter(ROUTES, withComponentInputBinding()),
       provideHttpClient(),
       provideHttpClientTesting(),
       MessageService,
@@ -87,7 +95,7 @@ describe('Products routes (BO-F01)', () => {
     expect(loaded.map((r) => r.component)).toEqual([
       ProductList,
       ProductCreate,
-      ProductEdit,
+      ProductCreate,
       ProductDetail,
     ]);
   });
@@ -125,12 +133,47 @@ describe('Products routes (BO-F01)', () => {
     expect(fixture.nativeElement.querySelector('app-product-detail')).toBeNull();
   });
 
-  it('opens the edit form at /products/:id/edit and reads the id (tc 6)', async () => {
+  it('opens the edit form at /products/:id/edit and hydrates it from the resolver (tc 6)', async () => {
     const { fixture, router } = setup();
-    await goto(fixture, router, '/products/42/edit');
+    const httpMock = TestBed.inject(HttpTestingController);
 
-    expect(fixture.nativeElement.querySelector('app-product-edit')).toBeTruthy();
-    expect(fixture.nativeElement.textContent).toContain('42');
+    const navigation = router.navigateByUrl('/products/42/edit');
+    // The router starts the navigation on a microtask; the resolver's request
+    // only exists after it runs.
+    await new Promise((resolve) => setTimeout(resolve));
+    const request = httpMock.expectOne((r) => r.url.endsWith('/products/42'));
+    request.flush({
+      data: {
+        id: '42',
+        name: 'هدفون سونی',
+        slug: 'sony-wh1000',
+        sku: 'SKU-42',
+        categoryId: '3',
+        categoryName: 'صوتی',
+        brandId: null,
+        brandName: null,
+        shortDescription: 'کوتاه',
+        description: 'توضیح',
+        price: 2_100_000,
+        stock: 4,
+        lowStockThreshold: 5,
+        status: 'draft',
+        images: [],
+        variants: [],
+        createdAt: 1_729_152_000_000,
+      },
+      message: '',
+    });
+
+    await navigation;
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // BO-F14 replaced the placeholder with the real form, resolved first.
+    expect(fixture.nativeElement.querySelector('app-product-create')).toBeTruthy();
+    expect((fixture.nativeElement.querySelector('#product-name') as HTMLInputElement).value).toBe(
+      'هدفون سونی',
+    );
   });
 
   it('resolves deep routes without falling through to the 404 (tc 10)', async () => {

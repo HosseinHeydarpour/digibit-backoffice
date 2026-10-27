@@ -1,4 +1,4 @@
-<app-page-header title="افزودن محصول" description="محصول جدید را به فروشگاه اضافه کنید">
+<app-page-header [title]="pageTitle()" [description]="pageDescription()">
   <a
     page-header-actions
     routerLink="/products"
@@ -17,624 +17,656 @@
     class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
   >
     <i [class]="submitting() ? 'pi pi-spinner pi-spin' : 'pi pi-check'" aria-hidden="true"></i>
-    {{ submitting() ? 'در حال ذخیره…' : 'ذخیره محصول' }}
+    {{ submitting() ? 'در حال ذخیره…' : saveLabel() }}
   </button>
 </app-page-header>
 
-<form [formGroup]="form" (submit)="$event.preventDefault(); save()" class="space-y-6">
+<!--
+  A failed load has no form to show (BO-F14 tc 6): an empty wizard would let the
+  user type a product that is already there and save it as a new one. The block
+  offers the only useful action — run the resolver again.
+-->
+@if (loadError(); as message) {
   <div
-    class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+    role="alert"
+    class="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"
   >
-    <!--
+    <p>{{ message }}</p>
+    <button
+      type="button"
+      (click)="reload()"
+      data-retry-load
+      class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-300 px-4 py-2 font-medium transition hover:bg-red-100 max-sm:min-h-11 dark:border-red-700 dark:hover:bg-red-900/40"
+    >
+      <i class="pi pi-refresh" aria-hidden="true"></i>
+      تلاش دوباره
+    </button>
+  </div>
+} @else {
+  <form [formGroup]="form" (submit)="$event.preventDefault(); save()" class="space-y-6">
+    <div
+      class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+    >
+      <!--
       The tab strip is data-driven (TABS in the component). The panels stay in
       the same FormGroup, so switching never loses a value (tc 3).
     -->
-    <div
-      class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700"
-      role="tablist"
-      aria-label="بخش‌های فرم محصول"
-    >
-      @for (tab of tabs; track tab.id) {
-        <button
-          type="button"
-          role="tab"
-          [attr.data-tab]="tab.id"
-          [attr.aria-selected]="activeTab() === tab.id"
-          [attr.aria-controls]="'panel-' + tab.id"
-          (click)="selectTab(tab.id)"
-          [class]="
-            activeTab() === tab.id
-              ? 'border-primary text-primary'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-          "
-          class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-5 py-4 text-sm font-medium transition"
-        >
-          <i [class]="tab.icon" aria-hidden="true"></i>
-          {{ tab.label }}
-        </button>
-      }
-    </div>
-
-    @if (activeTab() === 'main') {
-      <div id="panel-main" role="tabpanel" class="p-6">
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <!-- Left: the Arino "basic info" card. -->
-          <section
-            class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800 lg:col-span-2"
-            aria-labelledby="basic-info-title"
+      <div
+        class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700"
+        role="tablist"
+        aria-label="بخش‌های فرم محصول"
+      >
+        @for (tab of tabs; track tab.id) {
+          <button
+            type="button"
+            role="tab"
+            [attr.data-tab]="tab.id"
+            [attr.aria-selected]="activeTab() === tab.id"
+            [attr.aria-controls]="'panel-' + tab.id"
+            (click)="selectTab(tab.id)"
+            [class]="
+              activeTab() === tab.id
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            "
+            class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-5 py-4 text-sm font-medium transition"
           >
-            <h2 id="basic-info-title" class="mb-6 text-lg font-bold text-gray-900 dark:text-white">
-              اطلاعات پایه محصول
-            </h2>
+            <i [class]="tab.icon" aria-hidden="true"></i>
+            {{ tab.label }}
+          </button>
+        }
+      </div>
 
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <label
-                  for="product-name"
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  نام محصول <span class="text-red-500">*</span>
-                </label>
-                <input
-                  id="product-name"
-                  type="text"
-                  pInputText
-                  formControlName="name"
-                  placeholder="نام محصول"
-                  class="w-full"
-                />
-                @if (errorFor('name')) {
-                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    {{ errorFor('name') }}
-                  </p>
-                }
-              </div>
-
-              <div>
-                <label
-                  for="product-sku"
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  کد محصول (SKU)
-                </label>
-                <input
-                  id="product-sku"
-                  type="text"
-                  pInputText
-                  formControlName="sku"
-                  placeholder="کد انبارداری (اختیاری)"
-                  class="w-full"
-                />
-              </div>
-
-              <div class="md:col-span-2">
-                <label
-                  for="product-slug"
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  نامک (slug) <span class="text-red-500">*</span>
-                </label>
-                <input
-                  id="product-slug"
-                  type="text"
-                  pInputText
-                  formControlName="slug"
-                  (input)="onSlugInput()"
-                  dir="ltr"
-                  placeholder="product-slug"
-                  class="w-full text-left font-mono"
-                />
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  از نام محصول ساخته می‌شود و قابل ویرایش است؛ فقط حروف انگلیسی، عدد و خط تیره.
-                </p>
-                @if (errorFor('slug')) {
-                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    {{ errorFor('slug') }}
-                  </p>
-                }
-              </div>
-
-              <div>
-                <label
-                  for="product-category"
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  دسته‌بندی <span class="text-red-500">*</span>
-                </label>
-                <p-select
-                  inputId="product-category"
-                  formControlName="categoryId"
-                  [options]="categoryOptions()"
-                  optionLabel="path"
-                  optionValue="id"
-                  [filter]="true"
-                  filterBy="path"
-                  [loading]="categoriesLoading()"
-                  [showClear]="false"
-                  placeholder="انتخاب دسته‌بندی"
-                  filterPlaceholder="جستجوی دسته‌بندی…"
-                  emptyMessage="دسته‌بندی‌ای یافت نشد"
-                  emptyFilterMessage="نتیجه‌ای پیدا نشد"
-                  appendTo="body"
-                  class="w-full"
-                  styleClass="w-full"
-                >
-                  <ng-template pTemplate="item" let-category>
-                    <span [style.padding-inline-start.px]="category.level * 12">
-                      {{ category.path }}
-                    </span>
-                  </ng-template>
-                </p-select>
-                @if (categoriesError()) {
-                  <p class="mt-1 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
-                    بارگذاری دسته‌بندی‌ها ناموفق بود.
-                    <button
-                      type="button"
-                      (click)="retryCategories()"
-                      data-retry-categories
-                      class="font-medium underline underline-offset-2"
-                    >
-                      تلاش دوباره
-                    </button>
-                  </p>
-                }
-                @if (errorFor('categoryId')) {
-                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    {{ errorFor('categoryId') }}
-                  </p>
-                }
-              </div>
-
-              <div>
-                <label
-                  for="product-brand"
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  برند
-                </label>
-                <p-select
-                  inputId="product-brand"
-                  formControlName="brandId"
-                  [options]="brandOptions()"
-                  optionLabel="name"
-                  optionValue="id"
-                  [filter]="true"
-                  filterBy="name"
-                  [loading]="brandsLoading()"
-                  [showClear]="false"
-                  placeholder="بدون برند"
-                  filterPlaceholder="جستجوی برند…"
-                  emptyMessage="برندی یافت نشد"
-                  emptyFilterMessage="نتیجه‌ای پیدا نشد"
-                  appendTo="body"
-                  class="w-full"
-                  styleClass="w-full"
-                >
-                  <ng-template pTemplate="item" let-brand>
-                    <div class="flex items-center gap-2">
-                      @if (brand.logo) {
-                        <img
-                          [src]="brand.logo"
-                          [alt]="brand.name"
-                          class="h-5 w-5 rounded-full object-cover"
-                        />
-                      } @else {
-                        <span
-                          class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300"
-                          aria-hidden="true"
-                        >
-                          {{ brand.name.charAt(0) }}
-                        </span>
-                      }
-                      <span>{{ brand.name }}</span>
-                    </div>
-                  </ng-template>
-
-                  <ng-template pTemplate="selectedItem" let-brand>
-                    <div class="flex items-center gap-2">
-                      @if (brand.logo) {
-                        <img
-                          [src]="brand.logo"
-                          [alt]="brand.name"
-                          class="h-5 w-5 rounded-full object-cover"
-                        />
-                      } @else {
-                        <span
-                          class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300"
-                          aria-hidden="true"
-                        >
-                          {{ brand.name.charAt(0) }}
-                        </span>
-                      }
-                      <span>{{ brand.name }}</span>
-                    </div>
-                  </ng-template>
-                </p-select>
-                @if (brandsError()) {
-                  <p class="mt-1 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
-                    بارگذاری برندها ناموفق بود.
-                    <button
-                      type="button"
-                      (click)="retryBrands()"
-                      data-retry-brands
-                      class="font-medium underline underline-offset-2"
-                    >
-                      تلاش دوباره
-                    </button>
-                  </p>
-                }
-              </div>
-
-              <div class="md:col-span-2">
-                <div class="mb-2 flex items-center justify-between gap-2">
-                  <label
-                    for="product-short-description"
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    توضیح کوتاه
-                  </label>
-                  <span
-                    class="text-xs"
-                    [class]="
-                      form.controls.shortDescription.touched &&
-                      form.controls.shortDescription.invalid
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-gray-500 dark:text-gray-400'
-                    "
-                  >
-                    {{ form.controls.shortDescription.value.length | persianDigits }} /
-                    {{ shortDescriptionMax | persianDigits }}
-                  </span>
-                </div>
-                <textarea
-                  id="product-short-description"
-                  rows="2"
-                  pTextarea
-                  formControlName="shortDescription"
-                  [attr.maxlength]="shortDescriptionMax"
-                  placeholder="یک جملهٔ کوتاه برای معرفی محصول"
-                  class="w-full"
-                ></textarea>
-                @if (errorFor('shortDescription')) {
-                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    {{ errorFor('shortDescription') }}
-                  </p>
-                }
-              </div>
-
-              <div class="md:col-span-2">
-                <label
-                  for="product-description"
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  توضیحات محصول
-                </label>
-                <textarea
-                  id="product-description"
-                  rows="5"
-                  pTextarea
-                  formControlName="description"
-                  placeholder="توضیحات کامل محصول"
-                  class="w-full"
-                ></textarea>
-              </div>
-            </div>
-          </section>
-
-          <!-- Right: publish + price, matching the Arino side column. -->
-          <aside class="space-y-6">
+      @if (activeTab() === 'main') {
+        <div id="panel-main" role="tabpanel" class="p-6">
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <!-- Left: the Arino "basic info" card. -->
             <section
-              class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-              aria-labelledby="publish-title"
+              class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800 lg:col-span-2"
+              aria-labelledby="basic-info-title"
             >
-              <h2 id="publish-title" class="mb-6 text-lg font-bold text-gray-900 dark:text-white">
-                انتشار و قیمت
+              <h2
+                id="basic-info-title"
+                class="mb-6 text-lg font-bold text-gray-900 dark:text-white"
+              >
+                اطلاعات پایه محصول
               </h2>
 
-              <div class="space-y-4">
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <label
-                    for="product-status"
+                    for="product-name"
                     class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
-                    وضعیت انتشار
-                  </label>
-                  <p-select
-                    inputId="product-status"
-                    formControlName="status"
-                    [options]="statusOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    appendTo="body"
-                    class="w-full"
-                    styleClass="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    for="product-price"
-                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    قیمت اصلی (تومان) <span class="text-red-500">*</span>
+                    نام محصول <span class="text-red-500">*</span>
                   </label>
                   <input
-                    id="product-price"
-                    type="number"
-                    min="1"
+                    id="product-name"
+                    type="text"
                     pInputText
-                    formControlName="price"
-                    placeholder="قیمت اصلی"
-                    class="w-full text-left"
+                    formControlName="name"
+                    placeholder="نام محصول"
+                    class="w-full"
                   />
-                  @if (errorFor('price')) {
+                  @if (errorFor('name')) {
                     <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                      {{ errorFor('price') }}
+                      {{ errorFor('name') }}
                     </p>
                   }
                 </div>
 
-                @if (form.controls.slug.value) {
-                  <p class="break-all text-xs text-gray-500 dark:text-gray-400" dir="ltr">
-                    /products/{{ form.controls.slug.value }}
+                <div>
+                  <label
+                    for="product-sku"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    کد محصول (SKU)
+                  </label>
+                  <input
+                    id="product-sku"
+                    type="text"
+                    pInputText
+                    formControlName="sku"
+                    placeholder="کد انبارداری (اختیاری)"
+                    class="w-full"
+                  />
+                </div>
+
+                <div class="md:col-span-2">
+                  <label
+                    for="product-slug"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    نامک (slug) <span class="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="product-slug"
+                    type="text"
+                    pInputText
+                    formControlName="slug"
+                    (input)="onSlugInput()"
+                    dir="ltr"
+                    placeholder="product-slug"
+                    class="w-full text-left font-mono"
+                  />
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    از نام محصول ساخته می‌شود و قابل ویرایش است؛ فقط حروف انگلیسی، عدد و خط تیره.
                   </p>
-                }
+                  @if (errorFor('slug')) {
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {{ errorFor('slug') }}
+                    </p>
+                  }
+                </div>
+
+                <div>
+                  <label
+                    for="product-category"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    دسته‌بندی <span class="text-red-500">*</span>
+                  </label>
+                  <p-select
+                    inputId="product-category"
+                    formControlName="categoryId"
+                    [options]="categoryOptions()"
+                    optionLabel="path"
+                    optionValue="id"
+                    [filter]="true"
+                    filterBy="path"
+                    [loading]="categoriesLoading()"
+                    [showClear]="false"
+                    placeholder="انتخاب دسته‌بندی"
+                    filterPlaceholder="جستجوی دسته‌بندی…"
+                    emptyMessage="دسته‌بندی‌ای یافت نشد"
+                    emptyFilterMessage="نتیجه‌ای پیدا نشد"
+                    appendTo="body"
+                    class="w-full"
+                    styleClass="w-full"
+                  >
+                    <ng-template pTemplate="item" let-category>
+                      <span [style.padding-inline-start.px]="category.level * 12">
+                        {{ category.path }}
+                      </span>
+                    </ng-template>
+                  </p-select>
+                  @if (categoriesError()) {
+                    <p class="mt-1 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                      بارگذاری دسته‌بندی‌ها ناموفق بود.
+                      <button
+                        type="button"
+                        (click)="retryCategories()"
+                        data-retry-categories
+                        class="font-medium underline underline-offset-2"
+                      >
+                        تلاش دوباره
+                      </button>
+                    </p>
+                  }
+                  @if (errorFor('categoryId')) {
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {{ errorFor('categoryId') }}
+                    </p>
+                  }
+                </div>
+
+                <div>
+                  <label
+                    for="product-brand"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    برند
+                  </label>
+                  <p-select
+                    inputId="product-brand"
+                    formControlName="brandId"
+                    [options]="brandOptions()"
+                    optionLabel="name"
+                    optionValue="id"
+                    [filter]="true"
+                    filterBy="name"
+                    [loading]="brandsLoading()"
+                    [showClear]="false"
+                    placeholder="بدون برند"
+                    filterPlaceholder="جستجوی برند…"
+                    emptyMessage="برندی یافت نشد"
+                    emptyFilterMessage="نتیجه‌ای پیدا نشد"
+                    appendTo="body"
+                    class="w-full"
+                    styleClass="w-full"
+                  >
+                    <ng-template pTemplate="item" let-brand>
+                      <div class="flex items-center gap-2">
+                        @if (brand.logo) {
+                          <img
+                            [src]="brand.logo"
+                            [alt]="brand.name"
+                            class="h-5 w-5 rounded-full object-cover"
+                          />
+                        } @else {
+                          <span
+                            class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                            aria-hidden="true"
+                          >
+                            {{ brand.name.charAt(0) }}
+                          </span>
+                        }
+                        <span>{{ brand.name }}</span>
+                      </div>
+                    </ng-template>
+
+                    <ng-template pTemplate="selectedItem" let-brand>
+                      <div class="flex items-center gap-2">
+                        @if (brand.logo) {
+                          <img
+                            [src]="brand.logo"
+                            [alt]="brand.name"
+                            class="h-5 w-5 rounded-full object-cover"
+                          />
+                        } @else {
+                          <span
+                            class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                            aria-hidden="true"
+                          >
+                            {{ brand.name.charAt(0) }}
+                          </span>
+                        }
+                        <span>{{ brand.name }}</span>
+                      </div>
+                    </ng-template>
+                  </p-select>
+                  @if (brandsError()) {
+                    <p class="mt-1 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                      بارگذاری برندها ناموفق بود.
+                      <button
+                        type="button"
+                        (click)="retryBrands()"
+                        data-retry-brands
+                        class="font-medium underline underline-offset-2"
+                      >
+                        تلاش دوباره
+                      </button>
+                    </p>
+                  }
+                </div>
+
+                <div class="md:col-span-2">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <label
+                      for="product-short-description"
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      توضیح کوتاه
+                    </label>
+                    <span
+                      class="text-xs"
+                      [class]="
+                        form.controls.shortDescription.touched &&
+                        form.controls.shortDescription.invalid
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-gray-500 dark:text-gray-400'
+                      "
+                    >
+                      {{ form.controls.shortDescription.value.length | persianDigits }} /
+                      {{ shortDescriptionMax | persianDigits }}
+                    </span>
+                  </div>
+                  <textarea
+                    id="product-short-description"
+                    rows="2"
+                    pTextarea
+                    formControlName="shortDescription"
+                    [attr.maxlength]="shortDescriptionMax"
+                    placeholder="یک جملهٔ کوتاه برای معرفی محصول"
+                    class="w-full"
+                  ></textarea>
+                  @if (errorFor('shortDescription')) {
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {{ errorFor('shortDescription') }}
+                    </p>
+                  }
+                </div>
+
+                <div class="md:col-span-2">
+                  <label
+                    for="product-description"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    توضیحات محصول
+                  </label>
+                  <textarea
+                    id="product-description"
+                    rows="5"
+                    pTextarea
+                    formControlName="description"
+                    placeholder="توضیحات کامل محصول"
+                    class="w-full"
+                  ></textarea>
+                </div>
               </div>
             </section>
 
-            <section
-              class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-200"
-              aria-label="راهنما"
-            >
-              واریانت‌ها و گالری تصاویر در تب‌های خودشان تعریف می‌شوند؛ موجودی کل از مجموع موجودی
-              واریانت‌ها محاسبه می‌شود.
-            </section>
-          </aside>
-        </div>
-      </div>
-    }
+            <!-- Right: publish + price, matching the Arino side column. -->
+            <aside class="space-y-6">
+              <section
+                class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+                aria-labelledby="publish-title"
+              >
+                <h2 id="publish-title" class="mb-6 text-lg font-bold text-gray-900 dark:text-white">
+                  انتشار و قیمت
+                </h2>
 
-    @if (activeTab() === 'variants') {
-      <div id="panel-variants" role="tabpanel" class="p-6">
-        <!--
+                <div class="space-y-4">
+                  <div>
+                    <label
+                      for="product-status"
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      وضعیت انتشار
+                    </label>
+                    <p-select
+                      inputId="product-status"
+                      formControlName="status"
+                      [options]="statusOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      appendTo="body"
+                      class="w-full"
+                      styleClass="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      for="product-price"
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      قیمت اصلی (تومان) <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="product-price"
+                      type="number"
+                      min="1"
+                      pInputText
+                      formControlName="price"
+                      placeholder="قیمت اصلی"
+                      class="w-full text-left"
+                    />
+                    @if (errorFor('price')) {
+                      <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                        {{ errorFor('price') }}
+                      </p>
+                    }
+                  </div>
+
+                  @if (form.controls.slug.value) {
+                    <p class="break-all text-xs text-gray-500 dark:text-gray-400" dir="ltr">
+                      /products/{{ form.controls.slug.value }}
+                    </p>
+                  }
+                </div>
+              </section>
+
+              <section
+                class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-200"
+                aria-label="راهنما"
+              >
+                واریانت‌ها و گالری تصاویر در تب‌های خودشان تعریف می‌شوند؛ موجودی کل از مجموع موجودی
+                واریانت‌ها محاسبه می‌شود.
+              </section>
+            </aside>
+          </div>
+        </div>
+      }
+
+      @if (activeTab() === 'variants') {
+        <div id="panel-variants" role="tabpanel" class="p-6">
+          <!--
           The editor receives the page-owned FormArray. It does not create a
           second one, so every row is already part of the central FormGroup when
           the wizard validates this tab or BO-F13 builds the payload.
         -->
-        <app-product-variant-editor [variants]="variants" [basePrice]="form.controls.price.value" />
-      </div>
-    }
+          <app-product-variant-editor
+            [variants]="variants"
+            [basePrice]="form.controls.price.value"
+          />
+        </div>
+      }
 
-    @if (activeTab() === 'gallery') {
-      <div id="panel-gallery" role="tabpanel" class="p-6">
-        <!--
+      @if (activeTab() === 'gallery') {
+        <div id="panel-gallery" role="tabpanel" class="p-6">
+          <!--
           Same contract as the variant editor: the uploader receives the
           page-owned `images` array and the product name for the default alt
           texts. The rows it pushes are part of the central FormGroup, and the
           page — not the uploader — frees their object URLs on destroy.
         -->
-        <app-product-gallery-uploader [images]="images" [productName]="form.controls.name.value" />
-      </div>
-    }
+          <app-product-gallery-uploader
+            [images]="images"
+            [productName]="form.controls.name.value"
+          />
+        </div>
+      }
 
-    @if (activeTab() === 'inventory') {
-      <div id="panel-inventory" role="tabpanel" class="p-6">
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <!--
+      @if (activeTab() === 'inventory') {
+        <div id="panel-inventory" role="tabpanel" class="p-6">
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <!--
             The Arino «قیمت‌گذاری و موجودی» card: accent-underline heading, then a
             two-column field grid. The dashboard's low-stock card uses the same
             heading recipe, so the panel and the widget that reports on it look
             like one product.
           -->
-          <section
-            class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800 lg:col-span-2"
-            aria-labelledby="inventory-title"
-          >
-            <h2
-              id="inventory-title"
-              class="relative mb-6 pb-3 text-lg font-bold text-gray-900 before:absolute before:bottom-0 before:start-0 before:size-2 before:rounded-full before:bg-primary after:absolute after:bottom-0 after:start-4 after:h-2 after:w-40 after:rounded-lg after:bg-primary dark:text-white"
+            <section
+              class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800 lg:col-span-2"
+              aria-labelledby="inventory-title"
             >
-              قیمت‌گذاری و موجودی
-            </h2>
+              <h2
+                id="inventory-title"
+                class="relative mb-6 pb-3 text-lg font-bold text-gray-900 before:absolute before:bottom-0 before:start-0 before:size-2 before:rounded-full before:bg-primary after:absolute after:bottom-0 after:start-4 after:h-2 after:w-40 after:rounded-lg after:bg-primary dark:text-white"
+              >
+                قیمت‌گذاری و موجودی
+              </h2>
 
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <label
-                  for="product-stock"
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  موجودی <span class="text-red-500">*</span>
-                </label>
-                <!--
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label
+                    for="product-stock"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    موجودی <span class="text-red-500">*</span>
+                  </label>
+                  <!--
                   `inputmode="numeric"` opens the number pad on a phone (tc 7);
                   `min="0"` is the browser's hint and the validator is the real
                   rule (tc 1/2/8).
                 -->
-                <input
-                  id="product-stock"
-                  type="number"
-                  min="0"
-                  inputmode="numeric"
-                  pInputText
-                  formControlName="stock"
-                  placeholder="تعداد موجودی"
-                  [readOnly]="inventory().derived"
-                  class="w-full text-left"
-                />
-                @if (inventory().derived) {
+                  <input
+                    id="product-stock"
+                    type="number"
+                    min="0"
+                    inputmode="numeric"
+                    pInputText
+                    formControlName="stock"
+                    placeholder="تعداد موجودی"
+                    [readOnly]="inventory().derived"
+                    class="w-full text-left"
+                  />
+                  @if (inventory().derived) {
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      مجموع موجودی {{ variants.length | persianDigits }} واریانت است و دستی قابل
+                      تغییر نیست.
+                    </p>
+                  }
+                  @if (errorFor('stock')) {
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {{ errorFor('stock') }}
+                    </p>
+                  }
+                </div>
+
+                <div>
+                  <label
+                    for="product-low-stock"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    آستانهٔ کم‌موجودی
+                  </label>
+                  <input
+                    id="product-low-stock"
+                    type="number"
+                    min="0"
+                    inputmode="numeric"
+                    pInputText
+                    formControlName="lowStockThreshold"
+                    placeholder="آستانهٔ هشدار"
+                    class="w-full text-left"
+                  />
                   <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    مجموع موجودی {{ variants.length | persianDigits }} واریانت است و دستی قابل تغییر
-                    نیست.
+                    وقتی موجودی به این عدد برسد، کالا در داشبورد «کم‌موجودی» شمرده می‌شود.
                   </p>
-                }
-                @if (errorFor('stock')) {
-                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    {{ errorFor('stock') }}
-                  </p>
-                }
+                  @if (errorFor('lowStockThreshold')) {
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {{ errorFor('lowStockThreshold') }}
+                    </p>
+                  }
+                </div>
               </div>
 
-              <div>
-                <label
-                  for="product-low-stock"
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  آستانهٔ کم‌موجودی
-                </label>
-                <input
-                  id="product-low-stock"
-                  type="number"
-                  min="0"
-                  inputmode="numeric"
-                  pInputText
-                  formControlName="lowStockThreshold"
-                  placeholder="آستانهٔ هشدار"
-                  class="w-full text-left"
-                />
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  وقتی موجودی به این عدد برسد، کالا در داشبورد «کم‌موجودی» شمرده می‌شود.
-                </p>
-                @if (errorFor('lowStockThreshold')) {
-                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                    {{ errorFor('lowStockThreshold') }}
-                  </p>
-                }
-              </div>
-            </div>
-
-            <!--
+              <!--
               وضعیت موجودی — Arino has a radio pair here. This panel derives the
               level from the two fields above instead: a manual «ناموجود» toggle
               next to a stock of 12 is two answers to one question, and the row
               badge in the list would have to choose which one to believe.
             -->
-            <div class="mt-6">
-              <span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                وضعیت موجودی
-              </span>
-              <div class="flex flex-wrap items-center gap-3">
-                <span
-                  class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-                  [class]="inventoryStatus().badgeClass"
-                >
-                  {{ inventoryStatus().label }}
+              <div class="mt-6">
+                <span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  وضعیت موجودی
                 </span>
-                <span class="text-xs text-gray-500 dark:text-gray-400">
-                  از موجودی و آستانهٔ بالا محاسبه می‌شود.
-                </span>
+                <div class="flex flex-wrap items-center gap-3">
+                  <span
+                    class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+                    [class]="inventoryStatus().badgeClass"
+                  >
+                    {{ inventoryStatus().label }}
+                  </span>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">
+                    از موجودی و آستانهٔ بالا محاسبه می‌شود.
+                  </span>
+                </div>
               </div>
-            </div>
-          </section>
-
-          <!-- Right: one summary of the same numbers (tc 9). -->
-          <aside class="space-y-6">
-            <section
-              class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-              aria-labelledby="inventory-summary-title"
-            >
-              <h2
-                id="inventory-summary-title"
-                class="relative mb-6 pb-3 text-lg font-bold text-gray-900 before:absolute before:bottom-0 before:start-0 before:size-2 before:rounded-full before:bg-primary after:absolute after:bottom-0 after:start-4 after:h-2 after:w-32 after:rounded-lg after:bg-primary dark:text-white"
-              >
-                خلاصهٔ موجودی
-              </h2>
-
-              <dl class="space-y-3 text-sm">
-                <div class="flex items-center justify-between gap-3">
-                  <dt class="text-gray-500 dark:text-gray-400">موجودی کل</dt>
-                  <dd class="font-semibold tabular-nums text-gray-900 dark:text-white">
-                    {{ inventory().total | persianDigits }}
-                  </dd>
-                </div>
-                <div class="flex items-center justify-between gap-3">
-                  <dt class="text-gray-500 dark:text-gray-400">آستانهٔ هشدار</dt>
-                  <dd class="font-semibold tabular-nums text-gray-900 dark:text-white">
-                    {{ inventory().threshold | persianDigits }}
-                  </dd>
-                </div>
-                <div class="flex items-center justify-between gap-3">
-                  <dt class="text-gray-500 dark:text-gray-400">منبع موجودی</dt>
-                  <dd class="text-gray-900 dark:text-white">
-                    {{ inventory().derived ? 'واریانت‌ها' : 'ورود دستی' }}
-                  </dd>
-                </div>
-              </dl>
             </section>
-          </aside>
-        </div>
-      </div>
-    }
-  </div>
 
-  <!--
+            <!-- Right: one summary of the same numbers (tc 9). -->
+            <aside class="space-y-6">
+              <section
+                class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+                aria-labelledby="inventory-summary-title"
+              >
+                <h2
+                  id="inventory-summary-title"
+                  class="relative mb-6 pb-3 text-lg font-bold text-gray-900 before:absolute before:bottom-0 before:start-0 before:size-2 before:rounded-full before:bg-primary after:absolute after:bottom-0 after:start-4 after:h-2 after:w-32 after:rounded-lg after:bg-primary dark:text-white"
+                >
+                  خلاصهٔ موجودی
+                </h2>
+
+                <dl class="space-y-3 text-sm">
+                  <div class="flex items-center justify-between gap-3">
+                    <dt class="text-gray-500 dark:text-gray-400">موجودی کل</dt>
+                    <dd class="font-semibold tabular-nums text-gray-900 dark:text-white">
+                      {{ inventory().total | persianDigits }}
+                    </dd>
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                    <dt class="text-gray-500 dark:text-gray-400">آستانهٔ هشدار</dt>
+                    <dd class="font-semibold tabular-nums text-gray-900 dark:text-white">
+                      {{ inventory().threshold | persianDigits }}
+                    </dd>
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                    <dt class="text-gray-500 dark:text-gray-400">منبع موجودی</dt>
+                    <dd class="text-gray-900 dark:text-white">
+                      {{ inventory().derived ? 'واریانت‌ها' : 'ورود دستی' }}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            </aside>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!--
     The save failure the fields cannot explain (BO-F13 tc 5): the request never
     reached the API, or the API said 500. Validation failures take the other
     path — they mark the control itself — so this block stays empty for them and
     the user sees one message per problem, not two.
   -->
-  @if (saveError(); as message) {
-    <div
-      role="alert"
-      class="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"
-    >
-      <p>{{ message }}</p>
-      <button
-        type="button"
-        (click)="save()"
-        data-retry-save
-        class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-300 px-4 py-2 font-medium transition hover:bg-red-100 max-sm:min-h-11 dark:border-red-700 dark:hover:bg-red-900/40"
+    @if (saveError(); as message) {
+      <div
+        role="alert"
+        class="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"
       >
-        <i class="pi pi-refresh" aria-hidden="true"></i>
-        تلاش دوباره
-      </button>
-    </div>
-  }
-
-  <!-- Wizard footer: next validates the current tab; the last step saves. -->
-  <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <button
-      type="button"
-      (click)="previous()"
-      [disabled]="activeIndex() === 0"
-      class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-    >
-      <i class="pi pi-arrow-right" aria-hidden="true"></i>
-      قبلی
-    </button>
-
-    <div class="flex flex-col-reverse gap-2 sm:flex-row">
-      <a
-        routerLink="/products"
-        class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-      >
-        انصراف
-      </a>
-
-      @if (isLastTab()) {
-        <button
-          type="submit"
-          pLoading
-          [loading]="submitting()"
-          data-save
-          class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <i
-            [class]="submitting() ? 'pi pi-spinner pi-spin' : 'pi pi-check'"
-            aria-hidden="true"
-          ></i>
-          {{ submitting() ? 'در حال ذخیره…' : 'ذخیره محصول' }}
-        </button>
-      } @else {
+        <p>{{ message }}</p>
         <button
           type="button"
-          (click)="next()"
-          data-next
-          class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          (click)="save()"
+          data-retry-save
+          class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-300 px-4 py-2 font-medium transition hover:bg-red-100 max-sm:min-h-11 dark:border-red-700 dark:hover:bg-red-900/40"
         >
-          ادامه
-          <i class="pi pi-arrow-left" aria-hidden="true"></i>
+          <i class="pi pi-refresh" aria-hidden="true"></i>
+          تلاش دوباره
         </button>
-      }
+      </div>
+    }
+
+    <!-- Wizard footer: next validates the current tab; the last step saves. -->
+    <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <button
+        type="button"
+        (click)="previous()"
+        [disabled]="activeIndex() === 0"
+        class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+      >
+        <i class="pi pi-arrow-right" aria-hidden="true"></i>
+        قبلی
+      </button>
+
+      <div class="flex flex-col-reverse gap-2 sm:flex-row">
+        <a
+          routerLink="/products"
+          class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+        >
+          انصراف
+        </a>
+
+        @if (isLastTab()) {
+          <button
+            type="submit"
+            pLoading
+            [loading]="submitting()"
+            data-save
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <i
+              [class]="submitting() ? 'pi pi-spinner pi-spin' : 'pi pi-check'"
+              aria-hidden="true"
+            ></i>
+            {{ submitting() ? 'در حال ذخیره…' : saveLabel() }}
+          </button>
+        } @else {
+          <button
+            type="button"
+            (click)="next()"
+            data-next
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            ادامه
+            <i class="pi pi-arrow-left" aria-hidden="true"></i>
+          </button>
+        }
+      </div>
     </div>
-  </div>
-</form>
+  </form>
+}

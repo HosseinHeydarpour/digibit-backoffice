@@ -30,7 +30,7 @@ import { Routes } from '@angular/router';
 import { unsavedProductChangesGuard } from './guards/unsaved-product-changes.guard';
 import { ProductCreate } from './product-create/product-create';
 import { ProductDetail } from './product-detail/product-detail';
-import { ProductEdit } from './product-edit/product-edit';
+import { productEditResolver } from './product-edit/product-edit.resolver';
 import { ProductList } from './product-list/product-list';
 
 /**
@@ -41,11 +41,11 @@ import { ProductList } from './product-list/product-list';
  *      `products-routes` (tc 1) — the user downloads it only now.
  *   2. Inside it, `''` needs an empty remainder (does not match `/42/edit`),
  *      `new` is a literal (does not match), so the router reaches the
- *      TWO-segment route `:id/edit` → `component: ProductEdit`, `:id = '42'`.
- *      `:id` (one segment) can never swallow this because the segment counts
- *      differ.
- *   3. `ProductEdit` turns `route.paramMap` into a signal with `toSignal`, so
- *      `productId()` reads `'42'` and the placeholder prints «ویرایش محصول ۴۲».
+ *      TWO-segment route `:id/edit`. `:id` (one segment) can never swallow this
+ *      because the segment counts differ.
+ *   3. The route resolves `{ edit: ProductEditResult }` with the full product;
+ *      `withComponentInputBinding()` writes it into `ProductCreate.edit`, which
+ *      hydrates all four tabs before the first paint (BO-F14).
  *   4. The topbar heading reads the matched route's `data.title`
  *      («ویرایش محصول»); the breadcrumb chip reads `data.breadcrumb`;
  *      `data.permission` is the constant the future BO-D07 guard will read.
@@ -81,8 +81,14 @@ export const PRODUCTS_ROUTES: Routes = [
   // more-specific path is listed first as a convention.
   {
     path: ':id/edit',
-    component: ProductEdit,
+    component: ProductCreate,
     title: 'ویرایش محصول',
+    canDeactivate: [unsavedProductChangesGuard],
+    // Both are required for the error block's «تلاش دوباره» (BO-F14 tc 6):
+    // `onSameUrlNavigation` (at the call site) stops the router dropping the
+    // navigation, and `always` stops it reusing the cached resolve result.
+    runGuardsAndResolvers: 'always',
+    resolve: { edit: productEditResolver },
     data: { title: 'ویرایش محصول', breadcrumb: 'ویرایش محصول', permission: PRODUCTS_PERMISSION },
   },
   {

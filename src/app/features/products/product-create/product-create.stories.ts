@@ -107,6 +107,11 @@ const meta: Meta<ProductCreate> = {
           'bind `submitting` through `pLoading` (spinner + native `disabled`), and the three answers',
           'have three endings: 201 → success toast + edit page, 422 → the message lands on its field',
           'and its tab opens, anything else → a «تلاش دوباره» banner with the form untouched.',
+          '',
+          '**BO-F14 is the same form in edit mode.** The route resolves the product first, the `edit`',
+          'input hydrates all four tabs before the first paint, and saving PUTs to the same id and',
+          'stays on the page. A missing id redirects to the 404 page; a failed load shows a retry',
+          'block instead of an empty wizard that could create a duplicate.',
         ].join('\n'),
       },
     },
@@ -148,6 +153,42 @@ class InventoryHost implements AfterViewInit {
 }
 
 export const Default: Story = {};
+
+/** A saved product the edit story hands the form through its `edit` input. */
+const SAVED_PRODUCT: Product = {
+  ...CREATED,
+  id: '7',
+  name: 'هدفون بی‌سیم سونی WH-1000XM5',
+  slug: 'sony-wh1000xm5',
+  sku: 'SONY-WH1000-BLK',
+  stock: 4,
+  lowStockThreshold: 5,
+  variants: [
+    {
+      id: 'v-1',
+      sku: 'SONY-BLK',
+      attributes: { رنگ: 'مشکی' },
+      price: 2_100_000,
+      stock: 4,
+      imageUrl: null,
+    },
+  ],
+  images: [
+    { id: 'img-1', url: '/images/products/7-1.jpg', alt: 'هدفون سونی', isPrimary: true, order: 1 },
+  ],
+};
+
+/**
+ * The same form in edit mode (BO-F14).
+ *
+ * The only difference is the resolved `edit` input: the page hydrates every tab
+ * from it, renames itself «ویرایش محصول», and saves with `PUT /products/:id`
+ * instead of POST. No extra component, which is why the story lives beside the
+ * create one.
+ */
+export const Edit: Story = {
+  args: { edit: { product: SAVED_PRODUCT } },
+};
 
 /**
  * The inventory tab derived from the variant rows (BO-F12 tc 4/9).

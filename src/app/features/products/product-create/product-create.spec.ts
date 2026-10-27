@@ -41,6 +41,29 @@ const CREATED: Product = {
   createdAt: 1_729_152_000_000,
 };
 
+/** A saved product with a variant and a gallery row, as the edit resolver hands it over. */
+const EDITED: Product = {
+  ...CREATED,
+  id: '7',
+  name: 'هدفون سونی',
+  slug: 'sony-wh1000',
+  stock: 4,
+  lowStockThreshold: 5,
+  variants: [
+    {
+      id: 'v-1',
+      sku: 'SONY-BLK',
+      attributes: { رنگ: 'مشکی' },
+      price: 2_100_000,
+      stock: 4,
+      imageUrl: null,
+    },
+  ],
+  images: [
+    { id: 'img-1', url: '/images/products/1.jpg', alt: 'هدفون سونی', isPrimary: true, order: 1 },
+  ],
+};
+
 const CATEGORIES: readonly ProductCategoryOption[] = [
   { id: '3', name: 'لوازم برقی', parentId: null, isActive: true },
   { id: '4', name: 'صوتی', parentId: '3', isActive: true },
@@ -56,6 +79,10 @@ class ProductsServiceStub {
   createCalls = 0;
 
   createError: unknown = null;
+
+  updateCalls = 0;
+
+  lastUpdateId: string | null = null;
 
   /** When set, `create` waits for this subject instead of answering at once. */
   pending: Subject<Product> | null = null;
@@ -76,6 +103,13 @@ class ProductsServiceStub {
     }
 
     return this.pending ?? of({ ...CREATED, name: dto.name });
+  }
+
+  update(id: string): Observable<Product> {
+    this.updateCalls += 1;
+    this.lastUpdateId = id;
+
+    return of({ ...EDITED });
   }
 }
 
@@ -589,7 +623,6 @@ describe('ProductCreate (BO-F07)', () => {
     await mount();
 
     expect(component.inventoryLevel()).toBe('out');
-
     component.form.controls.stock.setValue(10);
     component.form.controls.lowStockThreshold.setValue(5);
     expect(component.inventoryLevel()).toBe('ok');
@@ -601,5 +634,72 @@ describe('ProductCreate (BO-F07)', () => {
 
     component.form.controls.stock.setValue(0);
     expect(component.inventoryStatus().label).toBe('ناموجود');
+  });
+
+  // ─── BO-F14 · edit mode ───────────────────────────────────────────────────
+
+  /** Mount, then hand the component the resolver's product and let it hydrate. */
+  async function mountEdit(): Promise<void> {
+    await mount();
+    fixture.componentRef.setInput('edit', { product: EDITED });
+    fixture.detectChanges();
+    await settle();
+  }
+
+  it('BO-F14 tc 1/2/3/4: hydrates every tab from the resolved product', async () => {
+    await mountEdit();
+
+    const controls = component.form.controls;
+
+    expect(controls.name.value).toBe('هدفون سونی');
+    expect(controls.slug.value).toBe('sony-wh1000');
+    expect(controls.price.value).toBe(2_100_000);
+    expect(controls.status.value).toBe('draft');
+    expect(controls.lowStockThreshold.value).toBe(5);
+
+    expect(component.variants.length).toBe(1);
+    expect(component.variants.at(0).get('sku')?.value).toBe('SONY-BLK');
+    expect(component.images.length).toBe(1);
+    expect(component.images.at(0).get('url')?.value).toBe('/images/products/1.jpg');
+
+    expect(component.inventory()).toEqual({ total: 4, threshold: 5, derived: true });
+    expect(component.pageTitle()).toBe('ویرایش محصول');
+    expect(component.saveLabel()).toBe('ذخیره تغییرات');
+    // A prefilled form the user has not touched must not trip the leave guard.
+    expect(component.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('BO-F14: renaming a saved product keeps its slug', async () => {
+    await mountEdit();
+
+    component.form.controls.name.setValue('هدفون سونی نسخه ۲');
+
+    expect(component.form.controls.slug.value).toBe('sony-wh1000');
+  });
+
+  it('BO-F14 tc 7/10: saving without changes PUTs and stays on the page', async () => {
+    await mountEdit();
+
+    component.save();
+    await settle();
+
+    expect(service.updateCalls).toBe(1);
+    expect(service.lastUpdateId).toBe('7');
+    expect(service.createCalls).toBe(0);
+    expect(component.submitting()).toBe(false);
+    expect(component.hasUnsavedChanges()).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('BO-F14 tc 6: a failed load replaces the form with a retry block', async () => {
+    await mount();
+    fixture.componentRef.setInput('edit', { error: 'دریافت اطلاعات محصول ناموفق بود.' });
+    fixture.detectChanges();
+    await settle();
+
+    expect(fixture.nativeElement.querySelector('#panel-main')).toBeNull();
+    const retry = fixture.nativeElement.querySelector('[data-retry-load]') as HTMLButtonElement;
+    expect(retry).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('ناموفق');
   });
 });

@@ -2,6 +2,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
+import type { ActivatedRouteSnapshot } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
 /** Fallback when a route declares no title (test case 9). */
@@ -77,7 +78,14 @@ export class PageTitleService {
     let title: string | null = null;
 
     while (route) {
-      const declared = route.snapshot.data['title'];
+      // A node can exist before its snapshot is built: the service is created by
+      // the shell, and an ASYNC resolver (BO-F14's edit route) keeps the first
+      // navigation open while the shell is already rendering. Reading
+      // `snapshot.data` there threw `Cannot read properties of undefined`, which
+      // aborted the render and left the page blank.
+      const snapshot = route.snapshot as ActivatedRouteSnapshot | undefined;
+      const declared = snapshot?.data['title'];
+
       if (typeof declared === 'string' && declared.length > 0) {
         title = declared;
       }

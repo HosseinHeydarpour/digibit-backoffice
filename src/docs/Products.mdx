@@ -604,6 +604,36 @@ products.
 
 <Canvas of={ProductCreateStories.Default} />
 
+## ویرایش محصول / Editing a product (BO-F14)
+
+`/products/:id/edit` همان فرم ساخت است، نه یک نسخهٔ دوم. مسیر با یک `resolve` محصول کامل را
+(با واریانت‌ها، گالری و آستانه) قبل از اولین رندر می‌آورد و `withComponentInputBinding()` آن را به
+`input` صفحه می‌دهد؛ پس کاربر هیچ‌وقت فرم خالی نمی‌بیند که بعد پر شود.
+
+`/products/:id/edit` is the create form, not a second copy. The route resolves the full product —
+variants, gallery and threshold included — before the first paint, and
+`withComponentInputBinding()` hands it to the page's `edit` input, so the user never sees an empty
+form that fills in later.
+
+### سه ورودی، سه رفتار / Three inputs, three behaviours
+
+| ورودی `edit`         | نتیجه                                                                                          |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `null` (مسیر `/new`) | فرم خالی؛ ذخیره `POST` می‌کند و به صفحهٔ ویرایش می‌رود (F13)                                   |
+| `{ product }`        | هر چهار تب پیش‌پر می‌شوند؛ ذخیره `PUT /products/:id` می‌زند و در همان صفحه می‌ماند (tc 1‑4، 7) |
+| `{ error }`          | فرم رندر نمی‌شود؛ کادر خطا با «تلاش دوباره» می‌آید (tc 6)                                      |
+
+- **۱۶۰/۴۰۴ با `RedirectCommand`:** اگر `GET /products/:id` ۴۰۴ بدهد، resolver به‌جای برگرداندن
+  داده، `RedirectCommand('/404')` می‌دهد؛ ناوبری لغو و صفحهٔ ۴۰۴ می‌آید (tc 5).
+- **نامک دست‌نخورده می‌ماند:** پیش از hydrate، `slugEdited` ست می‌شود؛ وگرنه تغییر نام محصول،
+  نشانی (URL) ذخیره‌شده را عوض می‌کرد.
+- **ذخیره بدون تغییر خطا نمی‌دهد:** بعد از `PUT`، فرم `markAsPristine` می‌شود و `hasChanges` صفر؛
+  همان مقادیر خط پایهٔ جدید هستند (tc 10) و گارد خروج دیگر سؤال نمی‌پرسد.
+- **«تلاش دوباره» دو تنظیم لازم دارد:** `onSameUrlNavigation: 'reload'` در دکمه و
+  `runGuardsAndResolvers: 'always'` روی مسیر؛ بدون هر دو، دکمه بی‌صدا هیچ کاری نمی‌کند.
+
+<Canvas of={ProductCreateStories.Edit} />
+
 ## حالت‌های صفحه / Page states
 
 سه حالت غیر دادهٔ صفحه: در حال بارگذاری، خالی و خطا. هر سه از یک `state()` می‌آیند و
