@@ -1,0 +1,27 @@
+/* RTL fixes for VS Code's built-in Markdown preview.
+ *
+ * VS Code already gives every rendered block a `dir="auto"` (since 1.64), so a
+ * Persian paragraph, heading or list item is laid out right-to-left without any
+ * help. Two rules in its own stylesheet are still written for LTR only, and
+ * those are the two this file corrects — nothing else is overridden, so the
+ * preview keeps following the active theme.
+ *
+ * Loaded through `markdown.styles` in .vscode/settings.json.
+ */
+
+/* `th { text-align: left }` pins every header cell to the left edge, including
+   inside a table that VS Code has already flipped to RTL. `start` follows the
+   cell's own direction instead. */
+.markdown-body th {
+  text-align: start;
+}
+
+/* The quote bar is drawn with `border-left` and padded with physical `left` /
+   `right`, so in RTL the bar sits on the wrong edge and the text hugs it. The
+   logical pair puts the bar and its inset on the inline-start side. */
+.markdown-body blockquote {
+  border-left: none;
+  border-inline-start: 5px solid;
+  padding-block: 0;
+  padding-inline: 10px 16px;
+}

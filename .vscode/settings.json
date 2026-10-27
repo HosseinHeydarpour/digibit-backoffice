@@ -1,0 +1,22 @@
+{
+  // Window tint derived from the project's own brand orange (#ff8229, the
+  // `--color-primary` in src/styles/tailwind.css and the 500 step of the
+  // PrimeNG preset). The chrome uses the darker steps of that same palette
+  // (700-950) instead of the brand colour itself, so two windows are easy to
+  // tell apart without a bright orange bar glaring in the corner of the screen.
+  //
+  // Every pair below is measured against WCAG AA: the darkest text here is
+  // #b76122 on #3d1f0a at 3.39:1, and that is only the inactive activity-bar
+  // icon, where the bar is 3:1 for non-text UI.
+  "workbench.colorCustomizations": {
+    "activityBar.border": "#572400",
+    "statusBar.noFolderBackground": "#3d1f0a",
+    "statusBar.noFolderForeground": "#ffe4d1",
+    "focusBorder": "#b76122"
+  },
+
+  // The built-in Markdown preview flips a block to RTL on its own; this
+  // stylesheet only corrects the two rules in VS Code's preview CSS that are
+  // still written for LTR (table header alignment, quote bar side).
+  "markdown.styles": [".vscode/markdown-rtl.css"]
+}

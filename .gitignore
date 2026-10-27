@@ -28,6 +28,7 @@ yarn-error.log
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/mcp.json
+!.vscode/markdown-rtl.css
 .history/*
 
 # Miscellaneous
@@ -46,3 +47,4 @@ Thumbs.db
 
 # Local agent workspace (memory, scratch)
 /.workbuddy-ai
+/.zcode
