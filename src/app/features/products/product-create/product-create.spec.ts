@@ -1,5 +1,6 @@
 import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
+import { FormBuilder } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -8,6 +9,7 @@ import { of } from 'rxjs';
 
 import type { ProductBrandOption, ProductCategoryOption } from '../models/product.model';
 import { ProductGalleryUploader } from '../product-gallery/product-gallery-uploader';
+import { createVariantGroup } from '../product-variants/variant-form';
 import { ProductsService } from '../services/products.service';
 
 import { ProductCreate } from './product-create';
@@ -353,5 +355,79 @@ describe('ProductCreate (BO-F07)', () => {
       URL.createObjectURL = originalCreate;
       URL.revokeObjectURL = originalRevoke;
     }
+  });
+
+  // ─── BO-F12 · inventory fields ────────────────────────────────────────────
+
+  it('BO-F12 tc 1/2/8: rejects a negative or non-numeric stock and accepts zero', async () => {
+    await mount();
+
+    const { stock, lowStockThreshold } = component.form.controls;
+
+    stock.setValue(-1);
+    stock.markAsTouched();
+    expect(stock.hasError('negative')).toBe(true);
+    expect(component.errorFor('stock')).toContain('منفی');
+
+    stock.setValue(Number.NaN);
+    expect(stock.hasError('number')).toBe(true);
+    expect(component.errorFor('stock')).toContain('عدد');
+
+    stock.setValue(0);
+    expect(stock.valid).toBe(true);
+
+    lowStockThreshold.setValue(-2);
+    expect(lowStockThreshold.hasError('negative')).toBe(true);
+  });
+
+  it('BO-F12 tc 4/9: the variant rows own the total once there is one', async () => {
+    await mount();
+    fillMainTab();
+
+    const fb = new FormBuilder();
+    const variants = component.form.controls.variants;
+
+    variants.push(
+      createVariantGroup(fb, { basePrice: 2_100_000, seed: { sku: 'SKU-1', stock: 4 } }),
+    );
+    variants.push(
+      createVariantGroup(fb, { basePrice: 2_100_000, seed: { sku: 'SKU-2', stock: 6 } }),
+    );
+
+    expect(component.inventory()).toEqual({ total: 10, threshold: 5, derived: true });
+    expect(component.form.controls.stock.value).toBe(10);
+
+    component.selectTab('inventory');
+    await settle();
+
+    const panel = fixture.nativeElement.querySelector('#panel-inventory') as HTMLElement;
+    const stockInput = panel.querySelector('#product-stock') as HTMLInputElement;
+
+    expect(stockInput.readOnly).toBe(true);
+    expect(panel.textContent).toContain('۱۰');
+    expect(panel.textContent).toContain('واریانت‌ها');
+
+    // Deleting the last row hands the field back to the user (tc 4).
+    variants.clear();
+    expect(component.inventory().derived).toBe(false);
+    expect(component.form.controls.stock.value).toBe(10);
+  });
+
+  it('BO-F12 tc 5/9: the status pill follows the total and the threshold', async () => {
+    await mount();
+
+    expect(component.inventoryLevel()).toBe('out');
+
+    component.form.controls.stock.setValue(10);
+    component.form.controls.lowStockThreshold.setValue(5);
+    expect(component.inventoryLevel()).toBe('ok');
+    expect(component.inventoryStatus().label).toBe('موجود');
+
+    component.form.controls.lowStockThreshold.setValue(10);
+    expect(component.inventoryLevel()).toBe('low');
+    expect(component.inventoryStatus().label).toBe('کم‌موجودی');
+
+    component.form.controls.stock.setValue(0);
+    expect(component.inventoryStatus().label).toBe('ناموجود');
   });
 });

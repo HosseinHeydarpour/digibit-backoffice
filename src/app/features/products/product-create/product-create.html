@@ -384,8 +384,8 @@
               class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-200"
               aria-label="راهنما"
             >
-              واریانت‌ها و گالری تصاویر در همین فرم تعریف می‌شوند. محاسبهٔ موجودی از روی واریانت‌ها
-              در BO-F12 کامل می‌شود.
+              واریانت‌ها و گالری تصاویر در تب‌های خودشان تعریف می‌شوند؛ موجودی کل از مجموع موجودی
+              واریانت‌ها محاسبه می‌شود.
             </section>
           </aside>
         </div>
@@ -417,65 +417,149 @@
 
     @if (activeTab() === 'inventory') {
       <div id="panel-inventory" role="tabpanel" class="p-6">
-        <section
-          class="max-w-2xl rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-          aria-labelledby="inventory-title"
-        >
-          <h2 id="inventory-title" class="mb-2 text-lg font-bold text-gray-900 dark:text-white">
-            موجودی و آستانهٔ هشدار
-          </h2>
-          <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
-            محاسبهٔ مجموع موجودی از روی واریانت‌ها و هشدار کم‌موجودی در BO-F12 کامل می‌شود.
-          </p>
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <!--
+            The Arino «قیمت‌گذاری و موجودی» card: accent-underline heading, then a
+            two-column field grid. The dashboard's low-stock card uses the same
+            heading recipe, so the panel and the widget that reports on it look
+            like one product.
+          -->
+          <section
+            class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800 lg:col-span-2"
+            aria-labelledby="inventory-title"
+          >
+            <h2
+              id="inventory-title"
+              class="relative mb-6 pb-3 text-lg font-bold text-gray-900 before:absolute before:bottom-0 before:start-0 before:size-2 before:rounded-full before:bg-primary after:absolute after:bottom-0 after:start-4 after:h-2 after:w-40 after:rounded-lg after:bg-primary dark:text-white"
+            >
+              قیمت‌گذاری و موجودی
+            </h2>
 
-          <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div>
-              <label
-                for="product-stock"
-                class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                موجودی
-              </label>
-              <input
-                id="product-stock"
-                type="number"
-                min="0"
-                inputmode="numeric"
-                pInputText
-                formControlName="stock"
-                class="w-full text-left"
-              />
-              @if (errorFor('stock')) {
-                <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                  {{ errorFor('stock') }}
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <label
+                  for="product-stock"
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  موجودی <span class="text-red-500">*</span>
+                </label>
+                <!--
+                  `inputmode="numeric"` opens the number pad on a phone (tc 7);
+                  `min="0"` is the browser's hint and the validator is the real
+                  rule (tc 1/2/8).
+                -->
+                <input
+                  id="product-stock"
+                  type="number"
+                  min="0"
+                  inputmode="numeric"
+                  pInputText
+                  formControlName="stock"
+                  placeholder="تعداد موجودی"
+                  [readOnly]="inventory().derived"
+                  class="w-full text-left"
+                />
+                @if (inventory().derived) {
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    مجموع موجودی {{ variants.length | persianDigits }} واریانت است و دستی قابل تغییر
+                    نیست.
+                  </p>
+                }
+                @if (errorFor('stock')) {
+                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                    {{ errorFor('stock') }}
+                  </p>
+                }
+              </div>
+
+              <div>
+                <label
+                  for="product-low-stock"
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  آستانهٔ کم‌موجودی
+                </label>
+                <input
+                  id="product-low-stock"
+                  type="number"
+                  min="0"
+                  inputmode="numeric"
+                  pInputText
+                  formControlName="lowStockThreshold"
+                  placeholder="آستانهٔ هشدار"
+                  class="w-full text-left"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  وقتی موجودی به این عدد برسد، کالا در داشبورد «کم‌موجودی» شمرده می‌شود.
                 </p>
-              }
+                @if (errorFor('lowStockThreshold')) {
+                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">
+                    {{ errorFor('lowStockThreshold') }}
+                  </p>
+                }
+              </div>
             </div>
 
-            <div>
-              <label
-                for="product-low-stock"
-                class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                آستانهٔ کم‌موجودی
-              </label>
-              <input
-                id="product-low-stock"
-                type="number"
-                min="0"
-                inputmode="numeric"
-                pInputText
-                formControlName="lowStockThreshold"
-                class="w-full text-left"
-              />
-              @if (errorFor('lowStockThreshold')) {
-                <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                  {{ errorFor('lowStockThreshold') }}
-                </p>
-              }
+            <!--
+              وضعیت موجودی — Arino has a radio pair here. This panel derives the
+              level from the two fields above instead: a manual «ناموجود» toggle
+              next to a stock of 12 is two answers to one question, and the row
+              badge in the list would have to choose which one to believe.
+            -->
+            <div class="mt-6">
+              <span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                وضعیت موجودی
+              </span>
+              <div class="flex flex-wrap items-center gap-3">
+                <span
+                  class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+                  [class]="inventoryStatus().badgeClass"
+                >
+                  {{ inventoryStatus().label }}
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                  از موجودی و آستانهٔ بالا محاسبه می‌شود.
+                </span>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+
+          <!-- Right: one summary of the same numbers (tc 9). -->
+          <aside class="space-y-6">
+            <section
+              class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+              aria-labelledby="inventory-summary-title"
+            >
+              <h2
+                id="inventory-summary-title"
+                class="relative mb-6 pb-3 text-lg font-bold text-gray-900 before:absolute before:bottom-0 before:start-0 before:size-2 before:rounded-full before:bg-primary after:absolute after:bottom-0 after:start-4 after:h-2 after:w-32 after:rounded-lg after:bg-primary dark:text-white"
+              >
+                خلاصهٔ موجودی
+              </h2>
+
+              <dl class="space-y-3 text-sm">
+                <div class="flex items-center justify-between gap-3">
+                  <dt class="text-gray-500 dark:text-gray-400">موجودی کل</dt>
+                  <dd class="font-semibold tabular-nums text-gray-900 dark:text-white">
+                    {{ inventory().total | persianDigits }}
+                  </dd>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <dt class="text-gray-500 dark:text-gray-400">آستانهٔ هشدار</dt>
+                  <dd class="font-semibold tabular-nums text-gray-900 dark:text-white">
+                    {{ inventory().threshold | persianDigits }}
+                  </dd>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <dt class="text-gray-500 dark:text-gray-400">منبع موجودی</dt>
+                  <dd class="text-gray-900 dark:text-white">
+                    {{ inventory().derived ? 'واریانت‌ها' : 'ورود دستی' }}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+          </aside>
+        </div>
       </div>
     }
   </div>

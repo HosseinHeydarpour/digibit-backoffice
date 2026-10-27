@@ -44,6 +44,8 @@ import type {
   ProductListItem,
   ProductStatus,
 } from '../models/product.model';
+import { STOCK_LEVEL_META, stockLevel } from '../product-stock';
+import type { StockLevel, StockLevelMeta } from '../product-stock';
 import { ProductsService } from '../services/products.service';
 
 import {
@@ -615,6 +617,25 @@ export class ProductList {
 
   statusBadgeClass(status: ProductStatus): string {
     return PRODUCT_STATUS_META[status]?.badgeClass ?? '';
+  }
+
+  /**
+   * The stock cell's pill and number (BO-F12 tc 5).
+   *
+   * The comparison lives in `stockLevel` so the table and the create form cannot
+   * disagree about what «کم‌موجودی» means. A zero row reads «ناموجود», which is a
+   * different message from «کم‌موجودی» and needs its own colour.
+   *
+   * TRACE: row `{ stock: 3, lowStockThreshold: 5 }` → `stockLevel` = `low` →
+   * `{ level: 'low', label: 'کم‌موجودی', badgeClass: 'bg-amber-100 …' }`. The
+   * template binds `@let stock = stockMeta(item)` once and prints the number ۳
+   * with that pill; a row of 12 gets `ok`, whose class is never rendered because
+   * the template only draws a pill for `level !== 'ok'`.
+   */
+  stockMeta(item: ProductListItem): StockLevelMeta & { readonly level: StockLevel } {
+    const level = stockLevel(item.stock, item.lowStockThreshold);
+
+    return { level, ...STOCK_LEVEL_META[level] };
   }
 
   /**

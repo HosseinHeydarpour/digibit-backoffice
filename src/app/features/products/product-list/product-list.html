@@ -334,17 +334,35 @@
                   {{ item.price | toman }}
                 </td>
 
-                <!-- موجودی — zero is red: «۰» in a healthy shop is news, not a
-                     number. -->
-                <td
-                  class="whitespace-nowrap px-6 py-4 text-start text-sm tabular-nums"
-                  [class]="
-                    item.stock === 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-gray-900 dark:text-white'
-                  "
-                >
-                  {{ item.stock | persianDigits }}
+                <!--
+                  موجودی (BO-F12 tc 5) — the number plus its level. Zero is
+                  «ناموجود» and `0 < stock <= threshold` is «کم‌موجودی»; a healthy
+                  row prints the number alone, because a chip on every row is
+                  noise that hides the two that matter.
+                -->
+                <td class="whitespace-nowrap px-6 py-4 text-start text-sm tabular-nums">
+                  @let stock = stockMeta(item);
+
+                  <span class="inline-flex items-center gap-2">
+                    <span
+                      [class]="
+                        stock.level === 'out'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-gray-900 dark:text-white'
+                      "
+                    >
+                      {{ item.stock | persianDigits }}
+                    </span>
+
+                    @if (stock.level !== 'ok') {
+                      <span
+                        class="inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium"
+                        [class]="stock.badgeClass"
+                      >
+                        {{ stock.label }}
+                      </span>
+                    }
+                  </span>
                 </td>
 
                 <!-- وضعیت (BO-F02 tc 4) — the coloured pill. -->

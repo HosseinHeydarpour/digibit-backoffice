@@ -42,6 +42,13 @@ export interface MockProduct {
   brandId: string | null;
   price: number;
   stock: number;
+  /**
+   * Warning line for the list's «کم‌موجودی» badge (BO-F12).
+   *
+   * The export carries no such column, so every product shares one mock value —
+   * the real API stores it per product and returns it in the same row.
+   */
+  lowStockThreshold: number;
   status: MockProductStatus;
   createdAt: number;
   /** The shop's real photo as a data URL, or '' when it has none. */
@@ -120,6 +127,9 @@ export const MOCK_PRODUCTS: MockProduct[] = RAW_PRODUCTS.map((product, i) => ({
   brandId: brandIdFor(product.name),
   price: product.price,
   stock: product.quantity,
+  // Mock data, not the dashboard's widget default: a real product carries its
+  // own threshold, and the list badge (BO-F12) reads this same number.
+  lowStockThreshold: 5,
   status: statusFor(i),
   createdAt: FIXTURE_NOW - i * DAY,
   image: product.image,

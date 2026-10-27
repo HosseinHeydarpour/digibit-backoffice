@@ -17,6 +17,7 @@ const LIST_ITEM: ProductListItem = {
   brandName: 'سونی',
   price: 2_100_000,
   stock: 12,
+  lowStockThreshold: 5,
   status: 'published',
   createdAt: 1728969600000,
 };

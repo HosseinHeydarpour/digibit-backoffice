@@ -76,6 +76,22 @@ describe('mockInterceptor', () => {
     expect(meta.total).toBe(99);
   });
 
+  it('gives every list row the threshold its low-stock badge compares against (BO-F12)', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ stock: number; lowStockThreshold: number }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 100 },
+      }),
+    );
+
+    // The badge is `stock <= lowStockThreshold`; an undefined threshold would
+    // silently print a healthy row, so the field is pinned for every row.
+    for (const row of body.data) {
+      expect(typeof row.stock).toBe('number');
+      expect(typeof row.lowStockThreshold).toBe('number');
+    }
+  });
+
   it('filters products by Persian name and by Latin SKU (BO-F03 tc 1, tc 10)', async () => {
     // «غلط گیر» names exactly one row of the shop export («غلط گیر قلمی») —
     // deliberately a two-word term: a single word can sit inside another

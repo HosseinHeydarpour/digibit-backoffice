@@ -23,6 +23,7 @@ const PRODUCTS: readonly ProductListItem[] = [
     brandName: 'ریزر',
     price: 1_850_000,
     stock: 0,
+    lowStockThreshold: 5,
     status: 'published',
     createdAt: 1729142400000,
   },
@@ -33,6 +34,7 @@ const PRODUCTS: readonly ProductListItem[] = [
     brandName: 'لاجیتک',
     price: 920_000,
     stock: 3,
+    lowStockThreshold: 5,
     status: 'published',
     createdAt: 1729056000000,
   },
@@ -43,6 +45,7 @@ const PRODUCTS: readonly ProductListItem[] = [
     brandName: 'سونی',
     price: 2_100_000,
     stock: 12,
+    lowStockThreshold: 5,
     status: 'draft',
     createdAt: 1728969600000,
   },
@@ -53,6 +56,7 @@ const PRODUCTS: readonly ProductListItem[] = [
     brandName: 'ال‌جی',
     price: 8_400_000,
     stock: 25,
+    lowStockThreshold: 5,
     status: 'inactive',
     createdAt: 1728883200000,
   },
@@ -204,6 +208,26 @@ describe('ProductList (BO-F02)', () => {
     expect(pills[0].textContent.trim()).toBe('منتشر شده');
     expect(pills[2].textContent.trim()).toBe('پیش‌نویس');
     expect(pills[2].className).toContain('bg-gray-100');
+  });
+
+  // ─── BO-F12 · stock level ─────────────────────────────────────────────────
+
+  it('BO-F12 tc 5: warns when a row is at or below its own threshold', async () => {
+    await mount();
+
+    // PRODUCTS: 0 / 3 / 12 / 25 against a threshold of 5.
+    expect(component.stockMeta(PRODUCTS[0]).label).toBe('ناموجود');
+    expect(component.stockMeta(PRODUCTS[1]).label).toBe('کم‌موجودی');
+    expect(component.stockMeta(PRODUCTS[2]).label).toBe('موجود');
+
+    const cells = Array.from(
+      fixture.nativeElement.querySelectorAll('tbody tr') as NodeListOf<HTMLTableRowElement>,
+    ).map((row) => row.querySelectorAll('td')[4].textContent ?? '');
+
+    expect(cells[0]).toContain('ناموجود');
+    expect(cells[1]).toContain('کم‌موجودی');
+    expect(cells[2]).not.toContain('کم‌موجودی');
+    expect(cells[2]).not.toContain('ناموجود');
   });
 
   // ─── tc 5 · the actions column ────────────────────────────────────────────

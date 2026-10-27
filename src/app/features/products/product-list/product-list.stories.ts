@@ -23,6 +23,7 @@ const SAMPLE_PRODUCTS: readonly ProductListItem[] = [
     brandName: 'ریزر',
     price: 1_850_000,
     stock: 0,
+    lowStockThreshold: 5,
     status: 'published',
     createdAt: 1729142400000,
   },
@@ -33,6 +34,7 @@ const SAMPLE_PRODUCTS: readonly ProductListItem[] = [
     brandName: 'لاجیتک',
     price: 920_000,
     stock: 3,
+    lowStockThreshold: 5,
     status: 'published',
     createdAt: 1729056000000,
   },
@@ -43,6 +45,7 @@ const SAMPLE_PRODUCTS: readonly ProductListItem[] = [
     brandName: 'سونی',
     price: 2_100_000,
     stock: 12,
+    lowStockThreshold: 5,
     status: 'draft',
     createdAt: 1728969600000,
   },
@@ -53,6 +56,7 @@ const SAMPLE_PRODUCTS: readonly ProductListItem[] = [
     brandName: 'ال‌جی',
     price: 8_400_000,
     stock: 25,
+    lowStockThreshold: 5,
     status: 'inactive',
     createdAt: 1728883200000,
   },
@@ -66,6 +70,7 @@ const PAGINATED_PRODUCTS: readonly ProductListItem[] = Array.from({ length: 25 }
   brandName: 'سونی',
   price: 500_000 + index * 50_000,
   stock: index % 7,
+  lowStockThreshold: 5,
   status: 'published',
   createdAt: 1728883200000 + index * 86_400_000,
 }));
@@ -180,6 +185,12 @@ const meta: Meta<ProductList> = {
           'roll back if the API rejects. On a phone the three controls collapse into one kebab whose',
           'menu is appended to `<body>`, so the table overflow cannot clip it. Actions require the',
           '`products.view` grant.',
+          '',
+          '**BO-F12 adds the stock level.** The «موجودی» cell prints the number plus a pill when the',
+          'row needs attention: `stock === 0` reads «ناموجود» (red number) and',
+          '`0 < stock <= lowStockThreshold` reads «کم‌موجودی» (amber). A healthy row prints the number',
+          'alone. The comparison is `stockLevel()` in `product-stock.ts`, which the create form uses',
+          'too — the two surfaces cannot disagree about what low means.',
         ].join('\n'),
       },
     },
@@ -243,6 +254,60 @@ export const Paginated: Story = {
       providers: [{ provide: ProductsService, useValue: new PagedProductsService() }],
     },
   }),
+};
+
+/**
+ * The threshold is per product, not one global number (BO-F12 tc 5).
+ *
+ * Both rows have a stock of 8. The first one warns because its own threshold is
+ * 10; the second one is fine because its threshold is 5. A single shared
+ * threshold could not tell these two apart, which is exactly why the field
+ * travels in the list row instead of being hard-coded on the page.
+ */
+export const LowStock: Story = {
+  render: () => ({
+    template: '<app-product-list />',
+    moduleMetadata: {
+      providers: [
+        {
+          provide: ProductsService,
+          useValue: {
+            ...LOOKUP_STUBS,
+            list: () =>
+              of(
+                pageOf([
+                  {
+                    ...SAMPLE_PRODUCTS[1],
+                    id: 'low-1',
+                    name: 'کارتریج تونر (آستانه ۱۰)',
+                    stock: 8,
+                    lowStockThreshold: 10,
+                  },
+                  {
+                    ...SAMPLE_PRODUCTS[1],
+                    id: 'ok-1',
+                    name: 'کارتریج تونر (آستانه ۵)',
+                    stock: 8,
+                    lowStockThreshold: 5,
+                  },
+                  { ...SAMPLE_PRODUCTS[0], id: 'out-1', name: 'کارتریج تونر (تمام‌شده)', stock: 0 },
+                ]),
+              ),
+          },
+        },
+      ],
+    },
+  }),
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Two rows with `stock: 8`: the first carries `lowStockThreshold: 10` and shows «کم‌موجودی», ' +
+          'the second carries `5` and shows the plain number. The third row is at zero and reads ' +
+          '«ناموجود» with a red number, because zero is out, not nearly out.',
+      },
+    },
+  },
 };
 
 /** The request has not answered yet (tc 9). */

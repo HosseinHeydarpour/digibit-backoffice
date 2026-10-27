@@ -27,6 +27,7 @@ const ROWS: readonly ProductListItem[] = Array.from({ length: 45 }, (_, index) =
   brandName: 'سونی',
   price: 100_000 + index * 10_000,
   stock: index,
+  lowStockThreshold: 5,
   status: 'published',
   createdAt: 1728883200000 + index * 86_400_000,
 }));

@@ -103,6 +103,14 @@ export interface ProductListItem {
   /** Price in TOMAN (the smallest unit the table prints, formatted by `toman`). */
   readonly price: number;
   readonly stock: number;
+  /**
+   * The product's own warning line (BO-F12).
+   *
+   * Required, not optional: the row's «کم‌موجودی» badge is `stock <= this`, and a
+   * missing value would silently print a healthy row for a product that is
+   * running out. The API owns the number; the table only compares.
+   */
+  readonly lowStockThreshold: number;
   readonly status: ProductStatus;
   /** Epoch ms — the table formats it through `persianDate`. */
   readonly createdAt: number;

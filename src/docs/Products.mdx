@@ -1,5 +1,6 @@
 import { Canvas, Meta } from '@storybook/addon-docs/blocks';
 
+import * as ProductCreateStories from '../app/features/products/product-create/product-create.stories';
 import * as ProductListStories from '../app/features/products/product-list/product-list.stories';
 
 <Meta title="Features/Products" />
@@ -515,6 +516,63 @@ points at a `blob:` object URL and keeps its (possibly compressed) `File` for BO
 - **Delete asks no confirmation** — unlike a typed variant row, an image is one click to re-add.
 - **Object URLs are freed in two places:** row remove/replace, and the create page's destroy —
   never the tab switch, which destroys the uploader but keeps the array.
+
+## موجودی و آستانهٔ هشدار / Stock fields (BO-F12)
+
+جدول محصولات و تب «موجودی» فرم هر دو یک سؤال را می‌پرسند: «این کالا چقدر دارد و آیا کم است؟»
+پاسخ در `product-stock.ts` است — یک تابع خالص `stockLevel(stock, lowStockThreshold)` با سه خروجی
+`out` / `low` / `ok` و یک جدول برچسب/رنگ (`STOCK_LEVEL_META`) که هر دو سطح از آن می‌خوانند.
+
+The products table and the create form's inventory tab ask the same question — how much is
+left, and is that low? The answer lives in `product-stock.ts`: one pure
+`stockLevel(stock, lowStockThreshold)` returning `out` / `low` / `ok`, plus one label/colour table
+(`STOCK_LEVEL_META`) that both surfaces read.
+
+### قواعد / The rules
+
+- **صفر «ناموجود» است، نه «کم‌موجودی».** صفر یعنی قفسه خالی است؛ `0 < stock ≤ threshold` یعنی
+  دارد تمام می‌شود. دو جملهٔ متفاوت، دو رنگ متفاوت.
+- **آستانه برای هر محصول است، نه یک عدد سراسری.** دو ردیف با موجودی ۸ می‌توانند یکی هشدار بگیرد و
+  دیگری نه؛ برای همین آستانه در خودِ ردیف لیست برمی‌گردد.
+- **آستانهٔ صفر یعنی «تا وقتی تمام نشده هشدار نده»** — و همین رفتار از فرمول بیرون می‌آید، بدون
+  شرط اضافه.
+- **موجودی کل از واریانت‌ها می‌آید.** به‌محض وجود یک ردیف واریانت، `syncInventory()` مجموع را در
+  کنترل `stock` می‌نویسد (بدون emit، تا حلقه نشود) و ورودی دستی قفل می‌شود. حذف آخرین ردیف،
+  فیلد را با همان مقدار به کاربر برمی‌گرداند.
+
+- **Zero is «ناموجود», not «کم‌موجودی».** Zero means the shelf is empty; `0 < stock ≤ threshold`
+  means it is running out — two sentences, two colours.
+- **The threshold is per product.** Two rows at stock 8 can disagree, which is why the number
+  travels in the list row instead of being one constant on the page.
+- **A threshold of 0 means "warn only when empty"**, and that falls out of the formula with no
+  extra branch.
+- **The total comes from the variants.** Once a variant row exists, `syncInventory()` writes their
+  sum into `stock` (without emitting, so it cannot loop) and the manual field locks. Deleting the
+  last row hands the field back with the same value.
+
+### تریس یک نمونه / One worked trace
+
+فرم ایجاد: نام «هدفون سونی»، دو واریانت با موجودی ۴ و ۶، آستانه ۵.
+
+1. `variants.push(...)` → `updateValueAndValidity()` روی آرایه → `form.valueChanges`.
+2. اشتراک سازندهٔ `ProductCreate` → `syncInventory()`.
+3. `derived = true`؛ `sumVariantStock` = ۱۰؛ `stock` کنترل با `emitEvent: false` روی ۱۰؛
+   `inventory = { total: 10, threshold: 5, derived: true }`.
+4. `inventoryLevel = stockLevel(10, 5) = 'ok'` → بج «موجود».
+5. تب موجودی: ورودی read-only با ۱۰، «منبع موجودی: واریانت‌ها»، خلاصه = ۱۰.
+
+Create form: name «هدفون سونی», two variants with stock 4 and 6, threshold 5.
+
+1. `variants.push(...)` → `updateValueAndValidity()` on the array → `form.valueChanges`.
+2. The constructor's subscription → `syncInventory()`.
+3. `derived = true`; `sumVariantStock` = 10; the `stock` control is written to 10 with
+   `emitEvent: false`; `inventory = { total: 10, threshold: 5, derived: true }`.
+4. `inventoryLevel = stockLevel(10, 5) = 'ok'` → the «موجود» pill.
+5. The inventory tab shows a read-only 10, «منبع موجودی: واریانت‌ها» and a summary of 10.
+
+<Canvas of={ProductCreateStories.Inventory} />
+
+<Canvas of={ProductListStories.LowStock} />
 
 ## حالت‌های صفحه / Page states
 

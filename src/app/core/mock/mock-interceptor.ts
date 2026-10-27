@@ -298,6 +298,7 @@ function toListItem(product: fixtures.MockProduct): Record<string, unknown> {
     brandName: product.brandId === null ? '—' : brandName(product.brandId),
     price: product.price,
     stock: product.stock,
+    lowStockThreshold: product.lowStockThreshold,
     status: product.status,
     createdAt: product.createdAt,
   };
@@ -349,7 +350,6 @@ function toProduct(product: fixtures.MockProduct): Record<string, unknown> {
     slug: product.slug,
     shortDescription: shortDescription(product),
     description: product.description || `${product.name} — توضیحات کامل نمونه برای محیط آزمایشی.`,
-    lowStockThreshold: 5,
     colors: product.colors,
     isSpecialOffer: product.isSpecialOffer,
     images: [
@@ -411,6 +411,7 @@ function createProduct(body: unknown): fixtures.MockProduct {
     brandId: brandRef(data['brandId'], base.brandId),
     price: amount(data['price'], base.price),
     stock: amount(data['stock'], 0),
+    lowStockThreshold: amount(data['lowStockThreshold'], base.lowStockThreshold),
     status: isStatus(data['status']) ? data['status'] : 'draft',
     createdAt: fixtures.FIXTURE_NOW,
     // Fields the create payload does not carry (BO-F13's DTO has no colours,
@@ -436,6 +437,7 @@ function updateProduct(product: fixtures.MockProduct, body: unknown): fixtures.M
     brandId: brandRef(data['brandId'], product.brandId),
     price: amount(data['price'], product.price),
     stock: amount(data['stock'], product.stock),
+    lowStockThreshold: amount(data['lowStockThreshold'], product.lowStockThreshold),
     status: isStatus(data['status']) ? data['status'] : product.status,
   };
 }

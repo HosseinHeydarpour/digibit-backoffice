@@ -533,6 +533,29 @@ and its `data`. Every feature page after it follows that shape.
 - **`variantsPayload()` is the F13 boundary.** It coerces cleared numeric inputs to 0 and `''` image
   URLs to `null`; F13 should send its result, not raw form values.
 
+### Stock fields: one rule, one number (BO-F12)
+
+- **`stockLevel(stock, threshold)` in `features/products/product-stock.ts` is the only comparison.**
+  It returns `out` / `low` / `ok`; `STOCK_LEVEL_META` holds the label and pill class for each. The
+  products table and the create form both call it, so «کم‌موجودی» cannot mean two things in one
+  product. Zero is `out`, not `low`: an empty shelf and a shelf that is running out are different
+  messages and different colours.
+- **`ProductListItem.lowStockThreshold` is required, not optional.** The row badge is
+  `stock <= lowStockThreshold`; a missing value would silently render every row healthy — the same
+  false all-clear the dashboard's low-stock card was burned by. The mock returns it in every list
+  row (`toListItem`), and `POST`/`PUT` echo it back.
+- **Variant rows own the total.** `ProductCreate.syncInventory()` writes `sumVariantStock(variants)`
+  into the `stock` control with `emitEvent: false` whenever the array is non-empty: F13 sends one
+  number, and the manual field cannot contradict the rows. Not emitting keeps it out of a loop and
+  out of the dirty flag (the variant edit already set that). Removing the last row hands the field
+  back with its last value.
+- **The inventory tab has no manual availability toggle.** Arino's radio pair is replaced by a
+  computed pill from the same two numbers; a hand-set «ناموجود» next to a stock of 12 would be a
+  second source of truth for one question.
+- **Storybook opens the tab for you.** `ProductCreateStories.Inventory` uses a host that fills the
+  required main-tab fields and calls the page's `selectTab`, because the tab strip refuses to move
+  forward over an invalid tab and a story cannot type.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

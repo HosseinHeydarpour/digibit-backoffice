@@ -23,8 +23,9 @@ import { Textarea } from 'primeng/textarea';
 import type { ProductBrandOption, ProductStatus } from '../models/product.model';
 import { createImageArray, revokeImageUrl } from '../product-gallery/gallery-form';
 import { ProductGalleryUploader } from '../product-gallery/product-gallery-uploader';
+import { STOCK_LEVEL_META, stockLevel } from '../product-stock';
 import { ProductVariantEditor } from '../product-variants/product-variant-editor';
-import { createVariantArray } from '../product-variants/variant-form';
+import { createVariantArray, sumVariantStock } from '../product-variants/variant-form';
 import { ProductLookupsService } from '../services/product-lookups.service';
 
 import { buildCategoryOptions } from './category-options';
@@ -66,6 +67,20 @@ const STATUS_OPTIONS: SelectOption<ProductStatus>[] = [
 ];
 
 /** The short-description limit is enforced by `shortDescriptionValidator`. */
+
+/**
+ * The inventory tab's numbers (BO-F12).
+ *
+ * `total` is what the form will send as `stock`, `threshold` is the warning line
+ * the user edits, and `derived` says where `total` came from — the variant rows
+ * or the manual field. The tab prints them together so the screen has ONE stock
+ * number (tc 9) instead of a manual field that disagrees with the variant list.
+ */
+interface InventorySnapshot {
+  readonly total: number;
+  readonly threshold: number;
+  readonly derived: boolean;
+}
 
 /**
  * Products create page — `/products/new` (BO-F07).
@@ -203,6 +218,28 @@ export class ProductCreate {
   readonly statusOptions = STATUS_OPTIONS;
 
   /**
+   * The inventory tab's live snapshot (BO-F12).
+   *
+   * A signal rather than a computed because it reads `FormArray.controls`, which
+   * is a plain mutable array — Angular does not track it. `syncInventory` is the
+   * one writer, called on every form change and once at construction.
+   */
+  readonly inventory = signal<InventorySnapshot>({ total: 0, threshold: 0, derived: false });
+
+  /** The level of the total against the threshold — the same rule the list uses. */
+  readonly inventoryLevel = computed(() =>
+    stockLevel(this.inventory().total, this.inventory().threshold),
+  );
+
+  /**
+   * Persian label + pill class for `inventoryLevel` (tc 9).
+   *
+   * A computed, not a field: its body runs on first read, so `STOCK_LEVEL_META`
+   * is initialised by then even when the bundler puts it in a shared chunk.
+   */
+  readonly inventoryStatus = computed(() => STOCK_LEVEL_META[this.inventoryLevel()]);
+
+  /**
    * A getter, not a field: `SHORT_DESCRIPTION_MAX` is a runtime import shared
    * with the eager spec bundle; a field initialiser could run before that module
    * is ready (the same hazard as `TOMAN_UNIT`).
@@ -222,9 +259,10 @@ export class ProductCreate {
   private readonly hasChanges = signal(false);
 
   constructor() {
-    this.form.valueChanges
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.hasChanges.set(true));
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.hasChanges.set(true);
+      this.syncInventory();
+    });
 
     this.form.controls.name.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -248,6 +286,44 @@ export class ProductCreate {
         revokeImageUrl(group);
       }
     });
+
+    this.syncInventory();
+  }
+
+  /**
+   * Keep `inventory` (and the `stock` control) in step with the variant rows.
+   *
+   * tc 4: once a product has variants, its total is the SUM of their stock — a
+   * hand-typed product-level number would contradict the rows the user is looking
+   * at. Writing the sum back into `stock` with `emitEvent: false` is what makes
+   * BO-F13's payload correct without a second derivation, and it cannot loop: the
+   * write emits no value change, and a repeat emit would only rewrite the same
+   * number.
+   *
+   * Zero rows means the manual field is the source of truth again, so the value
+   * the user typed survives adding and deleting the first variant row.
+   *
+   * TRACE — the user adds two rows («SONY-BLK» stock 4, «SONY-WHT» stock 6) to a
+   * form whose threshold is 5:
+   *
+   *   1. The second `push` emits `form.valueChanges` (once per row).
+   *   2. `derived` = true, `sumVariantStock` = 4 + 6 = 10.
+   *   3. `stock` is 0, so it is written to 10 with `emitEvent: false` — no second
+   *      value change, no dirty flag, no loop.
+   *   4. `inventory` = `{ total: 10, threshold: 5, derived: true }`; the tab shows a
+   *      read-only 10, «منبع موجودی: واریانت‌ها» and the «موجود» pill.
+   *   5. Deleting both rows flips `derived` back to false and leaves 10 in the
+   *      editable field, which is what F13 will send.
+   */
+  private syncInventory(): void {
+    const derived = this.variants.length > 0;
+    const total = derived ? sumVariantStock(this.variants) : this.form.controls.stock.value;
+
+    if (derived && this.form.controls.stock.value !== total) {
+      this.form.controls.stock.setValue(total, { emitEvent: false });
+    }
+
+    this.inventory.set({ total, threshold: this.form.controls.lowStockThreshold.value, derived });
   }
 
   /** A manual edit wins over the generated slug (tc 8). */
