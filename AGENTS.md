@@ -556,6 +556,34 @@ and its `data`. Every feature page after it follows that shape.
   required main-tab fields and calls the page's `selectTab`, because the tab strip refuses to move
   forward over an invalid tab and a story cannot type.
 
+### Submitting the create form (BO-F13)
+
+- **`toCreateProductDto(form)` is the payload builder, and it is pure.** It trims text, turns the
+  empty brand sentinel `''` into `null`, coerces cleared number inputs to 0, and reads the two
+  `FormArray`s through `variantsPayload()` / `imagesPayload()`. `save()` therefore stays a sequence
+  (validate → POST → route) and the mapping is tested without a TestBed.
+- **`blob:` image URLs never leave the browser.** They are valid only inside the tab that made them,
+  so the DTO keeps a gallery row only when its URL resolves; the bytes travel separately through
+  `imageFiles()` in the upload step.
+- **The three answers are three endings.** 201 → `saved` flag, success toast, navigate to
+  `/products/{id}/edit`; 422 with `fields` → `applyServerErrors` + the tab that owns the field opens;
+  anything else → `saveError`, which renders the «تلاش دوباره» banner. The interceptor already toasted
+  the last case and deliberately does not toast validation errors, so no failure is reported twice.
+- **`saved` is what turns the unsaved-changes guard off.** The form is dirty the moment it is valid,
+  so without the flag the redirect after a successful create would be blocked by the page's own
+  `CanDeactivate` guard. A failed save leaves it false — the user's typing is still protected.
+- **`clearServerErrors()` runs before every submit.** A `server` error makes the control invalid,
+  which would block the retry that tc 7 asks for; clearing the key re-runs local validation and lets
+  an only-server-rejected value go back to the API. A locally wrong value still stops at the form.
+- **`submitting` is the double-submit guard, and `pLoading` is how it reaches the DOM.** The guard runs
+  first (a second click is a no-op), and the directive writes the native `disabled` so Enter/Space
+  cannot fire either.
+- **Mock-side validation is deterministic.** `POST /products` answers 422 for an empty name, an
+  existing slug, or an existing SKU — enough to exercise the field mapping without a backend, and it
+  never mutates the fixtures, so one test cannot poison the next.
+- **Service stubs used by specs and stories now need `create()`.** A page that injects
+  `ProductsService` and calls it cannot be mounted against a stub that only implements the lookups.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

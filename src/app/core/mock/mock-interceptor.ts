@@ -211,6 +211,12 @@ function resolveProducts(
 ): MockResolution {
   if (!id) {
     if (method === 'POST') {
+      const rejected = validateNewProduct(body);
+
+      if (rejected) {
+        return rejected;
+      }
+
       return created(toProduct(createProduct(body)), 'محصول با موفقیت ایجاد شد.');
     }
 
@@ -283,6 +289,49 @@ function categoryName(id: string): string {
 
 function brandName(id: string): string {
   return fixtures.MOCK_BRANDS.find((brand) => brand.id === id)?.name ?? '—';
+}
+
+/**
+ * The 422 a real `POST /products` answers when the payload is wrong (BO-F13 tc 3).
+ *
+ * Three rules are enough to make the form's error mapping demonstrable, and they
+ * are the three a user actually hits: no name, a slug already in the catalogue,
+ * and a SKU already in the catalogue. The message goes in `error.message` (the
+ * banner) and each field in `error.fields` (the control), which is exactly the
+ * envelope `ApiError` was built from.
+ *
+ * TRACE: `{ name: '', slug: 'product-1', sku: 'SKU-1001' }` →
+ *   `{ error: { code: 'VALIDATION', message: 'اطلاعات محصول معتبر نیست.',
+ *               fields: { name: ['…'], slug: ['…'], sku: ['…'] } } }` with 422.
+ */
+function validateNewProduct(body: unknown): MockResolution | null {
+  const data = asRecord(body);
+  const slug = text(data['slug'], '');
+  const sku = text(data['sku'], '');
+  const fields: Record<string, string[]> = {};
+
+  if (text(data['name'], '') === '') {
+    fields['name'] = ['نام محصول الزامی است.'];
+  }
+
+  if (slug === '') {
+    fields['slug'] = ['نامک (slug) الزامی است.'];
+  } else if (fixtures.MOCK_PRODUCTS.some((product) => product.slug === slug)) {
+    fields['slug'] = ['این نامک قبلاً استفاده شده است.'];
+  }
+
+  if (sku !== '' && fixtures.MOCK_PRODUCTS.some((product) => product.sku === sku)) {
+    fields['sku'] = ['این کد محصول قبلاً ثبت شده است.'];
+  }
+
+  if (Object.keys(fields).length === 0) {
+    return null;
+  }
+
+  return {
+    status: 422,
+    body: { error: { code: 'VALIDATION', message: 'اطلاعات محصول معتبر نیست.', fields } },
+  };
 }
 
 /** The flattened row `GET /products` returns. */

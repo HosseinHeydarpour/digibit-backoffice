@@ -12,10 +12,12 @@
     page-header-actions
     type="button"
     (click)="save()"
-    class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+    pLoading
+    [loading]="submitting()"
+    class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
   >
-    <i class="pi pi-check" aria-hidden="true"></i>
-    ذخیره محصول
+    <i [class]="submitting() ? 'pi pi-spinner pi-spin' : 'pi pi-check'" aria-hidden="true"></i>
+    {{ submitting() ? 'در حال ذخیره…' : 'ذخیره محصول' }}
   </button>
 </app-page-header>
 
@@ -564,6 +566,30 @@
     }
   </div>
 
+  <!--
+    The save failure the fields cannot explain (BO-F13 tc 5): the request never
+    reached the API, or the API said 500. Validation failures take the other
+    path — they mark the control itself — so this block stays empty for them and
+    the user sees one message per problem, not two.
+  -->
+  @if (saveError(); as message) {
+    <div
+      role="alert"
+      class="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"
+    >
+      <p>{{ message }}</p>
+      <button
+        type="button"
+        (click)="save()"
+        data-retry-save
+        class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-300 px-4 py-2 font-medium transition hover:bg-red-100 max-sm:min-h-11 dark:border-red-700 dark:hover:bg-red-900/40"
+      >
+        <i class="pi pi-refresh" aria-hidden="true"></i>
+        تلاش دوباره
+      </button>
+    </div>
+  }
+
   <!-- Wizard footer: next validates the current tab; the last step saves. -->
   <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
     <button
@@ -587,10 +613,16 @@
       @if (isLastTab()) {
         <button
           type="submit"
-          class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          pLoading
+          [loading]="submitting()"
+          data-save
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <i class="pi pi-check" aria-hidden="true"></i>
-          ذخیره محصول
+          <i
+            [class]="submitting() ? 'pi pi-spinner pi-spin' : 'pi pi-check'"
+            aria-hidden="true"
+          ></i>
+          {{ submitting() ? 'در حال ذخیره…' : 'ذخیره محصول' }}
         </button>
       } @else {
         <button

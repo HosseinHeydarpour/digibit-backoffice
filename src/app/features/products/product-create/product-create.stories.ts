@@ -4,7 +4,7 @@ import { provideRouter } from '@angular/router';
 import { applicationConfig, Meta, StoryObj } from '@storybook/angular';
 import { of } from 'rxjs';
 
-import type { ProductBrandOption, ProductCategoryOption } from '../models/product.model';
+import type { Product, ProductBrandOption, ProductCategoryOption } from '../models/product.model';
 import { createVariantGroup } from '../product-variants/variant-form';
 import { ProductsService } from '../services/products.service';
 
@@ -22,14 +22,39 @@ const BRANDS: readonly ProductBrandOption[] = [
   { id: '7', name: 'ال‌جی', logo: null },
 ];
 
+/** What the story's stub answers to `POST /products`; only the id is read. */
+const CREATED: Product = {
+  id: '42',
+  name: 'هدفون سونی',
+  slug: 'hdfon-sony',
+  sku: 'SONY-WH1000-BLK',
+  categoryId: '3',
+  categoryName: 'لوازم برقی',
+  brandId: null,
+  brandName: null,
+  shortDescription: '',
+  description: '',
+  price: 2_100_000,
+  stock: 0,
+  lowStockThreshold: 5,
+  status: 'draft',
+  images: [],
+  variants: [],
+  createdAt: 1_729_152_000_000,
+};
+
 /** The create page only reads the two lookup lists; the real endpoints are stubbed here. */
-class CreateProductsService implements Pick<ProductsService, 'categories' | 'brands'> {
+class CreateProductsService implements Pick<ProductsService, 'categories' | 'brands' | 'create'> {
   categories() {
     return of(CATEGORIES);
   }
 
   brands() {
     return of(BRANDS);
+  }
+
+  create() {
+    return of(CREATED);
   }
 }
 
@@ -77,6 +102,11 @@ const meta: Meta<ProductCreate> = {
           'is their sum, the field locks and «خلاصهٔ موجودی» prints the same number, the threshold and',
           'where it came from. «وضعیت موجودی» is computed by `stockLevel()` — the function the list',
           'uses for its badge — instead of a manual available/out-of-stock toggle.',
+          '',
+          '**BO-F13 submits for real.** `toCreateProductDto()` builds the POST body, both save buttons',
+          'bind `submitting` through `pLoading` (spinner + native `disabled`), and the three answers',
+          'have three endings: 201 → success toast + edit page, 422 → the message lands on its field',
+          'and its tab opens, anything else → a «تلاش دوباره» banner with the form untouched.',
         ].join('\n'),
       },
     },

@@ -221,4 +221,80 @@ describe('mockInterceptor', () => {
     http.get('/api/v1/unknown-module', { headers: { [MOCK_HEADER]: '1' } }).subscribe();
     httpMock.expectOne('/api/v1/unknown-module').flush({ data: [] });
   });
+
+  // ─── POST /products (BO-F13) ──────────────────────────────────────────────
+
+  /** The body a valid create sends; `overrides` breaks one field at a time. */
+  function draft(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      name: 'محصول تازه',
+      slug: 'brand-new-product',
+      sku: 'SKU-NEW-1',
+      categoryId: 'pcat-stationery',
+      brandId: null,
+      shortDescription: 'کوتاه',
+      description: 'توضیح',
+      price: 100_000,
+      stock: 3,
+      lowStockThreshold: 5,
+      status: 'draft',
+      variants: [],
+      ...overrides,
+    };
+  }
+
+  it('creates a product and answers 201 with the server id (BO-F13 tc 1)', async () => {
+    const body = await firstValueFrom(
+      http.post<ApiResponse<{ id: string; name: string }>>('/api/v1/products', draft(), {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(body.data.name).toBe('محصول تازه');
+    expect(body.data.id).toBeTruthy();
+    expect(body.message).toContain('ایجاد شد');
+  });
+
+  it('rejects an existing slug with a 422 field map (BO-F13 tc 3)', async () => {
+    // Read one real slug from the DETAIL endpoint: the list row deliberately
+    // does not carry a slug (the table never renders it).
+    const first = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 1 },
+      }),
+    );
+
+    const detail = await firstValueFrom(
+      http.get<ApiResponse<{ slug: string }>>(`/api/v1/products/${first.data[0].id}`, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    const error = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>('/api/v1/products', draft({ slug: detail.data.slug }), {
+          headers: { [MOCK_HEADER]: '1' },
+        })
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+
+    expect(error.status).toBe(422);
+    expect(error.error.error.code).toBe('VALIDATION');
+    expect(error.error.error.fields.slug[0]).toContain('قبلاً');
+  });
+
+  it('rejects an empty name and a duplicate SKU in the same envelope', async () => {
+    const error = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>('/api/v1/products', draft({ name: '', sku: 'SKU-1001' }), {
+          headers: { [MOCK_HEADER]: '1' },
+        })
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+
+    expect(error.status).toBe(422);
+    expect(error.error.error.fields.name[0]).toBe('نام محصول الزامی است.');
+    expect(error.error.error.fields.sku[0]).toContain('قبلاً');
+  });
 });

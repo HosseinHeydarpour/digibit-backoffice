@@ -2,17 +2,44 @@ import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
 import { FormBuilder } from '@angular/forms';
 import { By } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
+import { ApiError } from '@shared/models';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import type { Observable } from 'rxjs';
-import { of } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
-import type { ProductBrandOption, ProductCategoryOption } from '../models/product.model';
+import type {
+  CreateProductDto,
+  Product,
+  ProductBrandOption,
+  ProductCategoryOption,
+} from '../models/product.model';
 import { ProductGalleryUploader } from '../product-gallery/product-gallery-uploader';
 import { createVariantGroup } from '../product-variants/variant-form';
 import { ProductsService } from '../services/products.service';
 
 import { ProductCreate } from './product-create';
+
+/** What the stub's `create` answers; only the id matters for the redirect. */
+const CREATED: Product = {
+  id: '42',
+  name: 'هدفون سونی',
+  slug: 'hdfon-sony',
+  sku: 'SONY-WH1000-BLK',
+  categoryId: '3',
+  categoryName: 'لوازم برقی',
+  brandId: null,
+  brandName: null,
+  shortDescription: '',
+  description: '',
+  price: 2_100_000,
+  stock: 0,
+  lowStockThreshold: 5,
+  status: 'draft',
+  images: [],
+  variants: [],
+  createdAt: 1_729_152_000_000,
+};
 
 const CATEGORIES: readonly ProductCategoryOption[] = [
   { id: '3', name: 'لوازم برقی', parentId: null, isActive: true },
@@ -26,6 +53,13 @@ const BRANDS: readonly ProductBrandOption[] = [
 ];
 
 class ProductsServiceStub {
+  createCalls = 0;
+
+  createError: unknown = null;
+
+  /** When set, `create` waits for this subject instead of answering at once. */
+  pending: Subject<Product> | null = null;
+
   categories(): Observable<readonly ProductCategoryOption[]> {
     return of(CATEGORIES);
   }
@@ -33,22 +67,41 @@ class ProductsServiceStub {
   brands(): Observable<readonly ProductBrandOption[]> {
     return of(BRANDS);
   }
+
+  create(dto: CreateProductDto): Observable<Product> {
+    this.createCalls += 1;
+
+    if (this.createError) {
+      return throwError(() => this.createError);
+    }
+
+    return this.pending ?? of({ ...CREATED, name: dto.name });
+  }
 }
 
 describe('ProductCreate (BO-F07)', () => {
   let fixture: ComponentFixture<ProductCreate>;
   let component: ProductCreate;
+  let service: ProductsServiceStub;
+  let navigate: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
+    service = new ProductsServiceStub();
+
     await TestBed.configureTestingModule({
       imports: [ProductCreate],
       providers: [
-        { provide: ProductsService, useValue: new ProductsServiceStub() },
+        { provide: ProductsService, useValue: service },
         provideRouter([]),
         ConfirmationService,
         MessageService,
       ],
     }).compileComponents();
+
+    // Every save that succeeds navigates; the test router has no such route, so
+    // the call is recorded instead of matched (an unmatched navigate throws
+    // NG04002 outside the test's own stack).
+    navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
   });
 
   async function settle(): Promise<void> {
@@ -67,6 +120,24 @@ describe('ProductCreate (BO-F07)', () => {
     component.form.controls.name.setValue('هدفون سونی');
     component.form.controls.categoryId.setValue('3');
     component.form.controls.price.setValue(2_100_000);
+    fixture.detectChanges();
+  }
+
+  /** Everything the POST needs: the main tab plus the required first variant. */
+  function fillValidForm(): void {
+    fillMainTab();
+    component.form.controls.variants.push(
+      createVariantGroup(new FormBuilder(), {
+        basePrice: 2_100_000,
+        seed: { sku: 'SONY-BLK', stock: 4 },
+      }),
+    );
+    fixture.detectChanges();
+  }
+
+  /** The page only exposes the save button on the last tab. */
+  function goToLastTab(): void {
+    component.selectTab('inventory');
     fixture.detectChanges();
   }
 
@@ -411,6 +482,107 @@ describe('ProductCreate (BO-F07)', () => {
     variants.clear();
     expect(component.inventory().derived).toBe(false);
     expect(component.form.controls.stock.value).toBe(10);
+  });
+
+  // ─── BO-F13 · submit, map errors, retry ───────────────────────────────────
+
+  it('BO-F13 tc 1/2: a successful save toasts, unlocks the guard and opens the edit page', async () => {
+    await mount();
+    fillValidForm();
+
+    component.save();
+    await settle();
+
+    expect(service.createCalls).toBe(1);
+    expect(component.submitting()).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(['/products', '42', 'edit']);
+    // The guard must not ask about the dirty form we just saved (tc 2/9).
+    expect(component.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('BO-F13 tc 4: a second click while the POST is in flight is ignored', async () => {
+    await mount();
+    fillValidForm();
+    goToLastTab();
+
+    service.pending = new Subject<Product>();
+    component.save();
+    component.save();
+    component.save();
+    fixture.detectChanges();
+
+    expect(service.createCalls).toBe(1);
+    expect(component.submitting()).toBe(true);
+    expect((fixture.nativeElement.querySelector('[data-save]') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+
+    service.pending.next({ ...CREATED });
+    await settle();
+
+    expect(component.submitting()).toBe(false);
+  });
+
+  it('BO-F13 tc 3/7: a 422 lands on the right control, keeps the data and can be retried', async () => {
+    await mount();
+    fillValidForm();
+
+    service.createError = new ApiError('VALIDATION', 'اطلاعات محصول معتبر نیست.', 422, {
+      slug: ['این نامک قبلاً استفاده شده است.'],
+    });
+
+    component.save();
+    await settle();
+
+    expect(component.form.controls.slug.hasError('server')).toBe(true);
+    expect(component.form.controls.slug.touched).toBe(true);
+    expect(component.errorFor('slug')).toBe('این نامک قبلاً استفاده شده است.');
+    expect(component.activeTab()).toBe('main');
+    expect(component.saveError()).toBe('اطلاعات محصول معتبر نیست.');
+    // Nothing was cleared: the user corrects one field instead of retyping.
+    expect(component.form.controls.name.value).toBe('هدفون سونی');
+    expect(component.form.controls.variants.length).toBe(1);
+
+    // A tab switch destroys and re-creates the panel, which re-registers
+    // `formControlName` and re-runs the validators. The server message must
+    // survive that, or a 422 on a field the user is not looking at disappears
+    // the moment they go to look at it.
+    component.selectTab('variants');
+    component.selectTab('main');
+    fixture.detectChanges();
+    expect(component.errorFor('slug')).toBe('این نامک قبلاً استفاده شده است.');
+
+    service.createError = null;
+    component.save();
+    await settle();
+
+    expect(service.createCalls).toBe(2);
+    expect(component.errorFor('slug')).toBeNull();
+  });
+
+  it('BO-F13 tc 5: a network failure offers «تلاش دوباره» and keeps every value', async () => {
+    await mount();
+    fillValidForm();
+    goToLastTab();
+
+    service.createError = new Error('offline');
+    component.save();
+    await settle();
+
+    expect(component.saveError()).toContain('ناموفق');
+    expect(component.submitting()).toBe(false);
+    expect(component.form.controls.name.value).toBe('هدفون سونی');
+
+    const retry = fixture.nativeElement.querySelector('[data-retry-save]') as HTMLButtonElement;
+    expect(retry).toBeTruthy();
+    expect(retry.textContent).toContain('تلاش دوباره');
+
+    service.createError = null;
+    retry.click();
+    await settle();
+
+    expect(service.createCalls).toBe(2);
+    expect(component.saveError()).toBeNull();
   });
 
   it('BO-F12 tc 5/9: the status pill follows the total and the threshold', async () => {

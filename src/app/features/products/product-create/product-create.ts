@@ -10,15 +10,18 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { AbstractControl } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ToastService } from '@core/services/toast';
 import { PageHeader } from '@shared/components/page-header/page-header';
+import { LoadingDirective } from '@shared/directives/loading.directive';
+import { ApiError } from '@shared/models';
 import type { SelectOption } from '@shared/models';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { PrimeTemplate } from 'primeng/api';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
+import { take } from 'rxjs';
 
 import type { ProductBrandOption, ProductStatus } from '../models/product.model';
 import { createImageArray, revokeImageUrl } from '../product-gallery/gallery-form';
@@ -27,9 +30,11 @@ import { STOCK_LEVEL_META, stockLevel } from '../product-stock';
 import { ProductVariantEditor } from '../product-variants/product-variant-editor';
 import { createVariantArray, sumVariantStock } from '../product-variants/variant-form';
 import { ProductLookupsService } from '../services/product-lookups.service';
+import { ProductsService } from '../services/products.service';
 
 import { buildCategoryOptions } from './category-options';
 import type { CategoryOption } from './category-options';
+import { toCreateProductDto } from './product-payload';
 import { slugify } from './product-slug';
 import {
   SHORT_DESCRIPTION_MAX,
@@ -125,6 +130,7 @@ interface InventorySnapshot {
   imports: [
     PageHeader,
     InputText,
+    LoadingDirective,
     PersianDigitsPipe,
     ProductGalleryUploader,
     ProductVariantEditor,
@@ -139,6 +145,10 @@ interface InventorySnapshot {
 })
 export class ProductCreate {
   private readonly lookups = inject(ProductLookupsService);
+
+  private readonly products = inject(ProductsService);
+
+  private readonly router = inject(Router);
 
   private readonly fb = inject(FormBuilder);
 
@@ -238,6 +248,28 @@ export class ProductCreate {
    * is initialised by then even when the bundler puts it in a shared chunk.
    */
   readonly inventoryStatus = computed(() => STOCK_LEVEL_META[this.inventoryLevel()]);
+
+  /**
+   * True while the POST is in flight (BO-F13 tc 4).
+   *
+   * The submit buttons bind this through `pLoading`, which sets the native
+   * `disabled` — a keyboard user must not be able to fire the same create twice.
+   */
+  readonly submitting = signal(false);
+
+  /**
+   * The message under the form when a save failed in a way the fields cannot
+   * explain (tc 5). A validation failure fills the controls instead; this is the
+   * network/server case, where «تلاش دوباره» is the only useful action.
+   */
+  readonly saveError = signal<string | null>(null);
+
+  /**
+   * Set once the POST answered. It switches the unsaved-changes guard OFF for
+   * the navigation to the edit page (tc 2) — and only for that: a failed save
+   * leaves it false, so a user who typed a lot is still protected (tc 7).
+   */
+  private readonly saved = signal(false);
 
   /**
    * A getter, not a field: `SHORT_DESCRIPTION_MAX` is a runtime import shared
@@ -385,10 +417,37 @@ export class ProductCreate {
   }
 
   /**
-   * BO-F13 owns the POST. Until it lands, the button still validates everything
-   * and tells the user what is missing instead of silently doing nothing.
+   * Validate, POST, then route to the created product (BO-F13).
+   *
+   * TRACE — the user clicks «ذخیره محصول» on «هدفون سونی»:
+   *
+   *   1. `submitting()` is false, so the guard against a second click passes.
+   *   2. Every control is marked touched. An invalid form moves the user to the
+   *      tab that blocks it and stops here — no request, no toast about saving.
+   *   3. `submitting` = true → both buttons show the spinner and are disabled.
+   *   4. `toCreateProductDto(form)` builds the body (see `product-payload.ts`).
+   *   5. 201 → `saved` = true, success toast, navigate to `/products/{id}/edit`.
+   *      The navigation is allowed even though the form is dirty, because the
+   *      guard reads `saved`.
+   *   6. 422 `{ fields: { slug: ['تکراری'] } }` → the message lands on the slug
+   *      control, the main tab opens (that is where the field lives), the
+   *      message is also kept for the banner, and NOTHING is reset — a second
+   *      click resends the same values plus the correction (tc 3/7).
+   *   7. Network/500 → the interceptor has already toasted it; this sets the
+   *      retry sentence and leaves the form untouched (tc 5).
+   *
+   * A validation failure is not toasted by the interceptor, which is why tc 3's
+   * message is visible exactly once: under the field.
    */
   save(): void {
+    if (this.submitting()) {
+      return;
+    }
+
+    // A retry must be judged by the local rules, not by the message the previous
+    // attempt left behind: a `server` error keeps the control invalid, so
+    // without this a resubmit after a 422 could never leave the page (tc 7).
+    this.clearServerErrors();
     this.form.markAllAsTouched();
 
     if (this.form.invalid) {
@@ -403,12 +462,38 @@ export class ProductCreate {
       return;
     }
 
-    this.toast.info('ثبت محصول در BO-F13 فعال می‌شود.');
+    this.submitting.set(true);
+    this.saveError.set(null);
+
+    this.products
+      .create(toCreateProductDto(this.form))
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (product) => {
+          this.saved.set(true);
+          this.submitting.set(false);
+          this.toast.success('محصول با موفقیت ایجاد شد.');
+          void this.router.navigate(['/products', product.id, 'edit']);
+        },
+        error: (error: unknown) => {
+          this.submitting.set(false);
+
+          if (error instanceof ApiError && error.isValidation) {
+            this.applyServerErrors(error.fields);
+            this.saveError.set(error.message);
+            this.activeTab.set(this.tabOwningField(error.fields));
+
+            return;
+          }
+
+          this.saveError.set('ارسال محصول ناموفق بود. اتصال خود را بررسی و دوباره تلاش کنید.');
+        },
+      });
   }
 
   /** Read by the route's CanDeactivate guard (BO-F07 tc 7). */
   hasUnsavedChanges(): boolean {
-    return this.hasChanges() || this.form.dirty;
+    return !this.saved() && (this.hasChanges() || this.form.dirty);
   }
 
   /** Covers refresh/close; the guard covers in-app navigation. */
@@ -423,19 +508,51 @@ export class ProductCreate {
   }
 
   /**
+   * Server field messages, kept OUTSIDE the controls (BO-F13 tc 3).
+   *
+   * `control.setErrors({ server: … })` alone does not survive: switching a tab
+   * re-creates the panel, `formControlName` re-registers and re-validates, and
+   * the marker is gone — the user sees a 422 flash and then a clean field. The
+   * map is the durable copy `errorFor()` reads; each entry removes itself on the
+   * control's first value change, so correcting the field clears the message
+   * exactly like a local error (BO-F08 tc 10).
+   */
+  readonly serverMessages = signal<Readonly<Record<string, string>>>({});
+
+  /**
    * First visible message for a field (BO-F08). `fieldError` hides it until the
    * control is touched, so an untouched form is not a wall of red (tc 9).
+   *
+   * The server copy wins: it is more specific than «required», and it is the one
+   * that can survive a tab switch.
    */
   errorFor(field: ProductField): string | null {
-    return fieldError(field, this.form.controls[field]);
+    return this.serverMessages()[field] ?? fieldError(field, this.form.controls[field]);
   }
 
   /**
-   * Map a server validation envelope onto the form (tc 7).
+   * Map a server validation envelope onto the form (BO-F08 tc 7, BO-F13 tc 3).
    *
-   * BO-F13 will call this with `ApiError.fields`: `{ slug: ['این نامک تکراری
-   * است.'] }` puts the message under the slug input. Editing the control runs
-   * the validators again, which replaces the `server` key (tc 10).
+   * TRACE — the API answers `422 { error: { code: 'VALIDATION',
+   * fields: { slug: ['این نامک قبلاً استفاده شده است.'] } } }`:
+   *
+   *   1. `control = form.get('slug')`; the first message is taken (the panel
+   *      shows one sentence per field, not a list).
+   *   2. `setErrors({ server })` keeps the F08 contract: anything that reads
+   *      `control.errors` sees the key, and `ApiError.fields` is not the only
+   *      copy.
+   *   3. `markAsTouched()` makes the message visible without the user leaving the
+   *      input (an untouched control is silent by design).
+   *   4. `serverMessages` records the sentence. This is the copy that survives a
+   *      tab switch: re-creating the panel re-registers `formControlName`, which
+   *      re-runs validators and wipes step 2 — the map is what `errorFor()`
+   *      reads first.
+   *   5. The first `valueChanges` deletes the entry: correcting the value clears
+   *      the message exactly like a local error (F08 tc 10), and a second
+   *      `valueChanges` cannot resurrect it because the subscription is `take(1)`.
+   *
+   * BO-F13 calls this with `ApiError.fields`; the caller then opens the tab that
+   * owns the field, so step 3 is not wasted on a hidden control.
    */
   applyServerErrors(fields: Readonly<Record<string, readonly string[]>> | undefined): void {
     if (!fields) {
@@ -452,11 +569,96 @@ export class ProductCreate {
 
       control.setErrors({ ...(control.errors ?? {}), server: message });
       control.markAsTouched();
+      this.serverMessages.update((current) => ({ ...current, [name]: message }));
+
+      // Correction clears it. `take(1)` so one edit per message; the map entry is
+      // also what `errorFor` prints, and the control's own validators re-run.
+      control.valueChanges.pipe(take(1), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+        this.serverMessages.update((current) => {
+          if (!(name in current)) {
+            return current;
+          }
+
+          const next = { ...current };
+          delete next[name];
+          return next;
+        });
+      });
     }
   }
 
   private isTabValid(tab: ProductTabId): boolean {
     return this.controlsFor(tab).every((control) => control.valid);
+  }
+
+  /**
+   * Remove the `server` key from every control, keeping the local errors.
+   *
+   * `applyServerErrors` writes that key, and Angular counts it as invalidity —
+   * which is right while the user reads it, and wrong the moment they press save
+   * again. Clearing it re-runs local validation against the current values; a
+   * still-wrong field keeps its own error, and a merely server-rejected one goes
+   * back to the API for another look.
+   *
+   * TRACE — after a 422 on the slug, the user presses «ذخیره محصول» again without
+   * touching anything:
+   *
+   *   before: slug.errors = { server: '…قبلاً…' } → form.invalid → save() would
+   *           stop at the "fix the errors" branch and never resend.
+   *   visit:  the key is deleted and `setErrors(null)` runs (no local error is
+   *           left on a slug that matches the pattern).
+   *   after:  slug.valid again → the POST goes out a second time (tc 7).
+   *
+   * With the value still wrong locally (`'BAD SLUG'`), `setErrors` is followed by
+   * the slug validator's own `pattern` error, so the form stays invalid and no
+   * request is wasted.
+   */
+  private clearServerErrors(): void {
+    this.serverMessages.set({});
+
+    const visit = (control: AbstractControl): void => {
+      if (control.errors && 'server' in control.errors) {
+        const rest = { ...control.errors };
+        delete rest['server'];
+        control.setErrors(Object.keys(rest).length > 0 ? rest : null);
+      }
+
+      if (control instanceof FormGroup) {
+        Object.values(control.controls).forEach((child) => visit(child as AbstractControl));
+      } else if (control instanceof FormArray) {
+        control.controls.forEach((child) => visit(child));
+      }
+    };
+
+    visit(this.form);
+  }
+
+  /**
+   * Which tab holds a field the server rejected (tc 3).
+   *
+   * Without this the error would land on a control the user cannot see: a slug
+   * message on a hidden tab looks exactly like "nothing happened". The first
+   * matching rule wins; anything unrecognised belongs to «اطلاعات اصلی», where
+   * most fields live.
+   */
+  private tabOwningField(
+    fields: Readonly<Record<string, readonly string[]>> | undefined,
+  ): ProductTabId {
+    const keys = Object.keys(fields ?? {});
+
+    if (keys.some((key) => key.startsWith('variants'))) {
+      return 'variants';
+    }
+
+    if (keys.some((key) => key.startsWith('images'))) {
+      return 'gallery';
+    }
+
+    if (keys.some((key) => key === 'stock' || key === 'lowStockThreshold')) {
+      return 'inventory';
+    }
+
+    return 'main';
   }
 
   private touchTab(tab: ProductTabId): void {
