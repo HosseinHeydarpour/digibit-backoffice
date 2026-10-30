@@ -915,6 +915,36 @@ second toggle — the two systems would then disagree and half the UI would stay
   own syntax and strips the semicolons from Tailwind's `@theme` block. Sass also requires
   every `@use` to come before other rules, so `@use './styles/fonts'` goes first.
 
+### Component selection - PrimeNG first
+
+Before writing a widget, a menu, a dialog, a toggle or a table, check whether PrimeNG already
+ships it. The rule, applied at the start of every task and checked in review:
+
+- **Use the component before anything hand-rolled.** `p-dialog` for modals, `p-select` for
+  dropdowns (never a native `<select>`), `p-toggleswitch` for booleans, `p-table` for tables,
+  `p-tree` for trees, `p-menu` for popup menus, `p-tooltip` for hints, `p-toast` through
+  `ToastService`. A hand-built copy of one of these is a finding, not a style choice.
+- **Use the directive before the component wrapper.** `pInputText`, `pTextarea`, `p-iconfield` +
+  `p-inputicon`, `pLoading`. The chrome (border, focus ring, dark mode) comes from the preset, so a
+  `rounded-lg border …` class string beside it is a second copy that will drift.
+- **Style through the preset, not around it.** Prefer PT (`[pt]`), the design tokens
+  (`--p-tree-background`, `dt()` variables) or the documented extension point; `::ng-deep` and
+  hand-written shadow DOM overrides need a line explaining why the preset cannot do it.
+- **When PrimeNG's version cannot express the requirement, say so and take the nearest installed
+  dependency.** `@angular/cdk` is already a dependency; do not add a new one for a widget PrimeNG
+  covers. The exception must be written down here and in a code comment - a reviewer who cannot
+  see the reason will read it as a mistake. Known exceptions:
+  - **Category tree drag & drop (BO-G03)** uses `cdkDropList`, not `p-tree`: the page needs one
+    drop container per level (roots + each parent's children) and `p-tree` exposes none; its
+    toggler is also `tabindex="-1"`, its empty state prints English and its node template fought
+    the 375px layout. The list markup is ours, the drag behaviour is CDK's.
+- **If the PrimeNG component exists but is incomplete, extend it rather than replace it.** The
+  `[pButton]` directive's `loading` does not disable the button natively, so `pLoading` sets the
+  attribute on top instead of a new button component. Same pattern for a missing input: a small
+  wrapper/directive, never a parallel widget.
+- **Never upgrade PrimeNG to 22 to get a feature.** It brings the PrimeUI license banner (see the
+  top of this file); a missing feature is worth a documented exception, a licensed upgrade is not.
+
 ### Forms are PrimeNG everywhere, and the pointer cursor is one global rule
 
 Form controls render through PrimeNG, never as bare native elements. The preset owns the
