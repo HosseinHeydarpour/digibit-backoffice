@@ -97,7 +97,13 @@
             >
               <ng-container *ngTemplateOutlet="row; context: { $implicit: node }" />
 
-              @if (node.children.length > 0 && isExpanded(node) && search() === '') {
+              <!--
+                Rendered during a search too (tc 6): the filter keeps a matching
+                child under its parent, and hiding the list made those matches
+                unreachable — the parent looked empty until the search cleared.
+                Dragging is off while the box has text, so no drop is possible.
+              -->
+              @if (node.children.length > 0 && isExpanded(node)) {
                 <ul
                   cdkDropList
                   [id]="childrenListId(node.id)"
@@ -258,15 +264,17 @@
       <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
     </button>
 
-    <button
-      type="button"
-      (click)="openDelete(node)"
-      data-delete-category
-      [attr.aria-label]="'حذف دستهٔ ' + node.name"
-      class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 max-sm:size-11 dark:text-gray-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-    >
-      <i class="pi pi-trash text-sm" aria-hidden="true"></i>
-    </button>
+    @if (!node.isDefault) {
+      <button
+        type="button"
+        (click)="openDelete(node)"
+        data-delete-category
+        [attr.aria-label]="'حذف دستهٔ ' + node.name"
+        class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 max-sm:size-11 dark:text-gray-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+      >
+        <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+      </button>
+    }
   </div>
 </ng-template>
 
@@ -289,6 +297,7 @@
       [category]="editing()"
       [siblings]="siblings()"
       [defaultOrder]="nextOrder()"
+      [parents]="roots()"
       (saved)="onSaved()"
       (cancelled)="closeDialog()"
     />
@@ -302,7 +311,7 @@
 -->
 <p-dialog
   [visible]="deletingNode() !== null"
-  (onHide)="closeDelete()"
+  (visibleChange)="onDeleteVisibility($event)"
   [modal]="true"
   [draggable]="false"
   [dismissableMask]="true"

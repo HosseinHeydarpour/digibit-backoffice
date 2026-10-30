@@ -102,31 +102,47 @@ label opens it — not only the chevron. The pencil, the trash and the drag grip
 
 ## حذف دسته / Deleting (BO-G04)
 
-تا وقتی دسته محصول یا زیردسته دارد، حذفش یک تصمیم است نه یک تأیید ساده. تصمیم با یک تابع خالص
-(`deleteDecision`) گرفته می‌شود و یک دیالوگ آن را نشان می‌دهد:
+حذف یک تصمیم است نه یک تأیید ساده. تصمیم با یک تابع خالص (`deleteDecision`) گرفته می‌شود و یک
+دیالوگ آن را نشان می‌دهد:
 
-- **دسته‌ای که خودش محصول دارد حذف نمی‌شود.** تعدادش در همان دیالوگ نوشته می‌شود و فقط دکمهٔ «باشه»
-  دارد؛ حذف، محصول‌ها را بی‌دسته می‌کرد (tc 1/2).
-- **والد خالی دو گزینه دارد.** «انتقال به …» (پیش‌فرض) زیردسته‌ها را یک سطح بالا می‌برد و محصول‌هایشان
-  دست‌نخورده می‌ماند؛ «حذف زیردسته‌ها هم» کل شاخه را پاک می‌کند و قرمز است (tc 3/4).
-- **اگر زیردسته‌ها محصول داشته باشند، آبشار خاموش است** و فقط انتقال می‌ماند — وگرنه محصول‌های آن‌ها
-  بی‌دسته می‌شدند (tc 10).
-- **انصراف هیچ درخواستی نمی‌فرستد** (tc 5)؛ موفقیت یک toast می‌دهد و درخت را از سر می‌گیرد (tc 9)، پس
-  نامکِ آزادشده دوباره قابل استفاده است (tc 8).
+- **«بدون دسته‌بندی» محافظت‌شده است.** محصول‌های هر دستهٔ حذف‌شده به آن منتقل می‌شوند، پس نه دکمهٔ
+  سطل دارد و نه سرور حذفش را قبول می‌کند (tc 1).
+- **محصول هیچ‌وقت جلوی حذف را نمی‌گیرد.** تعداد محصول‌های شاخه بالای تأیید نوشته می‌شود
+  («N محصول … به «بدون دسته‌بندی» منتقل می‌شوند») تا انتقال بی‌خبر نباشد (tc 2/10).
+- **والد دو گزینه دارد.** «انتقال به …» (پیش‌فرض) زیردسته‌ها را یک سطح بالا می‌برد و محصول‌هایشان
+  دست‌نخورده می‌ماند؛ «زیردسته‌ها را هم حذف کن» کل شاخه را پاک می‌کند و در حالت انتخاب قرمز می‌شود
+  (tc 3/4).
+- **همهٔ راه‌های بستن کار می‌کنند** (`visibleChange`): ✕، `Escape` و کلیک روی ماسک. انصراف هیچ
+  درخواستی نمی‌فرستد (tc 5)؛ موفقیت toast می‌دهد و درخت را از سر می‌گیرد (tc 9)، پس نامک آزادشده
+  دوباره قابل استفاده است (tc 8).
 
-Deleting is a decision, not a confirmation. The pure `deleteDecision` answers which of the three
+Deleting is a decision, not a confirmation; the pure `deleteDecision` answers which of the three
 shapes applies and one dialog renders it:
 
-- **A node with products of its own is refused** — the count is printed and the only button is
-  «باشه», because deleting it would orphan those products (tc 1/2).
+- **The default «بدون دسته‌بندی» bucket is protected**: deleted categories' products land there, so it
+  has no trash button and the API refuses even a stale request (tc 1).
+- **Products never block a delete** — the count is printed above the confirmation and the server
+  re-buckets them to the default category (tc 2/10).
 - **An empty parent gets a choice**: «transfer to …» (the default, loses nothing) or «delete the
-  children too» (red, deletes the branch) (tc 3/4).
-- **The cascade is disabled while a child holds products** — nothing would reassign them (tc 10).
-- **Cancel sends nothing** (tc 5); success toasts and refetches the tree (tc 9), so the freed slug
-  can be reused (tc 8).
+  children too» (red when selected) (tc 3/4).
+- **Every close path works** (`visibleChange`): ✕, `Escape`, the mask. Cancel sends nothing (tc 5);
+  success toasts and refetches the tree (tc 9), so the freed slug can be reused (tc 8).
 
-<Canvas of={CategoryDeleteStories.Blocked} />
+<Canvas of={CategoryDeleteStories.Protected} />
+
+<Canvas of={CategoryDeleteStories.WithProducts} />
 
 <Canvas of={CategoryDeleteStories.TransferChildren} />
 
-<Canvas of={CategoryDeleteStories.CascadeUnavailable} />
+## والد و آیکون / Parent and icon (BO-G03/G04)
+
+فرم دسته حالا یک سلکت **«دستهٔ والد»** دارد: فقط ریشه‌ها را پیشنهاد می‌دهد (سطح سوم وجود ندارد)، خود
+دسته را حذف می‌کند و برای دسته‌ای که زیردسته دارد قفل است. این همان راهی است که یک دستهٔ **تازه** را
+زیرمجموعه می‌کند — درگ فقط بین فهرست‌های موجود جابه‌جا می‌کند.
+
+آیکون‌ها از ۱۲ به ۶۰ گزینه رسیده‌اند و سلکت آیکون **جستجو** دارد (`filter` روی برچسب فارسی).
+
+The category form now has a **parent select**: roots only (there is no third level), the node itself is
+filtered out, and it is read-only for a node that has children. That is how a **new** category becomes
+a child — drag only moves rows between lists that already exist. The icon picker grew from 12 to 60
+options and is searchable by its Persian label.

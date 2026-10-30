@@ -744,30 +744,38 @@ order) + 1`; the form defaults to the page's `nextOrder()` and the validator rej
 ### Deleting a category (BO-G04)
 
 - **The decision is a pure function; the dialog is one template.** `deleteDecision(node)` in
-  `category-delete/delete-decision.ts` answers `blocked | simple | children`, and the component only
-  renders the shape it was given. `blocked` means the node holds products OF ITS OWN (deleting it
-  would leave them pointing at nothing); `children` carries `childProducts` so the cascade radio can
-  switch itself off.
-- **A child's products do not block the delete, they block the CASCADE.** A parent whose own
-  products are zero is safe to delete by transfer: the child keeps its products and only changes
-  `parentId`. Refusing that would forbid a legitimate tidy-up, and cascading over those products
-  would orphan them silently.
-- **The strategy is a query, not a body.** `DELETE /categories/:id?strategy=transfer|cascade`.
-  `ApiService.delete` gained an optional `params` argument (same shape as `get`), so no feature builds
-  a URL by hand; a body on a DELETE is legal but some proxies drop it.
-- **The mock repeats every client rule and owns the renumbering.** It answers **409** (not 422: the
-  payload is fine, the data is not) when the node or a cascaded branch holds products; transfer
-  appends the children after the last sibling of the target level, cascade removes the branch, and
-  both end with `renumberLevel` so each level stays 1..N with no hole.
+  `category-delete/delete-decision.ts` answers `protected | simple | children`, and the component only
+  renders the shape it was given. Every deletable shape carries `productCount` because products no
+  longer block anything — they are re-bucketed, and the dialog must say so.
+- **The default «بدون دسته‌بندی» is protected, not special-cased in markup alone.** The API marks it
+  with `isDefault: true`, the row hides its trash button, and `removeCategory` answers **409** even if
+  a stale dialog asks. It is where the products of a deleted category land, so it cannot disappear.
+- **Products are never orphaned: they move.** `removeCategory` writes
+  `MOVED_PRODUCTS.set(productId, DEFAULT_CATEGORY_ID)` for the ids that really disappear (the node on
+  `transfer`, the whole branch on `cascade`), and `catalogue()` applies the overlay on every read. The
+  seed array stays frozen, which is why the move is an overlay and not a mutation; `resetMockState()`
+  clears it. A promoted child keeps its own products, so transfer touches only the node itself.
+- **The strategy is a query, not a body.** `DELETE /categories/:id?strategy=transfer|cascade`;
+  `ApiService.delete` gained an optional `params` argument (same shape as `get`) so no feature builds
+  a URL by hand. A body on a DELETE is legal but some proxies drop it.
+- **The mock owns the renumbering.** Transfer appends the children after the last sibling of the target
+  level, cascade removes the branch, and both end with `renumberLevel`, so every level stays 1..N with
+  no hole.
+- **A dialog that is bound with `[visible]` must handle `visibleChange`.** Binding only `onHide` left
+  Escape and the mask looking dead: PrimeNG hid itself, the one-way input never changed, and the signal
+  feeding it still said "open". `onDeleteVisibility(false)` clears the node.
 - **The row grew a trash button, and the phone lost the count badge.** Grip + pencil + trash is three
   44px controls below `sm`, so the count and status pills collapse there; the name keeps the rest.
-- **`MOCK_CATEGORIES` gained «صوتی و تصویری» → «هدفون», both at zero products.** Without a branch
-  that is empty of products but not of children, the transfer dialog had no reachable case in the
-  mock at all — every seeded root sells something and a root with products is refused.
-- **A root with no children cannot receive a drag yet.** Its child `cdkDropList` only renders when
-  `children.length > 0`, so nesting into a brand-new root is not possible by drag; the form's parent
-  select (BO-G03 tc 1) is the missing half. The empty mock branch above is what keeps BO-G04
-  reachable until that lands.
+- **A search renders the children too.** The filter keeps a matching child under its parent, so hiding
+  the child list during a search (the first version) made every match under a parent unreachable — the
+  parent looked empty. Dragging stays off while the box has text, so no drop is possible on a filtered
+  list.
+- **`MOCK_CATEGORIES` gained «صوتی و تصویری» → «هدفون», both at zero products.** Without a branch that
+  is empty of products but not of children, the transfer dialog had no reachable case in the mock at
+  all.
+- **A brand-new category becomes a child through the form, not a drag.** A root with no children renders
+  no child `cdkDropList`, so there is nothing to drop onto; the form's «دستهٔ والد» select (BO-G03 tc 1)
+  is the way, and it is read-only for a node that already has children (a third level is refused).
 
 ### Sales chart and Chart.js testing (BO-E03)
 

@@ -45,6 +45,37 @@
       }
     </div>
 
+    <div class="sm:col-span-2">
+      <label
+        for="category-parent"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        دستهٔ والد
+      </label>
+      <p-select
+        inputId="category-parent"
+        formControlName="parentId"
+        [options]="parentOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [filter]="true"
+        filterBy="label"
+        filterPlaceholder="جستجوی دسته…"
+        [resetFilterOnHide]="true"
+        [readonly]="hasChildren()"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        @if (hasChildren()) {
+          این دسته زیردسته دارد؛ برای جابه‌جایی، اول زیردسته‌هایش را منتقل کنید.
+        } @else {
+          برای تبدیل به زیردسته، والد را انتخاب کنید.
+        }
+      </p>
+    </div>
+
     <div>
       <label
         for="category-icon"
@@ -58,6 +89,10 @@
         [options]="iconOptions"
         optionLabel="label"
         optionValue="value"
+        [filter]="true"
+        filterBy="label"
+        filterPlaceholder="جستجوی آیکون…"
+        [resetFilterOnHide]="true"
         appendTo="body"
         class="w-full"
         styleClass="w-full"

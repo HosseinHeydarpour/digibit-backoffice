@@ -8,7 +8,7 @@ import { CategoriesService } from '../services/categories.service';
 
 import { CategoryDelete } from './category-delete';
 
-const EMPTY_ROOT: CategoryNode = {
+const BASE: CategoryNode = {
   id: 'c-1',
   parentId: null,
   name: 'لوازم تحریر',
@@ -21,28 +21,26 @@ const EMPTY_ROOT: CategoryNode = {
   children: [],
 };
 
-const WITH_PRODUCTS: CategoryNode = {
-  ...EMPTY_ROOT,
-  name: 'لوازم جانبی موبایل',
-  slug: 'mobile-accessories',
-  icon: 'pi pi-mobile',
-  productCount: 12,
+const WITH_PRODUCTS: CategoryNode = { ...BASE, productCount: 12 };
+
+const DEFAULT_BUCKET: CategoryNode = {
+  ...BASE,
+  name: 'بدون دسته‌بندی',
+  slug: 'uncategorized',
+  icon: 'pi pi-inbox',
+  isDefault: true,
+  productCount: 3,
 };
 
 const WITH_CHILDREN: CategoryNode = {
-  ...EMPTY_ROOT,
+  ...BASE,
   name: 'لوازم کامپیوتر',
   slug: 'computer-accessories',
   icon: 'pi pi-desktop',
   children: [
-    { ...EMPTY_ROOT, id: 'c-1-1', parentId: 'c-1', name: 'کیبورد', slug: 'keyboards' },
-    { ...EMPTY_ROOT, id: 'c-1-2', parentId: 'c-1', name: 'ماوس', slug: 'mice' },
+    { ...BASE, id: 'c-1-1', parentId: 'c-1', name: 'کیبورد', slug: 'keyboards' },
+    { ...BASE, id: 'c-1-2', parentId: 'c-1', name: 'ماوس', slug: 'mice' },
   ],
-};
-
-const BUSY_CHILDREN: CategoryNode = {
-  ...WITH_CHILDREN,
-  children: [{ ...WITH_CHILDREN.children[0]!, productCount: 5 }],
 };
 
 /** The dialog only deletes; the story never leaves the page. */
@@ -67,12 +65,14 @@ const meta: Meta<CategoryDelete> = {
         component: [
           "The body of the delete dialog (BO-G04), rendered inside the tree page's own dialog.",
           '',
-          '**A category with products of its own is not deletable.** The dialog says how many and',
-          'offers a single «باشه» — no question, because there is no answer to give.',
+          '**The default «بدون دسته‌بندی» bucket is protected.** It is where the products of every',
+          'deleted category land, so the row has no trash button and the API refuses a stale request.',
           '',
-          '**An empty parent asks what happens to its children.** «انتقال» moves them up a level and',
-          'keeps their products; «حذف زیردسته‌ها هم» removes the whole branch. The cascade is disabled',
-          'while any child holds products, because nothing would reassign them (tc 10).',
+          '**Products never block a delete.** The dialog prints how many will move to the default',
+          'bucket above the confirmation, so the re-bucketing is never a surprise.',
+          '',
+          '**An empty parent asks what happens to its children**: «انتقال» moves them up a level and',
+          'keeps their products; «زیردسته‌ها را هم حذف کن» removes the whole branch.',
         ].join('\n'),
       },
     },
@@ -82,17 +82,17 @@ const meta: Meta<CategoryDelete> = {
 export default meta;
 type Story = StoryObj<CategoryDelete>;
 
-/** tc 1/2: the node sits on 12 products, so the delete is refused. */
-export const Blocked: Story = {
+/** tc 1: the fallback category — no delete, only «باشه». */
+export const Protected: Story = {
+  args: { category: DEFAULT_BUCKET, parentName: null },
+};
+
+/** tc 2: 12 products would be re-bucketed to «بدون دسته‌بندی». */
+export const WithProducts: Story = {
   args: { category: WITH_PRODUCTS, parentName: null },
 };
 
-/** tc 3: an empty root — its two children would move up to the roots. */
+/** tc 3: an empty parent — its two children would move up to the roots. */
 export const TransferChildren: Story = {
   args: { category: WITH_CHILDREN, parentName: null },
-};
-
-/** tc 10: one child sells five products, so only the transfer is offered. */
-export const CascadeUnavailable: Story = {
-  args: { category: BUSY_CHILDREN, parentName: null },
 };

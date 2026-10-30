@@ -1,8 +1,8 @@
 <div class="space-y-4">
-  @if (blocked()) {
+  @if (protectedCategory()) {
     <!--
-      tc 1/2: the node holds products, so there is nothing to choose. One button,
-      because a question with a single possible answer is not a question.
+      The default bucket keeps the products of every deleted category, so it can
+      never be removed. One button: a question with a single answer is not one.
     -->
     <div
       role="alert"
@@ -14,8 +14,8 @@
           «{{ category().name }}» حذف نمی‌شود.
         </p>
         <p class="text-sm text-amber-800 dark:text-amber-300">
-          {{ productCount() | persianDigits }} محصول در این دسته است. اول آن‌ها را به دستهٔ دیگری
-          منتقل یا حذف کنید.
+          این دستهٔ پیش‌فرض است؛ محصول‌های دسته‌های حذف‌شده به آن منتقل می‌شوند و باید همیشه وجود
+          داشته باشد.
         </p>
       </div>
     </div>
@@ -24,10 +24,27 @@
       آیا از حذف «{{ category().name }}» مطمئن هستید؟ این کار برگشت‌پذیر نیست.
     </p>
 
+    @if (productCount() > 0) {
+      <!--
+        Products no longer block the delete: they are re-bucketed to the default
+        category. Saying the number here is what keeps that honest.
+      -->
+      <div
+        class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-900/20"
+      >
+        <i class="pi pi-box mt-0.5 text-lg text-amber-500" aria-hidden="true"></i>
+        <p class="text-sm text-amber-800 dark:text-amber-300">
+          {{ productCount() | persianDigits }} محصول در این دسته (و زیردسته‌هایش) است؛ با حذف، به
+          «بدون دسته‌بندی» منتقل می‌شوند.
+        </p>
+      </div>
+    }
+
     @if (childCount() > 0) {
       <!--
-        tc 3/4: an empty parent. Transfer is the default because it loses nothing;
-        the cascade is the destructive half and says so in red.
+        An empty parent asks what happens to its children. Transfer is the default
+        because it loses nothing; the cascade is the destructive half and is red in
+        both the hover and the selected state.
       -->
       <fieldset class="space-y-2">
         <legend class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -57,31 +74,21 @@
 
         <label
           for="delete-strategy-cascade"
-          class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 transition dark:border-gray-700"
-          [class]="
-            canCascade()
-              ? 'cursor-pointer hover:border-red-200 hover:bg-red-50 dark:hover:border-red-900/50 dark:hover:bg-red-900/20'
-              : 'cursor-not-allowed opacity-60'
-          "
+          class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 transition hover:border-red-200 hover:bg-red-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50 dark:border-gray-700 dark:hover:border-red-900/50 dark:hover:bg-red-900/20 dark:has-[:checked]:bg-red-900/20"
         >
           <p-radiobutton
             inputId="delete-strategy-cascade"
             value="cascade"
-            [disabled]="!canCascade()"
             [ngModel]="strategy()"
             (ngModelChange)="strategy.set($event)"
             [ngModelOptions]="{ standalone: true }"
           />
           <span class="min-w-0">
             <span class="block text-sm font-medium text-red-600 dark:text-red-400">
-              حذف زیردسته‌ها هم
+              زیردسته‌ها را هم حذف کن
             </span>
             <span class="block text-xs text-gray-500 dark:text-gray-400">
-              @if (canCascade()) {
-                زیردسته‌ها هم حذف می‌شوند؛ این کار برگشت‌پذیر نیست.
-              } @else {
-                زیردسته‌ها محصول دارند، پس فقط انتقال مجاز است.
-              }
+              زیردسته‌ها هم حذف می‌شوند؛ این کار برگشت‌پذیر نیست.
             </span>
           </span>
         </label>
@@ -101,7 +108,7 @@
   <div
     class="flex flex-col-reverse gap-2 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end dark:border-gray-700"
   >
-    @if (blocked()) {
+    @if (protectedCategory()) {
       <button
         type="button"
         (click)="close()"

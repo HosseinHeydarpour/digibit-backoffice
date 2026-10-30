@@ -143,6 +143,7 @@ function categoryTree(): unknown[] {
         isActive: category.isActive,
         description: category.description,
         productCount: counts.get(category.id) ?? 0,
+        isDefault: category.isDefault,
         children: build(category.id),
       }));
 
@@ -176,9 +177,13 @@ const CATEGORY_ICONS: Readonly<Record<string, string>> = {
  * form makes. `resetMockState()` rebuilds it from the seed, so a spec that
  * creates or renames a category cannot leak into the next one.
  */
+/** The fallback bucket: products of a deleted category are moved here (BO-G04). */
+const DEFAULT_CATEGORY_ID = 'pcat-uncategorized';
+
 type MockCategory = (typeof fixtures.MOCK_CATEGORIES)[number] & {
   icon: string;
   description: string;
+  isDefault: boolean;
 };
 
 function seedCategories(): MockCategory[] {
@@ -186,6 +191,7 @@ function seedCategories(): MockCategory[] {
     ...category,
     icon: CATEGORY_ICONS[category.slug] ?? 'pi pi-folder',
     description: '',
+    isDefault: category.id === DEFAULT_CATEGORY_ID,
   }));
 }
 
@@ -654,6 +660,7 @@ function createCategory(body: unknown): MockResolution {
     isActive: data['isActive'] !== false,
     icon: text(data['icon'], 'pi pi-folder'),
     description: text(data['description'], ''),
+    isDefault: false,
   };
 
   CATEGORIES.push(node);
@@ -708,7 +715,38 @@ function resolveCategory(
   found.icon = text(data['icon'], found.icon);
   found.isActive = data['isActive'] !== false;
   found.description = text(data['description'], found.description);
-  found.parentId = typeof data['parentId'] === 'string' ? data['parentId'] : oldParent;
+  // An explicit null in the body means «no parent», which must move the node to
+  // the roots; an absent key keeps the current level. A move that would create a
+  // third level (the node has children, or the target is itself a child) is
+  // refused here, exactly like a drag is (BO-G03).
+  const nextParentId =
+    'parentId' in data
+      ? typeof data['parentId'] === 'string'
+        ? data['parentId']
+        : null
+      : oldParent;
+
+  if (nextParentId !== oldParent) {
+    const hasChildren = CATEGORIES.some((category) => category.parentId === found.id);
+
+    if (hasChildren) {
+      return validationError('parentId', 'دستهٔ دارای زیردسته را نمی‌توان زیرمجموعه کرد.');
+    }
+
+    if (nextParentId !== null) {
+      const parent = CATEGORIES.find((category) => category.id === nextParentId);
+
+      if (!parent || (parent.parentId ?? null) !== null) {
+        return validationError('parentId', 'فقط دستهٔ اصلی می‌تواند والد باشد.');
+      }
+
+      if (nextParentId === found.id) {
+        return validationError('parentId', 'دسته نمی‌تواند والد خودش باشد.');
+      }
+    }
+  }
+
+  found.parentId = nextParentId;
 
   // `order` is a SLOT, not a number: writing it re-sequences the whole level so
   // 1..N stays contiguous and no two rows share a position (BO-G03).
@@ -839,17 +877,20 @@ function branchIds(id: string): string[] {
 /**
  * `DELETE /categories/:id?strategy=transfer|cascade` (BO-G04).
  *
- * TRACE — «لوازم کامپیوتر» (a root, two children, no products) is deleted with the
- * default `strategy=transfer`:
+ * TRACE — «لوازم جانبی موبایل» (a root with two children and 15 products) is deleted
+ * with the default `strategy=transfer`:
  *
- *   1. No product in `catalogue()` points at the node, so the delete is allowed;
- *      a node that sits on products answers 409 instead (tc 1/2), and so does a
- *      cascade whose children hold some (tc 10).
- *   2. Each child's `parentId` becomes the deleted node's parent (null here) and
- *      it is appended after the last sibling.
- *   3. The node leaves `CATEGORIES` and its old level is renumbered, so the roots
+ *   1. `isDefault` is false, so nothing protects it; the default bucket itself
+ *      answers 409 here, so a stale dialog cannot remove it.
+ *   2. `removed` is only this node, so the 15 products that point at it are mapped
+ *      to «بدون دسته‌بندی»; the products of the two children are untouched because
+ *      those children survive.
+ *   3. Each child's `parentId` becomes the deleted node's parent (null here) and it
+ *      is appended after the last sibling of that level.
+ *   4. The node leaves `CATEGORIES` and its old level is renumbered, so the roots
  *      stay 1..N with no hole (tc 7).
- *   4. Its slug leaves with it, so a later create may reuse it (tc 8).
+ *   5. Its slug leaves with it, so a later create may reuse it (tc 8), and the next
+ *      `GET /products` shows the 15 products under «بدون دسته‌بندی» (tc 10).
  */
 function removeCategory(id: string, strategy: string): MockResolution {
   const found = CATEGORIES.find((category) => category.id === id);
@@ -858,21 +899,21 @@ function removeCategory(id: string, strategy: string): MockResolution {
     return NOT_FOUND;
   }
 
-  const branch = branchIds(id);
-
-  if (catalogue().some((product) => product.categoryId === id)) {
-    return conflict('HAS_PRODUCTS', 'این دسته محصول دارد؛ اول آن‌ها را منتقل یا حذف کنید.');
-  }
-
-  if (
-    strategy === 'cascade' &&
-    catalogue().some((product) => branch.includes(product.categoryId))
-  ) {
-    return conflict('HAS_PRODUCTS', 'زیردسته‌ها محصول دارند؛ فقط انتقال مجاز است.');
+  if (found.isDefault) {
+    return conflict('DEFAULT_CATEGORY', 'دستهٔ پیش‌فرض قابل حذف نیست.');
   }
 
   const parentId = found.parentId ?? null;
-  const removed = strategy === 'cascade' ? branch : [id];
+  const removed = strategy === 'cascade' ? branchIds(id) : [id];
+
+  // Products are never orphaned: the ones that lived in a removed category move to
+  // the default bucket. A child that is merely promoted keeps its own products, so
+  // only the ids that really disappear are touched.
+  for (const product of catalogue()) {
+    if (removed.includes(product.categoryId)) {
+      MOVED_PRODUCTS.set(product.id, DEFAULT_CATEGORY_ID);
+    }
+  }
 
   if (strategy !== 'cascade') {
     let position = nextCategoryOrder(parentId);
@@ -942,9 +983,18 @@ function toListItem(product: fixtures.MockProduct): Record<string, unknown> {
  */
 const DELETED_IDS = new Set<string>();
 
+/**
+ * Products whose category was deleted (BO-G04): id -> the category they were moved
+ * to. The seed array is frozen, so the move is an overlay applied by catalogue()
+ * on every read instead of a mutation; 
+esetMockState() clears it.
+ */
+const MOVED_PRODUCTS = new Map<string, string>();
+
 /** Test seam: forget every write this session (soft deletes and new products). */
 export function resetMockState(): void {
   DELETED_IDS.clear();
+  MOVED_PRODUCTS.clear();
   CREATED_PRODUCTS.length = 0;
   CATEGORIES.splice(0, CATEGORIES.length, ...seedCategories());
 }
@@ -1057,7 +1107,11 @@ const CREATED_PRODUCTS: fixtures.MockProduct[] = [];
 
 /** Every product the mock knows about: the export plus this session's writes. */
 function catalogue(): fixtures.MockProduct[] {
-  return [...fixtures.MOCK_PRODUCTS, ...CREATED_PRODUCTS];
+  return [...fixtures.MOCK_PRODUCTS, ...CREATED_PRODUCTS].map((product) => {
+    const moved = MOVED_PRODUCTS.get(product.id);
+
+    return moved === undefined ? product : { ...product, categoryId: moved };
+  });
 }
 
 /**

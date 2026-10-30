@@ -11,18 +11,19 @@
 // ONE COMPONENT, THREE SHAPES
 // ---------------------------
 // `deleteDecision()` says which of the three the clicked node produces, and the
-// template is a single `@if (blocked())` around one footer. Three dialogs would
-// have meant three copies of the request, the spinner and the error line.
+// template is one `@if` cascade around a single footer. Three dialogs would have
+// meant three copies of the request, the spinner and the error line.
 //
 // TRACE — «دفتر و کاغذ» (a leaf, 0 products, 0 children) is deleted:
 //
-//   1. `deleteDecision` → `{ kind: 'simple' }`, so no radio group renders.
-//   2. «حذف» → `confirm()`: `strategy` falls back to `'transfer'` (nothing to
-//      transfer) and sends `DELETE /categories/<id>?strategy=transfer`.
-//   3. Success emits `deleted`; the page closes the dialog, toasts and refetches
-//      the tree, so the row and its slug are gone from the next read (tc 9).
-//   4. A 409 (products appeared in another tab) keeps the dialog open and prints
-//      the server's message instead of pretending the row is gone.
+//   1. `deleteDecision` → `{ kind: 'simple', productCount: 0 }`, so no radio group
+//      and no warning render.
+//   2. «حذف» → `confirm()`: `strategy` stays `'transfer'` (nothing to transfer) and
+//      sends `DELETE /categories/<id>?strategy=transfer`.
+//   3. Success emits `deleted`; the page closes the dialog, toasts and refetches the
+//      tree, so the row and its slug are gone from the next read (tc 9).
+//   4. A 409 (the default category, or products appeared in another tab) keeps the
+//      dialog open and prints the server's message instead of pretending success.
 
 import {
   ChangeDetectionStrategy,
@@ -64,13 +65,14 @@ export class CategoryDelete {
 
   readonly decision = computed(() => deleteDecision(this.category()));
 
-  readonly blocked = computed(() => this.decision().kind === 'blocked');
+  /** The default «بدون دسته‌بندی» bucket: there is no delete, only «باشه». */
+  readonly protectedCategory = computed(() => this.decision().kind === 'protected');
 
-  /** Products sitting in the node itself — the reason a delete is refused. */
+  /** Products in the whole branch — they are re-bucketed, not deleted. */
   readonly productCount = computed(() => {
     const decision = this.decision();
 
-    return decision.kind === 'blocked' ? decision.productCount : 0;
+    return decision.kind === 'protected' ? 0 : decision.productCount;
   });
 
   readonly childCount = computed(() => {
@@ -78,15 +80,6 @@ export class CategoryDelete {
 
     return decision.kind === 'children' ? decision.childCount : 0;
   });
-
-  /** Products in the sub-categories; a cascade with any of them is refused. */
-  readonly childProducts = computed(() => {
-    const decision = this.decision();
-
-    return decision.kind === 'children' ? decision.childProducts : 0;
-  });
-
-  readonly canCascade = computed(() => this.childProducts() === 0);
 
   readonly targetLabel = computed(() => this.parentName() ?? 'سطح اصلی');
 
@@ -96,25 +89,17 @@ export class CategoryDelete {
 
   readonly deleteError = signal<string | null>(null);
 
-  /**
-   * Send the delete. The blocked shape has no delete button, so this only runs
-   * for the two deletable shapes.
-   */
+  /** Send the delete. The protected shape has no delete button. */
   confirm(): void {
-    if (this.blocked() || this.deleting()) {
+    if (this.protectedCategory() || this.deleting()) {
       return;
     }
-
-    // The dialog cannot pick a cascade that the branch does not allow — the
-    // server repeats the rule, so a stale dialog gets a 409 instead of silently
-    // orphaning the children's products.
-    const strategy: CategoryDeleteStrategy = this.canCascade() ? this.strategy() : 'transfer';
 
     this.deleting.set(true);
     this.deleteError.set(null);
 
     this.categories
-      .remove(String(this.category().id), strategy)
+      .remove(String(this.category().id), this.strategy())
       .pipe(take(1))
       .subscribe({
         next: () => {

@@ -25,6 +25,12 @@ export interface CategoryNode {
   readonly description: string;
   /** How many products sit directly in this category (not in its children). */
   readonly productCount: number;
+  /**
+   * The shop's fallback bucket («بدون دسته‌بندی»): products of a deleted category
+   * land here, so it cannot be deleted (BO-G04). Optional because a backend that
+   * predates the flag answers without it and every node is then deletable.
+   */
+  readonly isDefault?: boolean;
   readonly children: readonly CategoryNode[];
 }
 

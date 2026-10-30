@@ -67,27 +67,29 @@ describe('CategoryDelete (BO-G04)', () => {
     return element().querySelector(selector) as HTMLButtonElement;
   }
 
-  it('tc 1/2: a category with products is refused and prints how many', async () => {
-    await mount(node({ productCount: 3 }));
+  it('tc 1: the default category is protected and offers only «باشه»', async () => {
+    await mount(node({ isDefault: true, productCount: 12 }));
 
-    expect(element().textContent).toContain('۳ محصول در این دسته است');
+    expect(element().textContent).toContain('این دستهٔ پیش‌فرض است');
     expect(element().querySelector('[data-delete-confirm]')).toBeNull();
-    expect(element().querySelector('[data-delete-dismiss]')).not.toBeNull();
-  });
-
-  it('tc 5: «باشه» on the blocked shape closes without touching the server', async () => {
-    await mount(node({ productCount: 3 }));
 
     let closed = false;
     fixture.componentInstance.cancelled.subscribe(() => (closed = true));
-
     button('[data-delete-dismiss]').click();
 
     expect(closed).toBe(true);
     expect(service.removed).toEqual([]);
   });
 
-  it('tc 1: an empty leaf deletes with the plain confirmation', async () => {
+  it('tc 2: a category with products warns that they move to «بدون دسته‌بندی»', async () => {
+    await mount(node({ productCount: 3 }));
+
+    expect(element().textContent).toContain('۳ محصول در این دسته');
+    expect(element().textContent).toContain('«بدون دسته‌بندی» منتقل می‌شوند');
+    expect(element().querySelector('[data-delete-confirm]')).not.toBeNull();
+  });
+
+  it('tc 1: confirming deletes and reports the node', async () => {
     await mount(node());
 
     let deleted: CategoryNode | null = null;
@@ -113,10 +115,11 @@ describe('CategoryDelete (BO-G04)', () => {
     expect(service.removed).toEqual([{ id: 'c-1', strategy: 'transfer' }]);
   });
 
-  it('tc 4: the cascade is optional, and is what the request sends once picked', async () => {
+  it('tc 4: picking the cascade sends it', async () => {
     await mount(node({ children: [node({ id: 'c-2', parentId: 'c-1' })] }));
 
     expect(element().textContent).toContain('انتقال به سطح اصلی');
+    expect(element().textContent).toContain('زیردسته‌ها را هم حذف کن');
 
     const cascade = element().querySelector('#delete-strategy-cascade') as HTMLInputElement;
     cascade.click();
@@ -128,30 +131,30 @@ describe('CategoryDelete (BO-G04)', () => {
     expect(service.removed).toEqual([{ id: 'c-1', strategy: 'cascade' }]);
   });
 
-  it('tc 10: a cascade is unavailable when the children hold products', async () => {
+  it('tc 10: a child with products does not block anything — they move too', async () => {
     await mount(node({ children: [node({ id: 'c-2', parentId: 'c-1', productCount: 5 })] }));
 
     const cascade = element().querySelector('#delete-strategy-cascade') as HTMLInputElement;
-    expect(cascade.disabled).toBe(true);
-    expect(element().textContent).toContain('فقط انتقال مجاز است');
+    expect(cascade.disabled).toBe(false);
+    expect(element().textContent).toContain('۵ محصول در این دسته');
 
     cascade.click();
     fixture.detectChanges();
     button('[data-delete-confirm]').click();
     await fixture.whenStable();
 
-    expect(service.removed).toEqual([{ id: 'c-1', strategy: 'transfer' }]);
+    expect(service.removed).toEqual([{ id: 'c-1', strategy: 'cascade' }]);
   });
 
   it('a failed delete keeps the dialog open with the server message', async () => {
     await mount(node());
-    service.fail = new ApiError('HAS_PRODUCTS', '۳ محصول در این دسته است.', 409);
+    service.fail = new ApiError('DEFAULT_CATEGORY', 'دستهٔ پیش‌فرض قابل حذف نیست.', 409);
 
     button('[data-delete-confirm]').click();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(element().textContent).toContain('۳ محصول در این دسته است.');
+    expect(element().textContent).toContain('دستهٔ پیش‌فرض قابل حذف نیست.');
     expect(element().querySelector('[data-delete-confirm]')).not.toBeNull();
   });
 

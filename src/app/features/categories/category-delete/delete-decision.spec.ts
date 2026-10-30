@@ -20,44 +20,45 @@ function node(overrides: Partial<CategoryNode> = {}): CategoryNode {
 }
 
 describe('deleteDecision (BO-G04 tc 6)', () => {
-  it('blocks a category that holds products of its own', () => {
+  it('protects the default «بدون دسته‌بندی» bucket', () => {
+    expect(deleteDecision(node({ isDefault: true, productCount: 3 }))).toEqual({
+      kind: 'protected',
+    });
+  });
+
+  it('offers a plain confirmation for an empty leaf', () => {
+    expect(deleteDecision(node())).toEqual({ kind: 'simple', productCount: 0 });
+  });
+
+  it('does not block a leaf that holds products: it reports them', () => {
     expect(deleteDecision(node({ productCount: 3 }))).toEqual({
-      kind: 'blocked',
+      kind: 'simple',
       productCount: 3,
     });
   });
 
-  it('blocks even when the node also has children', () => {
-    const parent = node({ productCount: 2, children: [node({ id: 'c-2', parentId: 'c-1' })] });
-
-    expect(deleteDecision(parent)).toEqual({ kind: 'blocked', productCount: 2 });
-  });
-
-  it('offers only a confirmation for an empty leaf', () => {
-    expect(deleteDecision(node())).toEqual({ kind: 'simple' });
-  });
-
-  it('offers the transfer choice for an empty parent, and cascade stays possible', () => {
+  it('offers the children choice on an empty parent', () => {
     expect(
       deleteDecision(
         node({
           children: [node({ id: 'c-2', parentId: 'c-1' }), node({ id: 'c-3', parentId: 'c-1' })],
         }),
       ),
-    ).toEqual({ kind: 'children', childCount: 2, childProducts: 0 });
+    ).toEqual({ kind: 'children', childCount: 2, productCount: 0 });
   });
 
-  it('counts the products of the children, so a cascade cannot orphan them', () => {
+  it('counts the products of the children too, so the warning is honest', () => {
     expect(
       deleteDecision(
         node({
+          productCount: 2,
           children: [
             node({ id: 'c-2', parentId: 'c-1', productCount: 3 }),
             node({ id: 'c-3', parentId: 'c-1' }),
           ],
         }),
       ),
-    ).toEqual({ kind: 'children', childCount: 2, childProducts: 3 });
+    ).toEqual({ kind: 'children', childCount: 2, productCount: 5 });
   });
 
   it('walks deeper than one level when counting products', () => {
@@ -67,6 +68,6 @@ describe('deleteDecision (BO-G04 tc 6)', () => {
       deleteDecision(
         node({ children: [node({ id: 'c-2', parentId: 'c-1', children: [grandChild] })] }),
       ),
-    ).toEqual({ kind: 'children', childCount: 1, childProducts: 4 });
+    ).toEqual({ kind: 'children', childCount: 1, productCount: 4 });
   });
 });

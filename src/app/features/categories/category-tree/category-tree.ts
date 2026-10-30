@@ -202,6 +202,19 @@ export class CategoryTree {
   }
 
   /**
+   * The dialog reports every close path here: ✕, Escape and the mask.
+   *
+   * Binding only `onHide` was the bug the user hit — PrimeNG hid itself, the
+   * one-way `[visible]` never changed, so the signal that feeds it still said
+   * "open" and the dialog came straight back.
+   */
+  onDeleteVisibility(visible: boolean): void {
+    if (!visible) {
+      this.closeDelete();
+    }
+  }
+
+  /**
    * The children of the deleted node move to its parent, so the dialog has to
    * name that level. A root's children go to the roots, which is «سطح اصلی».
    */

@@ -710,10 +710,40 @@ describe('mockInterceptor', () => {
     expect(after.data.find((node) => node.id === 'pcat-stationery')!.order).toBe(2);
   });
 
-  it('refuses to delete a category that holds products (BO-G04 tc 1/2)', async () => {
+  it('moves the products of a deleted category to the default bucket (BO-G04 tc 2)', async () => {
+    const before = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; productCount: number }[]>>('/api/v1/categories', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { tree: 'true' },
+      }),
+    );
+    const defaultBefore = before.data.find((node) => node.id === 'pcat-uncategorized')!;
+    const categoryBefore = before.data.find((node) => node.id === 'pcat-accessories')!;
+
+    await firstValueFrom(
+      http.delete<ApiResponse<unknown>>('/api/v1/categories/pcat-accessories', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { strategy: 'transfer' },
+      }),
+    );
+
+    const after = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; productCount: number }[]>>('/api/v1/categories', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { tree: 'true' },
+      }),
+    );
+
+    expect(after.data.map((node) => node.id)).not.toContain('pcat-accessories');
+    expect(after.data.find((node) => node.id === 'pcat-uncategorized')!.productCount).toBe(
+      defaultBefore.productCount + categoryBefore.productCount,
+    );
+  });
+
+  it('refuses to delete the default bucket (tc 1)', async () => {
     const refused = await firstValueFrom(
       http
-        .delete<HttpErrorResponse>('/api/v1/categories/pcat-stationery', {
+        .delete<HttpErrorResponse>('/api/v1/categories/pcat-uncategorized', {
           headers: { [MOCK_HEADER]: '1' },
           params: { strategy: 'transfer' },
         })
@@ -721,16 +751,7 @@ describe('mockInterceptor', () => {
     );
 
     expect(refused.status).toBe(409);
-    expect(refused.error.error.message).toContain('محصول');
-
-    const tree = await firstValueFrom(
-      http.get<ApiResponse<{ id: string }[]>>('/api/v1/categories', {
-        headers: { [MOCK_HEADER]: '1' },
-        params: { tree: 'true' },
-      }),
-    );
-
-    expect(tree.data.map((node) => node.id)).toContain('pcat-stationery');
+    expect(refused.error.error.message).toContain('پیش‌فرض');
   });
 
   it('transfers the children of a deleted parent and closes the gap (tc 3/7)', async () => {
@@ -799,7 +820,7 @@ describe('mockInterceptor', () => {
     expect(reused.data.slug).toBe('paper');
   });
 
-  it('keeps the products of a moved child and refuses a cascade over them (tc 10)', async () => {
+  it('keeps the products of a promoted child on transfer (tc 10)', async () => {
     const parent = await createCategory('والد دارای کالا', 'busy-parent');
     const child = await createCategory('فرزند دارای کالا', 'busy-child', parent);
 
@@ -820,16 +841,6 @@ describe('mockInterceptor', () => {
     );
     const productId = created.data.id;
 
-    const refused = await firstValueFrom(
-      http
-        .delete<HttpErrorResponse>(`/api/v1/categories/${parent}`, {
-          headers: { [MOCK_HEADER]: '1' },
-          params: { strategy: 'cascade' },
-        })
-        .pipe(catchError((error: HttpErrorResponse) => of(error))),
-    );
-    expect(refused.status).toBe(409);
-
     await firstValueFrom(
       http.delete<ApiResponse<unknown>>(`/api/v1/categories/${parent}`, {
         headers: { [MOCK_HEADER]: '1' },
@@ -844,7 +855,43 @@ describe('mockInterceptor', () => {
       }),
     );
 
+    // The child survived, so its product did not move anywhere.
     expect(moved.data.map((item) => item.id)).toEqual([productId]);
+  });
+
+  it('re-buckets the products of a cascaded branch (tc 10)', async () => {
+    const parent = await createCategory('والد آبشار', 'cascade-busy-parent');
+    const child = await createCategory('فرزند آبشار', 'cascade-busy-child', parent);
+
+    const created = await firstValueFrom(
+      http.post<ApiResponse<{ id: string }>>(
+        '/api/v1/products',
+        {
+          name: 'کالای آبشاری',
+          slug: 'cascade-product',
+          sku: 'SKU-CASCADE',
+          categoryId: child,
+          price: 100_000,
+        },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    await firstValueFrom(
+      http.delete<ApiResponse<unknown>>(`/api/v1/categories/${parent}`, {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { strategy: 'cascade' },
+      }),
+    );
+
+    const moved = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { categoryId: 'pcat-uncategorized' },
+      }),
+    );
+
+    expect(moved.data.map((item) => item.id)).toContain(created.data.id);
   });
 
   /** `POST /categories` with only the fields the mock needs. */

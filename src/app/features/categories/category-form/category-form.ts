@@ -32,16 +32,63 @@ import {
 /** The PrimeIcons the picker offers; the value is the class the row stores. */
 const ICON_OPTIONS = [
   { label: 'پوشه', value: 'pi pi-folder' },
+  { label: 'پوشهٔ باز', value: 'pi pi-folder-open' },
+  { label: 'نقشهٔ سایت', value: 'pi pi-sitemap' },
+  { label: 'جعبه', value: 'pi pi-box' },
   { label: 'تحریر', value: 'pi pi-pen-to-square' },
   { label: 'کتاب', value: 'pi pi-book' },
-  { label: 'مداد', value: 'pi pi-pencil' },
+  { label: 'کاغذ و پرونده', value: 'pi pi-file' },
+  { label: 'پیوست', value: 'pi pi-paperclip' },
   { label: 'حافظه', value: 'pi pi-database' },
+  { label: 'سرور', value: 'pi pi-server' },
   { label: 'کابل', value: 'pi pi-link' },
+  { label: 'وای‌فای', value: 'pi pi-wifi' },
   { label: 'موبایل', value: 'pi pi-mobile' },
+  { label: 'تبلت', value: 'pi pi-tablet' },
   { label: 'کامپیوتر', value: 'pi pi-desktop' },
+  { label: 'هدفون', value: 'pi pi-headphones' },
+  { label: 'میکروفون', value: 'pi pi-microphone' },
+  { label: 'صدا', value: 'pi pi-volume-up' },
+  { label: 'صدای کم', value: 'pi pi-volume-down' },
+  { label: 'دوربین', value: 'pi pi-camera' },
+  { label: 'ویدئو', value: 'pi pi-video' },
+  { label: 'پخش', value: 'pi pi-play-circle' },
+  { label: 'تصویر', value: 'pi pi-image' },
+  { label: 'پالت رنگ', value: 'pi pi-palette' },
+  { label: 'چاپگر', value: 'pi pi-print' },
   { label: 'باتری', value: 'pi pi-bolt' },
   { label: 'روشنایی', value: 'pi pi-lightbulb' },
-  { label: 'قاب', value: 'pi pi-shield' },
+  { label: 'قاب و محافظ', value: 'pi pi-shield' },
+  { label: 'ابزار', value: 'pi pi-wrench' },
+  { label: 'تنظیمات', value: 'pi pi-cog' },
+  { label: 'اسلایدر', value: 'pi pi-sliders-h' },
+  { label: 'فیلتر', value: 'pi pi-filter' },
+  { label: 'کیف اداری', value: 'pi pi-briefcase' },
+  { label: 'برچسب', value: 'pi pi-tag' },
+  { label: 'ستاره', value: 'pi pi-star' },
+  { label: 'هدیه', value: 'pi pi-gift' },
+  { label: 'تخفیف و بلیت', value: 'pi pi-ticket' },
+  { label: 'کارت بانکی', value: 'pi pi-credit-card' },
+  { label: 'کیف پول', value: 'pi pi-wallet' },
+  { label: 'سبد خرید', value: 'pi pi-shopping-cart' },
+  { label: 'ارسال', value: 'pi pi-truck' },
+  { label: 'ساختمان', value: 'pi pi-building' },
+  { label: 'خانه', value: 'pi pi-home' },
+  { label: 'نمودار', value: 'pi pi-chart-bar' },
+  { label: 'نمودار خطی', value: 'pi pi-chart-line' },
+  { label: 'ساعت', value: 'pi pi-clock' },
+  { label: 'تقویم', value: 'pi pi-calendar' },
+  { label: 'ماشین‌حساب', value: 'pi pi-calculator' },
+  { label: 'کاربر', value: 'pi pi-user' },
+  { label: 'کاربران', value: 'pi pi-users' },
+  { label: 'نظر', value: 'pi pi-comments' },
+  { label: 'ایمیل', value: 'pi pi-envelope' },
+  { label: 'تلفن', value: 'pi pi-phone' },
+  { label: 'مکان', value: 'pi pi-map-marker' },
+  { label: 'خودرو', value: 'pi pi-car' },
+  { label: 'جهان', value: 'pi pi-globe' },
+  { label: 'قلب', value: 'pi pi-heart' },
+  { label: 'پسند', value: 'pi pi-thumbs-up' },
   { label: 'بدون دسته', value: 'pi pi-inbox' },
 ];
 
@@ -94,6 +141,15 @@ export class CategoryForm {
   /** The position a new category takes: one past the last sibling (BO-G03). */
   readonly defaultOrder = input<number>(1);
 
+  /**
+   * The roots the form may pick as a parent (BO-G03 tc 1).
+   *
+   * Only roots: the tree is two levels, so a child can never be a parent. The node
+   * being edited is filtered out too, and one that HAS children cannot move at all
+   * (the select is read-only with a hint) because that would create a third level.
+   */
+  readonly parents = input<readonly CategoryNode[]>([]);
+
   readonly saved = output<CategoryNode>();
   readonly cancelled = output<void>();
 
@@ -111,11 +167,25 @@ export class CategoryForm {
     order: [1, categoryOrderValidator],
     isActive: [true],
     description: [''],
+    // '' is the «no parent» sentinel: PrimeNG's select shows a null option as the
+    // placeholder, so the roots entry needs a real value to be selectable.
+    parentId: [''],
   });
 
   readonly iconOptions = ICON_OPTIONS;
 
   readonly isEdit = computed(() => this.category() !== null);
+
+  /** A node with children cannot become somebody's child (third level). */
+  readonly hasChildren = computed(() => (this.category()?.children.length ?? 0) > 0);
+
+  /** «بدون والد» plus every root except the node being edited. */
+  readonly parentOptions = computed(() => [
+    { label: '— بدون والد (دستهٔ اصلی) —', value: '' },
+    ...this.parents()
+      .filter((node) => node.id !== this.category()?.id)
+      .map((node) => ({ label: node.name, value: String(node.id) })),
+  ]);
 
   private slugEdited = false;
 
@@ -134,6 +204,10 @@ export class CategoryForm {
         order: category?.order ?? this.defaultOrder(),
         isActive: category?.isActive ?? true,
         description: category?.description ?? '',
+        parentId:
+          category?.parentId === null || category?.parentId === undefined
+            ? ''
+            : String(category.parentId),
       });
       this.serverErrors.set({});
       this.duplicateName.set(false);
@@ -224,7 +298,7 @@ export class CategoryForm {
       order: value.order,
       isActive: value.isActive,
       description: value.description.trim(),
-      parentId: editing?.parentId ?? null,
+      parentId: value.parentId === '' ? null : value.parentId,
     };
 
     this.saving.set(true);
