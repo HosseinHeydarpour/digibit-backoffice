@@ -148,6 +148,21 @@
       <i class="pi pi-bars text-xs" aria-hidden="true"></i>
     </button>
 
+    <i
+      [class]="node.icon ?? 'pi pi-folder'"
+      class="shrink-0 text-gray-400 dark:text-gray-500"
+      aria-hidden="true"
+    ></i>
+
+    <!--
+      The chevron sits AFTER the name (to its left in RTL), not before the icon:
+      the row reads «[grip] [icon] name ⌄ …count status pencil», so the toggle is
+      attached to the label it opens instead of being a second leading control.
+    -->
+    <div class="min-w-0 flex-1 sm:flex-none sm:max-w-[26rem]">
+      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ node.name }}</p>
+    </div>
+
     @if (node.children.length > 0) {
       <button
         type="button"
@@ -162,19 +177,10 @@
           aria-hidden="true"
         ></i>
       </button>
-    } @else {
-      <span class="size-8 shrink-0 max-sm:size-11" aria-hidden="true"></span>
     }
 
-    <i
-      [class]="node.icon ?? 'pi pi-folder'"
-      class="shrink-0 text-gray-400 dark:text-gray-500"
-      aria-hidden="true"
-    ></i>
-
-    <div class="min-w-0 flex-1">
-      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ node.name }}</p>
-    </div>
+    <!-- Pushes the meta + actions to the far end on a wide screen. -->
+    <span class="hidden flex-1 sm:block" aria-hidden="true"></span>
 
     <span
       class="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
