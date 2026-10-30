@@ -214,7 +214,21 @@ export class CategoryTree {
     }
   }
 
-  /** Release over a row → become its child. */
+  /**
+   * Release over a row → become its child.
+   *
+   * TRACE — dragging «دفتر و کاغذ» onto «حافظه و ذخیره‌سازی»:
+   *
+   *   1. `pointerdown` on the child stored the origin at (x: 120, y: 300).
+   *   2. `pointermove` to (x: 140, y: 305) passed the 6px threshold, so
+   *      `dragging` = the child and the strip above the tree appeared.
+   *   3. `pointerenter` on the target highlighted it because `canDropOn` saw a
+   *      root target and a child with no children of its own.
+   *   4. `pointerup` here → `suppressClick = true` (so the trailing click does
+   *      not toggle the node), then `move(child, 'pcat-storage')`.
+   *   5. `PATCH /categories/… { parentId }` → the mock renumbers both levels and
+   *      the page refetches: the child is now under «حافظه» with order 1.
+   */
   onPointerUpOn(node: CategoryNode, event: PointerEvent): void {
     if (!this.dragging()) {
       this.resetDrag();
