@@ -65,6 +65,14 @@ class CategoriesServiceStub {
 
   calls = 0;
 
+  moves: { id: string; parentId: string | null }[] = [];
+
+  move(id: string, parentId: string | null): Observable<CategoryNode> {
+    this.moves.push({ id, parentId });
+
+    return of(TREE[0]!);
+  }
+
   tree(): Observable<readonly CategoryNode[]> {
     this.calls += 1;
 
@@ -241,5 +249,31 @@ describe('CategoryTree (BO-G01)', () => {
 
     expect(component().dialogOpen()).toBe(false);
     expect(service.calls).toBe(before + 1);
+  });
+  it('BO-G03: a drop onto a root moves the node under it and reloads', async () => {
+    component().dragging.set(TREE[1]!); // «گوشی موبایل», a root with no children
+    component().onPointerUpOn(TREE[0]!, new Event('pointerup') as PointerEvent);
+    await fixture.whenStable();
+
+    expect(service.moves).toEqual([{ id: 'c-2', parentId: 'c-1' }]);
+    expect(component().dragging()).toBeNull();
+  });
+
+  it('BO-G03: dropping on the root strip makes the row a top-level category', async () => {
+    component().dragging.set(TREE[0]!.children[0]!); // «دفتر و کاغذ»
+    component().onDropToRoot();
+    await fixture.whenStable();
+
+    expect(service.moves).toEqual([{ id: 'c-1-1', parentId: null }]);
+  });
+
+  it('BO-G03: a node with children cannot be nested, and a child cannot accept a drop', () => {
+    // «لوازم تحریر» has children → moving it under another root would be 3 levels.
+    component().dragging.set(TREE[0]!);
+    expect(component().canDropOn(TREE[1]!)).toBe(false);
+
+    // A child target cannot take children at all.
+    component().dragging.set(TREE[1]!);
+    expect(component().canDropOn(TREE[0]!.children[0]!)).toBe(false);
   });
 });

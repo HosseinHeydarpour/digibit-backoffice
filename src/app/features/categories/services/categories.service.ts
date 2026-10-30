@@ -30,4 +30,14 @@ export class CategoriesService {
   update(id: string, dto: CategoryInput): Observable<CategoryNode> {
     return this.api.put<CategoryNode>(`/categories/${encodeURIComponent(id)}`, dto);
   }
+
+  /**
+   * Move a category under another (or back to the root) — BO-G03 drag & drop.
+   *
+   * `PATCH`, not `PUT`: the drag sends one field, and a full update would let a
+   * stale tab overwrite a name it is not editing.
+   */
+  move(id: string, parentId: string | null): Observable<CategoryNode> {
+    return this.api.patch<CategoryNode>(`/categories/${encodeURIComponent(id)}`, { parentId });
+  }
 }

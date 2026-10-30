@@ -44,7 +44,7 @@ export function categorySlugValidator(control: AbstractControl): ValidationError
   return SLUG_PATTERN.test(value) ? null : { pattern: true };
 }
 
-/** Order: a non-negative whole number; zero is a valid position. */
+/** Order: a positive whole number; the first position is 1, never 0. */
 export function categoryOrderValidator(control: AbstractControl): ValidationErrors | null {
   if (control.value === null || control.value === undefined || control.value === '') {
     return { required: true };
@@ -56,7 +56,7 @@ export function categoryOrderValidator(control: AbstractControl): ValidationErro
     return { number: true };
   }
 
-  if (!Number.isInteger(value) || value < 0) {
+  if (!Number.isInteger(value) || value < 1) {
     return { negative: true };
   }
 

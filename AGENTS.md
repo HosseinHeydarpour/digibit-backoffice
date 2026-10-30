@@ -700,6 +700,18 @@ overflow-auto` wrapper; the page itself must never scroll sideways (BO-B17).
 - **The mock store is mutable and resettable.** `MOCK_CATEGORIES` stays the frozen seed;
   `CATEGORIES` takes icons, descriptions and writes, and `resetMockState()` rebuilds it, so a spec
   that renames a category cannot leak into the next one.
+- **Positions are assigned per level, from 1.** `nextCategoryOrder(parentId)` is `max(sibling
+order) + 1`; the form defaults to the page's `nextOrder()` and the validator rejects 0. The old
+  fallback (`CATEGORIES.length + 1`) counted BOTH levels, so a new root could land on a number a
+  root already had and the client-side sort had no tie-breaker — the «ترتیب گنگ» the user saw.
+- **Drag & drop is native HTML5, not `p-tree`'s.** Each row is `draggable`, a drop on another root
+  makes the row its child, and a dashed strip above the tree turns a child back into a root. The
+  guards are explicit: the target must be a root, the dragged node must have no children (two
+  levels only), and a node cannot be dropped on itself. The API repeats the same three rules, plus
+  a cycle check, so a hand-made request cannot corrupt the tree.
+- **The move is `PATCH /categories/:id` with `{ parentId }`.** A full `PUT` would let the drag
+  overwrite a name it is not editing; the mock treats a body that only carries `parentId` as a move
+  and skips the name/slug validation that the body intentionally omits.
 
 ### Sales chart and Chart.js testing (BO-E03)
 

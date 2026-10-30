@@ -180,4 +180,10 @@ describe('CategoryForm (BO-G02)', () => {
     expect(grid.className).toContain('grid-cols-1');
     expect(grid.className).toContain('sm:grid-cols-2');
   });
+  it('BO-G03: a new category starts at the next free position, not at 1', () => {
+    fixture.componentRef.setInput('defaultOrder', 9);
+    fixture.detectChanges();
+
+    expect(component().form.controls.order.value).toBe(9);
+  });
 });

@@ -598,4 +598,95 @@ describe('mockInterceptor', () => {
     expect(clash.status).toBe(422);
     expect(clash.error.error.fields.slug[0]).toContain('قبلاً');
   });
+  it('appends a new category after its siblings (BO-G03 ordering)', async () => {
+    const created = await firstValueFrom(
+      http.post<ApiResponse<{ id: string; order: number; parentId: string | null }>>(
+        '/api/v1/categories',
+        { name: 'آخرین دسته', slug: 'last-one', isActive: true },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    // The seed has roots 1..8, so the new root is 9 — not `CATEGORIES.length + 1`
+    // (which counted children too and collided with existing positions).
+    expect(created.data.order).toBe(9);
+    expect(created.data.parentId).toBeNull();
+  });
+
+  it('moves a category under a root and appends its position there', async () => {
+    const moved = await firstValueFrom(
+      http.patch<ApiResponse<{ parentId: string }>>(
+        '/api/v1/categories/pcat-cables',
+        { parentId: 'pcat-stationery' },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(moved.data.parentId).toBe('pcat-stationery');
+    expect(moved.data).toMatchObject({ order: 3 }); // after the two stationery children
+  });
+
+  it('refuses a third level and a cycle (BO-G03)', async () => {
+    const thirdLevel = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          '/api/v1/categories/pcat-cables',
+          { parentId: 'pcat-stationery-paper' },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+    expect(thirdLevel.status).toBe(422);
+
+    const cycle = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          '/api/v1/categories/pcat-stationery',
+          { parentId: 'pcat-stationery' },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+    expect(cycle.status).toBe(422);
+
+    const parentWithKids = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          '/api/v1/categories/pcat-stationery',
+          { parentId: 'pcat-storage' },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+    expect(parentWithKids.status).toBe(422);
+  });
+  it('manual order is a slot: setting 1 moves the old first row to 2 (BO-G03)', async () => {
+    const tree = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; name: string; slug: string; order: number }[]>>(
+        '/api/v1/categories',
+        { headers: { [MOCK_HEADER]: '1' }, params: { tree: 'true' } },
+      ),
+    );
+
+    const [first, second] = tree.data;
+
+    await firstValueFrom(
+      http.put<ApiResponse<unknown>>(
+        `/api/v1/categories/${second.id}`,
+        { name: second.name, slug: second.slug, order: 1, isActive: true, parentId: null },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    const after = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; order: number }[]>>('/api/v1/categories', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { tree: 'true' },
+      }),
+    );
+
+    expect(after.data[0].id).toBe(second.id);
+    expect(after.data[0].order).toBe(1);
+    expect(after.data.find((node) => node.id === first.id)!.order).toBe(2);
+  });
 });

@@ -576,6 +576,57 @@ function normalizeCategoryName(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('fa');
 }
 
+/** The next free position among the siblings of `parentId` (1-based). */
+function nextCategoryOrder(parentId: string | null, excludeId?: string): number {
+  const siblings = CATEGORIES.filter(
+    (category) => (category.parentId ?? null) === parentId && category.id !== excludeId,
+  );
+
+  return siblings.reduce((max, category) => Math.max(max, category.order), 0) + 1;
+}
+
+/** Siblings of one level, in display order; ties break on the name. */
+function levelSiblings(parentId: string | null, excludeId?: string): MockCategory[] {
+  return CATEGORIES.filter(
+    (category) => (category.parentId ?? null) === parentId && category.id !== excludeId,
+  ).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, 'fa'));
+}
+
+/**
+ * Renumber one level to 1..N.
+ *
+ * Positions are not free numbers, they are slots: removing a row leaves a gap,
+ * and a manual «ترتیب» that collides with an existing one would otherwise leave
+ * two rows claiming position 1 and the client sort with no tie-breaker.
+ */
+function renumberLevel(parentId: string | null): void {
+  levelSiblings(parentId).forEach((category, index) => {
+    category.order = index + 1;
+  });
+}
+
+/**
+ * Put a category at `desiredOrder` and push the rest down (BO-G03).
+ *
+ * TRACE — «باتری» has order 6 and the user edits it to 1:
+ *
+ *   1. The other roots are sorted 1..7 without «باتری».
+ *   2. It is spliced in at index 0.
+ *   3. The whole level is renumbered 1..8: «باتری» is 1, and the old 1
+ *      («لوازم تحریر») becomes 2 — which is exactly the «جا به جا شو» the user
+ *      expects, instead of two rows both claiming position 1.
+ */
+function placeCategoryAt(category: MockCategory, desiredOrder: number): void {
+  const parentId = category.parentId ?? null;
+  const siblings = levelSiblings(parentId, category.id);
+  const index = Math.min(Math.max(Math.round(desiredOrder), 1), siblings.length + 1) - 1;
+
+  siblings.splice(index, 0, category);
+  siblings.forEach((sibling, position) => {
+    sibling.order = position + 1;
+  });
+}
+
 /** `POST /categories` → 201 with the created node (tc 1/7). */
 function createCategory(body: unknown): MockResolution {
   const rejected = validateCategory(body);
@@ -586,19 +637,26 @@ function createCategory(body: unknown): MockResolution {
 
   const data = asRecord(body);
   const nextId = `cat-new-${CATEGORIES.length + 1}`;
+  const parentId = typeof data['parentId'] === 'string' ? data['parentId'] : null;
 
   const node: MockCategory = {
     id: nextId,
-    parentId: typeof data['parentId'] === 'string' ? data['parentId'] : null,
+    parentId,
     name: text(data['name'], 'بدون نام'),
     slug: text(data['slug'], `category-${CATEGORIES.length + 1}`),
-    order: amount(data['order'], CATEGORIES.length + 1),
+    // A supplied order wins (the form sends the next free one); otherwise the
+    // server appends. The old fallback was `CATEGORIES.length + 1`, which mixed
+    // two levels into one counter and made the tree look randomly ordered.
+    order: amount(data['order'], nextCategoryOrder(parentId)),
     isActive: data['isActive'] !== false,
     icon: text(data['icon'], 'pi pi-folder'),
     description: text(data['description'], ''),
   };
 
   CATEGORIES.push(node);
+  // The new row is appended; renumbering keeps every position a slot, even when
+  // the form sent an explicit order that already exists.
+  placeCategoryAt(node, node.order);
 
   return created(node, 'دسته ایجاد شد.');
 }
@@ -609,6 +667,10 @@ function resolveCategory(method: string, id: string, body: unknown): MockResolut
 
   if (!found) {
     return NOT_FOUND;
+  }
+
+  if (method === 'PATCH' && body && typeof body === 'object' && 'parentId' in body) {
+    return moveCategory(id, body);
   }
 
   if (method !== 'PUT' && method !== 'PATCH') {
@@ -622,15 +684,109 @@ function resolveCategory(method: string, id: string, body: unknown): MockResolut
   }
 
   const data = asRecord(body);
+  const oldParent = found.parentId ?? null;
 
   found.name = text(data['name'], found.name);
   found.slug = text(data['slug'], found.slug);
   found.icon = text(data['icon'], found.icon);
-  found.order = amount(data['order'], found.order);
   found.isActive = data['isActive'] !== false;
   found.description = text(data['description'], found.description);
+  found.parentId = typeof data['parentId'] === 'string' ? data['parentId'] : oldParent;
+
+  // `order` is a SLOT, not a number: writing it re-sequences the whole level so
+  // 1..N stays contiguous and no two rows share a position (BO-G03).
+  placeCategoryAt(found, amount(data['order'], found.order));
+
+  if ((found.parentId ?? null) !== oldParent) {
+    renumberLevel(oldParent);
+  }
 
   return ok(found, 'دسته به‌روزرسانی شد.');
+}
+
+/**
+ * Moving a category between levels (BO-G03 drag & drop).
+ *
+ * A `PATCH` that carries only `parentId` must not run the full field validation:
+ * the body has no name or slug, and `validateCategory` would reject both. The
+ * rules that DO apply are structural:
+ *
+ *   - the parent must exist (a child of another node is refused: the tree is two
+ *     levels, so nesting under a child would create a third);
+ *   - a node cannot move under itself or under one of its own children.
+ *
+ * TRACE — dragging «دفتر و کاغذ» (child of «لوازم تحریر») onto the root:
+ * `PATCH { parentId: null }` → it becomes a root with
+ * `order = nextCategoryOrder(null)`, so it lands last instead of colliding with
+ * the roots' positions 1..8.
+ */
+function moveCategory(id: string, body: unknown): MockResolution {
+  const found = CATEGORIES.find((category) => category.id === id);
+
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  const data = asRecord(body);
+  const parentId = typeof data['parentId'] === 'string' ? data['parentId'] : null;
+
+  // A parent with children cannot become a child itself: the tree is two levels.
+  if (parentId !== null && CATEGORIES.some((category) => category.parentId === found.id)) {
+    return validationError('parentId', 'دستهٔ دارای زیرمجموعه قابل انتقال نیست.');
+  }
+
+  if (parentId !== null) {
+    const parent = CATEGORIES.find((category) => category.id === parentId);
+
+    if (!parent) {
+      return validationError('parentId', 'دستهٔ والد پیدا نشد.');
+    }
+
+    if ((parent.parentId ?? null) !== null) {
+      return validationError('parentId', 'دستهٔ فرزند نمی‌تواند والد باشد.');
+    }
+
+    if (parent.id === found.id || isDescendantOf(parentId, found.id)) {
+      return validationError('parentId', 'انتقال به زیرمجموعهٔ خودش مجاز نیست.');
+    }
+  }
+
+  const oldParent = found.parentId ?? null;
+
+  found.parentId = parentId;
+  found.order = nextCategoryOrder(parentId, found.id);
+  renumberLevel(parentId);
+
+  if (oldParent !== parentId) {
+    renumberLevel(oldParent);
+  }
+
+  return ok(found, 'دسته جابه‌جا شد.');
+}
+
+/** Is `candidateId` somewhere under `ancestorId`? (cycle guard) */
+function isDescendantOf(candidateId: string, ancestorId: string): boolean {
+  let current = CATEGORIES.find((category) => category.id === candidateId);
+
+  while (current?.parentId) {
+    if (current.parentId === ancestorId) {
+      return true;
+    }
+
+    current = CATEGORIES.find((category) => category.id === current!.parentId);
+  }
+
+  return false;
+}
+
+/** A 422 with one field message — the shape the form's error mapper reads. */
+function validationError(field: string, message: string): MockResolution {
+  return {
+    status: 422,
+    body: {
+      error: { code: 'VALIDATION', message, fields: { [field]: [message] } },
+    },
+  };
 }
 
 /** The flattened row `GET /products` returns. */

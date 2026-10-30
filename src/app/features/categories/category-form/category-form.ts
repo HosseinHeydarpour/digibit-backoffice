@@ -91,6 +91,9 @@ export class CategoryForm {
   /** The nodes at the same level; the duplicate-name rule compares against these. */
   readonly siblings = input<readonly CategoryNode[]>([]);
 
+  /** The position a new category takes: one past the last sibling (BO-G03). */
+  readonly defaultOrder = input<number>(1);
+
   readonly saved = output<CategoryNode>();
   readonly cancelled = output<void>();
 
@@ -128,7 +131,7 @@ export class CategoryForm {
         name: category?.name ?? '',
         slug: category?.slug ?? '',
         icon: category?.icon ?? 'pi pi-folder',
-        order: category?.order ?? 1,
+        order: category?.order ?? this.defaultOrder(),
         isActive: category?.isActive ?? true,
         description: category?.description ?? '',
       });

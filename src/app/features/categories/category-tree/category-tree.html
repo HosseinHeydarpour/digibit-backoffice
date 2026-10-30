@@ -77,6 +77,22 @@
       -->
       @if (nodes().length > 0) {
         <div class="max-h-[70vh] overflow-auto p-2 sm:p-4" data-category-tree>
+          @if (dragging()) {
+            <!-- Drop zone for «make it a root» (BO-G03). -->
+            <div
+              (pointerenter)="onPointerEnterRoot()"
+              (pointerup)="onDropToRoot($event)"
+              data-drop-root
+              [class]="
+                dropTarget() === 'root'
+                  ? 'mb-2 rounded-lg border-2 border-dashed border-primary bg-primary/15 px-4 py-3 text-center text-xs font-medium text-primary'
+                  : 'mb-2 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-center text-xs font-medium text-primary'
+              "
+            >
+              رها کنید تا دستهٔ اصلی شود
+            </div>
+          }
+
           <p-tree
             [value]="nodes()"
             [filter]="false"
@@ -101,9 +117,18 @@
                 #row
                 tabindex="0"
                 role="button"
+                (pointerdown)="onPointerDown(node.data, $event)"
+                (pointermove)="onPointerMove($event)"
+                (pointerenter)="onPointerEnter(node.data)"
+                (pointerup)="onPointerUpOn(node.data, $event)"
+                (click)="onRowClick($event)"
                 [attr.aria-expanded]="node.children?.length ? node.expanded : null"
                 (keydown)="onRowKeydown($event, row)"
-                class="flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                [class]="
+                  dropTarget() === node.data.id
+                    ? 'flex w-full min-w-0 cursor-grabbing flex-wrap items-center gap-x-3 gap-y-1 rounded bg-primary/10 py-1 ring-2 ring-primary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                    : 'flex w-full min-w-0 cursor-grab flex-wrap items-center gap-x-3 gap-y-1 rounded py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                "
               >
                 <i
                   [class]="node.data.icon ?? 'pi pi-folder'"
@@ -187,6 +212,7 @@
     <app-category-form
       [category]="editing()"
       [siblings]="siblings()"
+      [defaultOrder]="nextOrder()"
       (saved)="onSaved()"
       (cancelled)="closeDialog()"
     />
