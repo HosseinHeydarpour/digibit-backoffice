@@ -113,6 +113,24 @@
           }
         </ul>
 
+        <!--
+          A child can be dragged back to the root by dropping it here (BO-G03).
+          The zone is always mounted, not toggled on drag: `cdkDropListGroup`
+          connects the lists it knows about, and a list that appears mid-drag is
+          not guaranteed to be in that set yet. `leafOnly` keeps a parent with
+          children out of it, exactly like the child lists.
+        -->
+        <div
+          cdkDropList
+          [cdkDropListData]="rootDropZone"
+          [cdkDropListEnterPredicate]="leafOnly"
+          (cdkDropListDropped)="dropToRoot($event)"
+          data-drop-root
+          class="mt-2 flex min-h-12 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 px-4 py-2 text-center text-xs text-gray-400 transition dark:border-gray-700 dark:text-gray-500"
+        >
+          برای دستهٔ اصلی کردن، دسته را اینجا رها کنید
+        </div>
+
         @if (roots().length === 0) {
           <div class="p-2">
             <app-empty-state
@@ -159,9 +177,27 @@
       the row reads «[grip] [icon] name ⌄ …count status pencil», so the toggle is
       attached to the label it opens instead of being a second leading control.
     -->
-    <div class="min-w-0 flex-1 sm:flex-none sm:max-w-[26rem]">
-      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ node.name }}</p>
-    </div>
+    @if (node.children.length > 0) {
+      <!--
+        The whole label toggles, not only the chevron: clicking a category with
+        children is the obvious way to open it, and a dead label reads as broken.
+        The pencil and the drag handle stop the click, so they still do their job.
+      -->
+      <button
+        type="button"
+        (click)="toggle(node)"
+        [attr.aria-expanded]="isExpanded(node)"
+        class="min-w-0 flex-1 truncate text-start text-sm font-medium text-gray-900 hover:text-primary sm:flex-none sm:max-w-[26rem] dark:text-white dark:hover:text-primary"
+      >
+        {{ node.name }}
+      </button>
+    } @else {
+      <span
+        class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 sm:flex-none sm:max-w-[26rem] dark:text-white"
+      >
+        {{ node.name }}
+      </span>
+    }
 
     @if (node.children.length > 0) {
       <button

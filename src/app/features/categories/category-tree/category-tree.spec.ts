@@ -253,6 +253,25 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(text()).not.toContain('دفتر و کاغذ');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
+  it('BO-G03: clicking the label opens a branch, not only the chevron', () => {
+    const label = fixture.nativeElement.querySelector(
+      '[data-category-tree] li > div > button[aria-expanded]',
+    ) as HTMLButtonElement;
+
+    expect(label.textContent).toContain('لوازم تحریر');
+    label.click();
+    fixture.detectChanges();
+
+    expect(text()).not.toContain('دفتر و کاغذ');
+  });
+
+  it('BO-G03: the root zone appends a child back to the roots', async () => {
+    component().dropToRoot(dropEvent(TREE[0]!.children[0]!, 0));
+    await fixture.whenStable();
+
+    // Appended after the two existing roots, not inserted at the top.
+    expect(service.placed).toEqual([{ id: 'c-1-1', parentId: null, order: 3 }]);
+  });
 });
 
 /** The three fields the drop handler reads, without a real CDK drag. */

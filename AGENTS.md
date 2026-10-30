@@ -713,6 +713,12 @@ order) + 1`; the form defaults to the page's `nextOrder()` and the validator rej
   text, its chevron points right in RTL, and its node template fought the phone layout. The lists are
   ordinary markup: one row line — icon level with the title, the name owns the flexible column, and
   the count, the status pill and the pencil sit together at the end; 44px controls on a phone.
+- **The label toggles its branch too.** Clicking the name of a category with children opens/closes it,
+  not only the chevron: a label that does nothing on click reads as broken. The pencil and the grip
+  stop the click.
+- **A child becomes a root by dropping it on the root zone.** The zone is an always-mounted empty
+  cdkDropList under the tree («برای دستهٔ اصلی کردن…»); a list that appears mid-drag may not be in
+  the group's set yet, so it is not toggled by dragging().
 - **`cdkDropListEnterPredicate` guards the second level.** A child list accepts only a node with no
   children, so a third level cannot be dropped into existence; the API repeats the rule (plus a cycle
   check) and answers 422 for a hand-made request.

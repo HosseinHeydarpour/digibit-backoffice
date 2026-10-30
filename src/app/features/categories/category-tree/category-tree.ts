@@ -211,6 +211,25 @@ export class CategoryTree {
     this.place(moved, parentId, event.currentIndex + 1);
   }
 
+  /** `cdkDropListData` for the root zone; the list is intentionally empty. */
+  readonly rootDropZone: readonly CategoryNode[] = [];
+
+  /**
+   * Release on the "make it a root" zone → append to the roots.
+   *
+   * The zone is an empty drop list, so `currentIndex` is always 0; appending is
+   * what a user means by "move it out of this branch", not "make it first".
+   */
+  dropToRoot(event: CdkDragDrop<readonly CategoryNode[]>): void {
+    const moved = event.item.data as CategoryNode | undefined;
+
+    if (!moved) {
+      return;
+    }
+
+    this.place(moved, null, this.roots().length + 1);
+  }
+
   onDragStarted(node: CategoryNode): void {
     this.dragging.set(node);
   }
