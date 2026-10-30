@@ -19,6 +19,7 @@ import { LoadingDirective } from '@shared/directives/loading.directive';
 import { ApiError } from '@shared/models';
 import type { SelectOption } from '@shared/models';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
+import { slugify } from '@shared/utils/slugify';
 import { PrimeTemplate } from 'primeng/api';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
@@ -52,7 +53,6 @@ import { ProductsService } from '../services/products.service';
 import { buildCategoryOptions } from './category-options';
 import type { CategoryOption } from './category-options';
 import { toCreateProductDto } from './product-payload';
-import { slugify } from './product-slug';
 import {
   SHORT_DESCRIPTION_MAX,
   fieldError,

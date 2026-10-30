@@ -2,8 +2,7 @@
   <button
     page-header-actions
     type="button"
-    disabled
-    title="در BO-G02 فعال می‌شود"
+    (click)="openCreate()"
     class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
   >
     <i class="pi pi-plus" aria-hidden="true"></i>
@@ -141,6 +140,16 @@
                 >
                   {{ node.data.isActive ? 'فعال' : 'غیرفعال' }}
                 </span>
+
+                <button
+                  type="button"
+                  (click)="openEdit(node.data); $event.stopPropagation()"
+                  data-edit-category
+                  [attr.aria-label]="'ویرایش دستهٔ ' + node.label"
+                  class="ms-auto inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
+                >
+                  <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+                </button>
               </div>
             </ng-template>
           </p-tree>
@@ -160,3 +169,26 @@
     }
   }
 </div>
+<!--
+  One dialog for create and edit (BO-G02): the page keeps the mode in
+  `editing()`, the form receives the node and the siblings it must not duplicate.
+-->
+<p-dialog
+  [visible]="dialogOpen()"
+  (visibleChange)="dialogOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: '36rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+  [header]="editing() ? 'ویرایش دسته' : 'افزودن دسته'"
+>
+  @if (dialogOpen()) {
+    <app-category-form
+      [category]="editing()"
+      [siblings]="siblings()"
+      (saved)="onSaved()"
+      (cancelled)="closeDialog()"
+    />
+  }
+</p-dialog>

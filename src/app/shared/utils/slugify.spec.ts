@@ -1,6 +1,6 @@
-import { slugify } from './product-slug';
+import { slugify } from './slugify';
 
-describe('slugify (BO-F07, extended by BO-F16)', () => {
+describe('slugify (shared: BO-F07, BO-F16, BO-G02)', () => {
   it('tc 8: turns the Persian example into an English slug', () => {
     expect(slugify('لپ‌تاپ ایسوس')).toBe('laptop-asus');
     expect(slugify('لپ تاپ ایسوس')).toBe('laptop-asus');

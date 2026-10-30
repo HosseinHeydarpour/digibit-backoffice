@@ -25,12 +25,14 @@ import { PageHeader } from '@shared/components/page-header/page-header';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { PrimeTemplate } from 'primeng/api';
 import type { TreeNode } from 'primeng/api';
+import { Dialog } from 'primeng/dialog';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { Tree } from 'primeng/tree';
 import { catchError, of } from 'rxjs';
 
+import { CategoryForm } from '../category-form/category-form';
 import type { CategoryNode } from '../models/category.model';
 import { CategoriesService } from '../services/categories.service';
 
@@ -44,6 +46,8 @@ import { filterTree } from './category-filter';
 @Component({
   selector: 'app-category-tree',
   imports: [
+    CategoryForm,
+    Dialog,
     EmptyState,
     ErrorState,
     IconField,
@@ -71,6 +75,38 @@ export class CategoryTree {
 
   readonly search = signal('');
 
+  /** The dialog's state: closed, creating (null) or editing one node (BO-G02). */
+  readonly dialogOpen = signal(false);
+
+  readonly editing = signal<CategoryNode | null>(null);
+
+  /**
+   * The nodes at the edited node's level.
+   *
+   * The duplicate-name rule is per level: «دفتر و کاغذ» may be called «لوازم
+   * تحریر» without a conflict because they never appear side by side.
+   *
+   * TRACE — editing «دفتر و کاغذ» (child of «لوازم تحریر»):
+   *
+   *   1. `target.parentId` is `'pcat-stationery'` (not null), so the sibling list
+   *      is NOT the roots.
+   *   2. The root with that id is found and its children returned: the two
+   *      stationery children.
+   *   3. The form's duplicate check compares only against those two, so typing
+   *      «لوازم تحریر» (a root) is accepted while typing «خودکار و روان‌نویس»
+   *      is rejected. Creating (no target) returns the roots instead.
+   */
+  readonly siblings = computed<readonly CategoryNode[]>(() => {
+    const target = this.editing();
+    const roots = this.tree() ?? [];
+
+    if (!target || target.parentId === null) {
+      return roots;
+    }
+
+    return roots.find((node) => node.id === target.parentId)?.children ?? [];
+  });
+
   /** The nodes the `p-tree` renders: filtered, sorted, shaped for PrimeNG. */
   readonly nodes = computed<readonly TreeNode[]>(() =>
     toTreeNodes(filterTree(this.tree() ?? [], this.search())),
@@ -96,6 +132,35 @@ export class CategoryTree {
   /** Retry after a failed fetch (tc 7). */
   retry(): void {
     this.load();
+  }
+
+  /** Open the dialog for a new ROOT category (BO-G02 tc 1). */
+  openCreate(): void {
+    this.editing.set(null);
+    this.dialogOpen.set(true);
+  }
+
+  /** Open the dialog prefilled with an existing node (tc 2). */
+  openEdit(node: CategoryNode): void {
+    this.editing.set(node);
+    this.dialogOpen.set(true);
+  }
+
+  /**
+   * The form saved: close the dialog and refetch.
+   *
+   * Refetching rather than patching the array keeps one source of truth — the
+   * server's tree — and is what makes the new row's ICON appear (tc 7/10).
+   */
+  onSaved(): void {
+    this.dialogOpen.set(false);
+    this.editing.set(null);
+    this.load();
+  }
+
+  closeDialog(): void {
+    this.dialogOpen.set(false);
+    this.editing.set(null);
   }
 
   /**

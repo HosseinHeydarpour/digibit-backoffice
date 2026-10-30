@@ -116,6 +116,13 @@ function ok(data: unknown, message = ''): MockResolution {
  *   4. The icon comes from a fixed map so a category looks the same on every
  *      reload; an unknown slug falls back to a neutral folder.
  */
+/**
+ * The nester of the flat store: roots in `order`, each with its children.
+ *
+ * Declared before the store so the seed (which lives below the icon map) can be
+ * read in one place; the function itself only runs on a request, so referring to
+ * `CATEGORIES` defined later is safe.
+ */
 function categoryTree(): unknown[] {
   const counts = new Map<string, number>();
 
@@ -124,15 +131,17 @@ function categoryTree(): unknown[] {
   }
 
   const build = (parentId: string | null): unknown[] =>
-    fixtures.MOCK_CATEGORIES.filter((category) => (category.parentId ?? null) === parentId)
+    CATEGORIES.filter((category) => (category.parentId ?? null) === parentId)
       .sort((a, b) => a.order - b.order)
       .map((category) => ({
         id: category.id,
+        parentId: category.parentId ?? null,
         name: category.name,
         slug: category.slug,
-        icon: CATEGORY_ICONS[category.slug] ?? 'pi pi-folder',
+        icon: category.icon,
         order: category.order,
         isActive: category.isActive,
+        description: category.description,
         productCount: counts.get(category.id) ?? 0,
         children: build(category.id),
       }));
@@ -155,6 +164,29 @@ const CATEGORY_ICONS: Readonly<Record<string, string>> = {
   lighting: 'pi pi-lightbulb',
   uncategorized: 'pi pi-inbox',
 };
+
+/**
+ * The mutable category store (BO-G02).
+ *
+ * `MOCK_CATEGORIES` stays the frozen seed (names and order from the shop's
+ * export); this copy takes the icons the tree shows and every write the category
+ * form makes. `resetMockState()` rebuilds it from the seed, so a spec that
+ * creates or renames a category cannot leak into the next one.
+ */
+type MockCategory = (typeof fixtures.MOCK_CATEGORIES)[number] & {
+  icon: string;
+  description: string;
+};
+
+function seedCategories(): MockCategory[] {
+  return fixtures.MOCK_CATEGORIES.map((category) => ({
+    ...category,
+    icon: CATEGORY_ICONS[category.slug] ?? 'pi pi-folder',
+    description: '',
+  }));
+}
+
+const CATEGORIES: MockCategory[] = seedCategories();
 
 /**
  * The uniqueness answer `GET /products/slug-check` gives (BO-F16 tc 4).
@@ -252,11 +284,19 @@ function resolve(
     case 'categories':
       // `?tree=true` returns the nested shape the categories screen renders
       // (BO-G01); the flat list stays what the product form's select reads.
+      if (id) {
+        return resolveCategory(method, id, body);
+      }
+
+      if (method === 'POST') {
+        return createCategory(body);
+      }
+
       if (params.get('tree') === 'true') {
         return ok(categoryTree());
       }
 
-      return paged(fixtures.MOCK_CATEGORIES, page, pageSize);
+      return paged(CATEGORIES, page, pageSize);
     case 'brands':
       return paged(fixtures.MOCK_BRANDS, page, pageSize);
     case 'coupons':
@@ -421,7 +461,7 @@ function filterProducts(params: ParamReader): Record<string, unknown>[] {
 }
 
 function categoryName(id: string): string {
-  return fixtures.MOCK_CATEGORIES.find((category) => category.id === id)?.name ?? '—';
+  return CATEGORIES.find((category) => category.id === id)?.name ?? '-';
 }
 
 function brandName(id: string): string {
@@ -477,6 +517,122 @@ function validateProduct(body: unknown, selfId?: string): MockResolution | null 
   };
 }
 
+/**
+ * The 422 a category create/update answers when the payload is wrong (BO-G02).
+ *
+ * Three rules, the same three the form checks locally — the server is still the
+ * authority, because two tabs can hold the same name at once:
+ *
+ *   - the name is required;
+ *   - two categories under the SAME parent may not share a name (tc 4);
+ *   - a slug is unique across the catalogue, because it is a URL (tc 5).
+ *
+ * `selfId` is the node being edited: it owns its current name and slug, so an
+ * unchanged save is not a duplicate of itself.
+ *
+ * TRACE: `{ name: 'لوازم تحریر', slug: 'stationery' }` on create while that root
+ * exists → `422 { error: { code: 'VALIDATION', message: 'اطلاعات دسته معتبر
+ * نیست.', fields: { name: ['…'], slug: ['…'] } } }`; the form prints each
+ * sentence under its own field and keeps the dialog open.
+ */
+function validateCategory(body: unknown, selfId?: string): MockResolution | null {
+  const data = asRecord(body);
+  const name = text(data['name'], '');
+  const slug = text(data['slug'], '');
+  const parentId = typeof data['parentId'] === 'string' ? data['parentId'] : null;
+  const fields: Record<string, string[]> = {};
+  const others = CATEGORIES.filter((category) => category.id !== selfId);
+
+  if (name === '') {
+    fields['name'] = ['نام دسته الزامی است.'];
+  } else if (
+    others.some(
+      (category) =>
+        (category.parentId ?? null) === parentId &&
+        normalizeCategoryName(category.name) === normalizeCategoryName(name),
+    )
+  ) {
+    fields['name'] = ['دسته‌ای با این نام در همین سطح وجود دارد.'];
+  }
+
+  if (slug === '') {
+    fields['slug'] = ['نامک (slug) الزامی است.'];
+  } else if (others.some((category) => category.slug === slug)) {
+    fields['slug'] = ['این نامک قبلاً استفاده شده است.'];
+  }
+
+  if (Object.keys(fields).length === 0) {
+    return null;
+  }
+
+  return {
+    status: 422,
+    body: { error: { code: 'VALIDATION', message: 'اطلاعات دسته معتبر نیست.', fields } },
+  };
+}
+
+/** Name comparison: trimmed, single-spaced, case-insensitive (tc 4). */
+function normalizeCategoryName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('fa');
+}
+
+/** `POST /categories` → 201 with the created node (tc 1/7). */
+function createCategory(body: unknown): MockResolution {
+  const rejected = validateCategory(body);
+
+  if (rejected) {
+    return rejected;
+  }
+
+  const data = asRecord(body);
+  const nextId = `cat-new-${CATEGORIES.length + 1}`;
+
+  const node: MockCategory = {
+    id: nextId,
+    parentId: typeof data['parentId'] === 'string' ? data['parentId'] : null,
+    name: text(data['name'], 'بدون نام'),
+    slug: text(data['slug'], `category-${CATEGORIES.length + 1}`),
+    order: amount(data['order'], CATEGORIES.length + 1),
+    isActive: data['isActive'] !== false,
+    icon: text(data['icon'], 'pi pi-folder'),
+    description: text(data['description'], ''),
+  };
+
+  CATEGORIES.push(node);
+
+  return created(node, 'دسته ایجاد شد.');
+}
+
+/** `PUT/PATCH /categories/:id` → the updated node (tc 2). */
+function resolveCategory(method: string, id: string, body: unknown): MockResolution {
+  const found = CATEGORIES.find((category) => category.id === id);
+
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  if (method !== 'PUT' && method !== 'PATCH') {
+    return ok(found);
+  }
+
+  const rejected = validateCategory(body, id);
+
+  if (rejected) {
+    return rejected;
+  }
+
+  const data = asRecord(body);
+
+  found.name = text(data['name'], found.name);
+  found.slug = text(data['slug'], found.slug);
+  found.icon = text(data['icon'], found.icon);
+  found.order = amount(data['order'], found.order);
+  found.isActive = data['isActive'] !== false;
+  found.description = text(data['description'], found.description);
+
+  return ok(found, 'دسته به‌روزرسانی شد.');
+}
+
 /** The flattened row `GET /products` returns. */
 function toListItem(product: fixtures.MockProduct): Record<string, unknown> {
   return {
@@ -526,6 +682,7 @@ const DELETED_IDS = new Set<string>();
 export function resetMockState(): void {
   DELETED_IDS.clear();
   CREATED_PRODUCTS.length = 0;
+  CATEGORIES.splice(0, CATEGORIES.length, ...seedCategories());
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */

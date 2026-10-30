@@ -1,17 +1,21 @@
-// src/app/features/products/product-create/product-slug.ts
+// src/app/shared/utils/slugify.ts
 //
-// Persian/Latin → URL slug for the create form (BO-F07, extended by BO-F16).
+// Persian/Latin → URL slug, shared by the products and categories forms.
+//
+// WHY IT MOVED OUT OF `features/products`
+// ---------------------------------------
+// The category form builds a slug from «لوازم تحریر» the same way the product
+// form builds one from «لپ‌تاپ ایسوس». Two copies of a transliteration map drift
+// on the first word somebody adds to one of them, and a feature may not import
+// from another feature — so the function lives in `shared/`.
 //
 // WHY A DICTIONARY PLUS A CHARACTER MAP
 // -------------------------------------
-// A character-by-character transliteration turns «لپ‌تاپ» into `lptap`, which is
-// not a slug a human would search for. A small word dictionary handles the
-// catalogue's common nouns, and the character map is the fallback for the rest.
-// The map is deliberately conservative: unknown non-Latin characters are dropped
-// rather than guessed, so a slug is always `[a-z0-9-]`.
-//
-// This file is NOT under `models/`: it exports a runtime function, and AGENTS.md
-// keeps `features/*/models/` types-only.
+// A letter-by-letter transliteration turns «لپ‌تاپ» into `lptap`, which is not a
+// slug a human would search for. A small word dictionary handles the catalogue's
+// common nouns, and the character map is the fallback for the rest. The map is
+// deliberately conservative: unknown non-Latin characters are dropped rather
+// than guessed, so a slug is always `[a-z0-9-]`.
 
 /** Common catalogue words whose transliteration is not letter-by-letter. */
 const WORD_MAP: Readonly<Record<string, string>> = {
@@ -46,6 +50,24 @@ const WORD_MAP: Readonly<Record<string, string>> = {
   فلش: 'flash',
   مانیتور: 'monitor',
   اینچ: 'inch',
+  // Category nouns (BO-G02).
+  تحریر: 'stationery',
+  لوازم: 'accessories',
+  جانبی: '',
+  موبایل: 'mobile',
+  کامپیوتر: 'computer',
+  حافظه: 'storage',
+  ذخیرهسازی: 'storage',
+  باتری: 'battery',
+  روشنایی: 'lighting',
+  تبدیل: 'adapter',
+  قاب: 'case',
+  محافظ: 'protector',
+  گوشی: 'phone',
+  دفتر: 'notebook',
+  کاغذ: 'paper',
+  خودکار: 'pen',
+  رواننویس: 'pen',
 };
 
 /** Fallback letters for Persian/Arabic characters. */
@@ -93,9 +115,7 @@ const CHAR_MAP: Readonly<Record<string, string>> = {
   ؤ: 'o',
 };
 
-/**
- * Normalise one word: dictionary first, character map second, Latin untouched.
- */
+/** Normalise one word: dictionary first, character map second, Latin untouched. */
 function slugWord(word: string): string {
   const mapped = WORD_MAP[word];
   if (mapped) {
@@ -108,7 +128,7 @@ function slugWord(word: string): string {
 }
 
 /**
- * Build a slug from a product name.
+ * Build a slug from a product or category name.
  *
  * TRACE: `slugify('لپ‌تاپ ایسوس')`
  *   1. NFKC + remove ZWNJ/RLM/LRM → `لپتاپ ایسوس`

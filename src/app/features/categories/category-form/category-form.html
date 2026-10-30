@@ -1,0 +1,161 @@
+<form [formGroup]="form" (submit)="$event.preventDefault(); save()" class="space-y-5">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div class="sm:col-span-2">
+      <label
+        for="category-name"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        نام دسته <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="category-name"
+        type="text"
+        pInputText
+        formControlName="name"
+        placeholder="مثلاً لوازم تحریر"
+        class="w-full"
+      />
+      @if (errorFor('name')) {
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ errorFor('name') }}</p>
+      }
+    </div>
+
+    <div class="sm:col-span-2">
+      <label
+        for="category-slug"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        نامک (slug) <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="category-slug"
+        type="text"
+        pInputText
+        formControlName="slug"
+        (input)="onSlugInput()"
+        dir="ltr"
+        placeholder="stationery"
+        class="w-full text-left font-mono"
+      />
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        از نام ساخته می‌شود و قابل ویرایش است؛ فقط حروف انگلیسی، عدد و خط تیره.
+      </p>
+      @if (errorFor('slug')) {
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ errorFor('slug') }}</p>
+      }
+    </div>
+
+    <div>
+      <label
+        for="category-icon"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        آیکون
+      </label>
+      <p-select
+        inputId="category-icon"
+        formControlName="icon"
+        [options]="iconOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      >
+        <ng-template pTemplate="item" let-option>
+          <span class="flex items-center gap-2">
+            <i [class]="option.value" aria-hidden="true"></i>
+            {{ option.label }}
+          </span>
+        </ng-template>
+        <ng-template pTemplate="selectedItem" let-option>
+          <span class="flex items-center gap-2">
+            <i [class]="option.value" aria-hidden="true"></i>
+            {{ option.label }}
+          </span>
+        </ng-template>
+      </p-select>
+    </div>
+
+    <div>
+      <label
+        for="category-order"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        ترتیب
+      </label>
+      <input
+        id="category-order"
+        type="number"
+        min="0"
+        inputmode="numeric"
+        pInputText
+        formControlName="order"
+        class="w-full text-left"
+      />
+      @if (errorFor('order')) {
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ errorFor('order') }}</p>
+      }
+    </div>
+
+    <div class="flex items-center gap-3">
+      <p-toggleswitch inputId="category-active" formControlName="isActive" />
+      <label for="category-active" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+        فعال
+      </label>
+    </div>
+
+    <div class="sm:col-span-2">
+      <label
+        for="category-description"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        توضیحات
+      </label>
+      <textarea
+        id="category-description"
+        rows="3"
+        pTextarea
+        formControlName="description"
+        placeholder="توضیح کوتاه (اختیاری)"
+        class="w-full"
+      ></textarea>
+    </div>
+  </div>
+
+  @if (saveError(); as message) {
+    <div
+      role="alert"
+      class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"
+    >
+      {{ message }}
+    </div>
+  }
+
+  <!--
+    The same footer as the product wizard: cancel never submits, and the save
+    button is disabled through `pLoading` while the request runs, so a double
+    click cannot create two categories.
+  -->
+  <div
+    class="flex flex-col-reverse gap-2 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end dark:border-gray-700"
+  >
+    <button
+      type="button"
+      (click)="cancel()"
+      class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 max-sm:min-h-11 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+    >
+      انصراف
+    </button>
+    <button
+      type="submit"
+      pLoading
+      [loading]="saving()"
+      data-save-category
+      class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11"
+    >
+      <i [class]="saving() ? 'pi pi-spinner pi-spin' : 'pi pi-check'" aria-hidden="true"></i>
+      {{ saving() ? 'در حال ذخیره…' : isEdit() ? 'ذخیره تغییرات' : 'افزودن دسته' }}
+    </button>
+  </div>
+</form>

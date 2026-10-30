@@ -9,11 +9,13 @@ const node = (
   children: CategoryNode[] = [],
 ): CategoryNode => ({
   id,
+  parentId: null,
   name,
   slug,
   icon: null,
   order: 1,
   isActive: true,
+  description: '',
   productCount: 0,
   children,
 });

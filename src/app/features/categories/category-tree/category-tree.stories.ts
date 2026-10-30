@@ -12,6 +12,8 @@ import { CategoryTree } from './category-tree';
 const TREE: readonly CategoryNode[] = [
   {
     id: 'c-1',
+    parentId: null,
+    description: '',
     name: 'لوازم تحریر',
     slug: 'stationery',
     icon: 'pi pi-pen-to-square',
@@ -21,6 +23,8 @@ const TREE: readonly CategoryNode[] = [
     children: [
       {
         id: 'c-1-1',
+        parentId: 'c-1',
+        description: '',
         name: 'دفتر و کاغذ',
         slug: 'paper',
         icon: 'pi pi-book',
@@ -31,6 +35,8 @@ const TREE: readonly CategoryNode[] = [
       },
       {
         id: 'c-1-2',
+        parentId: 'c-1',
+        description: '',
         name: 'خودکار و روان‌نویس',
         slug: 'pens',
         icon: 'pi pi-pencil',
@@ -43,6 +49,8 @@ const TREE: readonly CategoryNode[] = [
   },
   {
     id: 'c-2',
+    parentId: null,
+    description: '',
     name: 'لوازم جانبی موبایل',
     slug: 'mobile-accessories',
     icon: 'pi pi-mobile',
@@ -52,6 +60,8 @@ const TREE: readonly CategoryNode[] = [
     children: [
       {
         id: 'c-2-1',
+        parentId: 'c-2',
+        description: '',
         name: 'گوشی موبایل',
         slug: 'phones',
         icon: 'pi pi-mobile',

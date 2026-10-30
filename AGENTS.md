@@ -681,6 +681,26 @@ overflow-auto` wrapper; the page itself must never scroll sideways (BO-B17).
 - **Icon names are checked against the shipped PrimeIcons.** `pi-hdd` and `pi-battery-half` do not
   exist in the font and render as blank space; storage uses `pi-database` and batteries `pi-bolt`.
 
+### Category create/edit (BO-G02)
+
+- **One dialog, two modes.** The page opens it with `editing = null` (create) or a node (edit); the
+  form component owns no overlay, so a spec and a story can mount it without animation providers.
+- **Duplicate names are a per-level rule.** The page passes `siblings` — the roots, or the children
+  of the node's parent — so a child may legally repeat a root's name. Both the form and the mock
+  enforce it; the server stays the authority because two tabs can race.
+- **Slug uniqueness is global, name uniqueness is local.** A slug is a URL, so the mock checks it
+  against every category; the form maps the 422 under the field and keeps the dialog open.
+- **`slugify` moved to `@shared/utils/slugify`.** Products and categories both build slugs from
+  Persian names, and a feature may not import from another feature. The word dictionary gained the
+  category nouns; `جانبی` maps to an empty segment so «لوازم جانبی» does not become
+  `accessories-accessories`.
+- **Saving refetches the tree.** Patching the array locally would let the client drift from the
+  server's order and product counts; one `load()` after the dialog closes keeps a single source of
+  truth and makes the new row's icon appear (tc 7/10).
+- **The mock store is mutable and resettable.** `MOCK_CATEGORIES` stays the frozen seed;
+  `CATEGORIES` takes icons, descriptions and writes, and `resetMockState()` rebuilds it, so a spec
+  that renames a category cannot leak into the next one.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

@@ -1,5 +1,6 @@
 import { Canvas, Meta } from '@storybook/addon-docs/blocks';
 
+import * as CategoryFormStories from '../app/features/categories/category-form/category-form.stories';
 import * as CategoryTreeStories from '../app/features/categories/category-tree/category-tree.stories';
 
 <Meta title="Features/Categories" />
@@ -53,3 +54,23 @@ paging, which is out of scope here.
 ## حالت خطا / Failure
 
 <Canvas of={CategoryTreeStories.LoadFailed} />
+## ایجاد و ویرایش دسته / Create and edit (BO-G02)
+
+دکمهٔ «افزودن دسته» و آیکون مداد هر ردیف، یک دیالوگ مشترک را باز می‌کنند. فرم در همان دیالوگ
+می‌ماند تا کاربر از درخت خارج نشود و بعد از ذخیره، درخت دوباره گرفته می‌شود؛ پس ردیف تازه (و آیکون
+انتخاب‌شده) بدون رفرش دیده می‌شود.
+
+The «افزودن دسته» button and each row's pencil open one shared dialog. The form stays inside it so
+the user never leaves the tree, and a save refetches the tree — the new row (with the icon that was
+chosen) appears without a refresh.
+
+- **نامک از نام ساخته می‌شود** (`slugify` مشترک با فرم محصول) و با ویرایش دستی دیگر عوض نمی‌شود.
+- **نام تکراری فقط در همان سطح** خطاست: زیر «لوازم تحریر» می‌توان دسته‌ای هم‌نام با یک ریشهٔ دیگر
+  ساخت.
+- **نامک یکتاست** (چون URL است) و خطای ۴۲۲ سرور زیر همان فیلد می‌نشیند و دیالوگ باز می‌ماند.
+- **انصراف هیچ درخواستی نمی‌فرستد** و مقادیر دور ریخته می‌شوند.
+- **در موبایل** دیالوگ ۹۵٪ عرض دارد و دکمه‌ها ۴۴px می‌شوند.
+
+<Canvas of={CategoryFormStories.Create} />
+
+<Canvas of={CategoryFormStories.Edit} />

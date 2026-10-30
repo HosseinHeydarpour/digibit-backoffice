@@ -11,6 +11,8 @@ import { CategoryTree } from './category-tree';
 const TREE: readonly CategoryNode[] = [
   {
     id: 'c-1',
+    parentId: null,
+    description: '',
     name: 'لوازم تحریر',
     slug: 'stationery',
     icon: 'pi pi-pen-to-square',
@@ -20,6 +22,8 @@ const TREE: readonly CategoryNode[] = [
     children: [
       {
         id: 'c-1-1',
+        parentId: 'c-1',
+        description: '',
         name: 'دفتر و کاغذ',
         slug: 'paper',
         icon: 'pi pi-book',
@@ -30,6 +34,8 @@ const TREE: readonly CategoryNode[] = [
       },
       {
         id: 'c-1-2',
+        parentId: 'c-1',
+        description: '',
         name: 'خودکار و روان‌نویس',
         slug: 'pens',
         icon: 'pi pi-pencil',
@@ -42,6 +48,8 @@ const TREE: readonly CategoryNode[] = [
   },
   {
     id: 'c-2',
+    parentId: null,
+    description: '',
     name: 'گوشی موبایل',
     slug: 'phones',
     icon: 'pi pi-mobile',
@@ -199,5 +207,39 @@ describe('CategoryTree (BO-G01)', () => {
 
     const after = fixture.nativeElement.querySelectorAll('p-treenode').length;
     expect(after).toBeLessThan(before);
+  });
+  it('BO-G02: the header button opens a create dialog with the roots as siblings', () => {
+    component().openCreate();
+    fixture.detectChanges();
+
+    expect(component().dialogOpen()).toBe(true);
+    expect(component().editing()).toBeNull();
+    expect(
+      component()
+        .siblings()
+        .map((node) => node.id),
+    ).toEqual(['c-1', 'c-2']);
+  });
+
+  it('BO-G02: editing a child passes the node and its own level as siblings', async () => {
+    component().openEdit(TREE[0]!.children[0]!);
+    fixture.detectChanges();
+
+    expect(component().editing()?.id).toBe('c-1-1');
+    expect(
+      component()
+        .siblings()
+        .map((node) => node.id),
+    ).toEqual(['c-1-1', 'c-1-2']);
+  });
+
+  it('BO-G02 tc 7: a save closes the dialog and refetches the tree', async () => {
+    const before = service.calls;
+    component().openCreate();
+    component().onSaved();
+    await fixture.whenStable();
+
+    expect(component().dialogOpen()).toBe(false);
+    expect(service.calls).toBe(before + 1);
   });
 });

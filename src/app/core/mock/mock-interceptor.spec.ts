@@ -520,4 +520,82 @@ describe('mockInterceptor', () => {
     expect(body.data.some((row) => row.parentId === null)).toBe(true);
     expect(body.data.some((row) => row.parentId !== null)).toBe(true);
   });
+  it('creates a category and shows it in the tree (BO-G02 tc 1/7)', async () => {
+    const created = await firstValueFrom(
+      http.post<ApiResponse<{ id: string; name: string }>>(
+        '/api/v1/categories',
+        {
+          name: 'لوازم اداری',
+          slug: 'office',
+          icon: 'pi pi-book',
+          order: 9,
+          isActive: true,
+          description: '',
+          parentId: null,
+        },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(created.data.name).toBe('لوازم اداری');
+
+    const tree = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; children: { id: string }[] }[]>>('/api/v1/categories', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { tree: 'true' },
+      }),
+    );
+
+    const node = tree.data.find((root) => root.id === created.data.id);
+    expect(node).toBeTruthy();
+    expect(node!.children).toEqual([]);
+  });
+
+  it('rejects a duplicate category name at the same level (BO-G02 tc 4)', async () => {
+    const error = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>(
+          '/api/v1/categories',
+          { name: 'لوازم تحریر', slug: 'stationery-2', order: 9, isActive: true, parentId: null },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+
+    expect(error.status).toBe(422);
+    expect(error.error.error.fields.name[0]).toContain('همین سطح');
+  });
+
+  it('updates a category and rejects a slug another node owns (BO-G02 tc 2/5)', async () => {
+    const tree = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; slug: string }[]>>('/api/v1/categories', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { tree: 'true' },
+      }),
+    );
+
+    const [first, second] = tree.data;
+
+    const renamed = await firstValueFrom(
+      http.put<ApiResponse<{ name: string }>>(
+        `/api/v1/categories/${first.id}`,
+        { name: 'نام تازه', slug: first.slug, order: 1, isActive: true, parentId: null },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+    expect(renamed.data.name).toBe('نام تازه');
+
+    const clash = await firstValueFrom(
+      http
+        .put<HttpErrorResponse>(
+          `/api/v1/categories/${first.id}`,
+          { name: 'نام تازه', slug: second.slug, order: 1, isActive: true, parentId: null },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e: HttpErrorResponse) => of(e))),
+    );
+
+    expect(clash.status).toBe(422);
+    expect(clash.error.error.fields.slug[0]).toContain('قبلاً');
+  });
 });
