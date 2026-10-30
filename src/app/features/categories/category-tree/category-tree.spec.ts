@@ -119,7 +119,6 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(text()).toContain('۱۲');
     expect(text()).toContain('فعال');
     expect(text()).toContain('غیرفعال');
-    expect(text()).toContain('stationery');
     expect(fixture.nativeElement.querySelector('.pi-pen-to-square')).toBeTruthy();
   });
 

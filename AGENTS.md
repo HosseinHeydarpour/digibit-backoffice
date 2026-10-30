@@ -711,7 +711,8 @@ order) + 1`; the form defaults to the page's `nextOrder()` and the validator rej
   where it was" behaviour; a hand-rolled pointer drag had none of those and could get stuck.
 - **`p-tree` is gone from this page.** Its toggler is `tabindex="-1"`, its empty state prints English
   text, its chevron points right in RTL, and its node template fought the phone layout. The lists are
-  ordinary markup: one row line, slug/count/status hidden below `sm`, 44px controls on a phone.
+  ordinary markup: one row line — icon level with the title, the name owns the flexible column, and
+  the count, the status pill and the pencil sit together at the end; 44px controls on a phone.
 - **`cdkDropListEnterPredicate` guards the second level.** A child list accepts only a node with no
   children, so a third level cannot be dropped into existence; the API repeats the rule (plus a cycle
   check) and answers 422 for a hand-made request.

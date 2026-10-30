@@ -99,7 +99,7 @@ const meta: Meta<CategoryTree> = {
       description: {
         component: [
           'The category tree (BO-G01): nested `p-tree` data from `GET /categories?tree=true`,',
-          'with the name, slug, product count and active/inactive pill on every row.',
+          'with the name, product count and active/inactive pill on every row.',
           '',
           '**Filtering is local and keeps the hierarchy.** A matching leaf keeps its parent, so the',
           'tree never shows an orphan at the root; a matching parent keeps all of its children.',
