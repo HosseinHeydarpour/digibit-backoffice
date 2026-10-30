@@ -773,13 +773,13 @@ order) + 1`; the form defaults to the page's `nextOrder()` and the validator rej
 - **`MOCK_CATEGORIES` gained «صوتی و تصویری» → «هدفون», both at zero products.** Without a branch that
   is empty of products but not of children, the transfer dialog had no reachable case in the mock at
   all.
-- **Every expanded root renders a child list, even an empty one.** A childless root used to render
-  nothing, so there was no drop target and a new parent could never receive a child — only the seeded
-  branches could. The empty list is a 32px dashed strip that stays transparent until something is
-  dragged (CDK caches a list's rect when the drag starts, so it cannot be mounted on demand), and
-  `droppableLists()` now names every expanded root's list, not only the non-empty ones. The form's
-  «دستهٔ والد» select (BO-G03 tc 1) remains the keyboard route, and is read-only for a node that already
-  has children.
+- **A childless root cannot receive a drag.** CDK measures every drop list's rect when the drag
+  starts; a row dragged in from another list makes the destination grow by one placeholder row, the
+  rects below slide down and the target is no longer under the pointer — the box lit up and the drop
+  fell back to the source list. An always-mounted empty list does receive, but costs a visible gap
+  under every childless root (tried and rejected), and measuring the drop point at release is useless
+  because CDK removes its placeholder first. So: drag moves rows between parents that already have a
+  list, and a brand-new parent is assigned with the form's «دستهٔ والد» select (BO-G03 tc 1).
 
 ### Sales chart and Chart.js testing (BO-E03)
 

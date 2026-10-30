@@ -1,18 +1,18 @@
 // src/app/features/categories/category-tree/category-tree.ts
 //
-// The categories screen — `/categories` (BO-G01/G02/G03).
+// The categories screen Ã¢â‚¬â€ `/categories` (BO-G01/G02/G03).
 //
 // WHY THE TREE IS RENDERED AS LISTS, NOT `p-tree`
 // -----------------------------------------------
 // `p-tree` owns its own DOM: its toggler is a `tabindex="-1"` button, its empty
 // state prints an English line, its chevron points right in RTL, and its rows
 // fought the responsive layout on a phone. More importantly, drag & drop needs a
-// CONTAINER per level — one drop list for the roots and one per parent — and
+// CONTAINER per level Ã¢â‚¬â€ one drop list for the roots and one per parent Ã¢â‚¬â€ and
 // `p-tree` exposes no such containers.
 //
 // The page therefore renders `ul cdkDropList` lists itself: @angular/cdk was
 // already a dependency, and its drag & drop gives what the screen needs without
-// hand-rolled pointer bookkeeping — a visible drag preview, a placeholder where
+// hand-rolled pointer bookkeeping Ã¢â‚¬â€ a visible drag preview, a placeholder where
 // the row will land, animated reordering, touch support, Escape to cancel, a
 // keyboard mode (Space to lift, arrows to move, Escape to drop back) and,
 // critically, an item that is dropped outside any list returns to where it was
@@ -21,11 +21,11 @@
 // ORDER IS A SLOT, NOT A NUMBER
 // -----------------------------
 // A drop sends `{ parentId, order }` and the server re-sequences the level to
-// 1..N. Dropping «باتری» at the top makes it 1 and pushes the old 1 to 2, which
+// 1..N. Dropping Ã‚Â«Ã˜Â¨Ã˜Â§Ã˜ÂªÃ˜Â±Ã›Å’Ã‚Â» at the top makes it 1 and pushes the old 1 to 2, which
 // is the behaviour a user expects from a list, and it keeps two rows from
 // claiming the same position.
 
-import { DragDropModule, CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
+import { CdkDrag, CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ToastService } from '@core/services/toast';
@@ -91,7 +91,7 @@ export class CategoryTree {
   /** The row whose delete dialog is open (BO-G04). */
   readonly deletingNode = signal<CategoryNode | null>(null);
 
-  /** The row currently being dragged — used to style the preview and the list. */
+  /** The row currently being dragged Ã¢â‚¬â€ used to style the preview and the list. */
   readonly dragging = signal<CategoryNode | null>(null);
 
   readonly state = computed<'loading' | 'error' | 'empty' | 'data'>(() => {
@@ -114,12 +114,12 @@ export class CategoryTree {
   /**
    * The nodes at the edited node's level.
    *
-   * TRACE — editing «دفتر و کاغذ» (child of «لوازم تحریر»):
+   * TRACE Ã¢â‚¬â€ editing Ã‚Â«Ã˜Â¯Ã™ÂÃ˜ÂªÃ˜Â± Ã™Ë† ÃšÂ©Ã˜Â§Ã˜ÂºÃ˜Â°Ã‚Â» (child of Ã‚Â«Ã™â€žÃ™Ë†Ã˜Â§Ã˜Â²Ã™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â±Ã›Å’Ã˜Â±Ã‚Â»):
    *
    *   1. `target.parentId` is `'pcat-stationery'` (not null), so the sibling list
    *      is NOT the roots.
    *   2. The root with that id is found and its children returned.
-   *   3. Typing «لوازم تحریر» (a root) is accepted; «خودکار و روان‌نویس» is not.
+   *   3. Typing Ã‚Â«Ã™â€žÃ™Ë†Ã˜Â§Ã˜Â²Ã™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â±Ã›Å’Ã˜Â±Ã‚Â» (a root) is accepted; Ã‚Â«Ã˜Â®Ã™Ë†Ã˜Â¯ÃšÂ©Ã˜Â§Ã˜Â± Ã™Ë† Ã˜Â±Ã™Ë†Ã˜Â§Ã™â€ Ã¢â‚¬Å’Ã™â€ Ã™Ë†Ã›Å’Ã˜Â³Ã‚Â» is not.
    */
   readonly siblings = computed<readonly CategoryNode[]>(() => {
     const target = this.editing();
@@ -184,13 +184,13 @@ export class CategoryTree {
   /**
    * Open the delete dialog for one row (BO-G04).
    *
-   * TRACE — the trash on «هدفون» (a child of «صوتی و تصویری») is clicked:
+   * TRACE Ã¢â‚¬â€ the trash on Ã‚Â«Ã™â€¡Ã˜Â¯Ã™ÂÃ™Ë†Ã™â€ Ã‚Â» (a child of Ã‚Â«Ã˜ÂµÃ™Ë†Ã˜ÂªÃ›Å’ Ã™Ë† Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â±Ã›Å’Ã‚Â») is clicked:
    *
    *   1. `deletingNode` becomes that node, so the dialog's `@if` mounts
-   *      `app-category-delete` with it — no HTTP yet, the decision is local.
+   *      `app-category-delete` with it Ã¢â‚¬â€ no HTTP yet, the decision is local.
    *   2. `deleteParentName()` follows `parentId` to the root and answers
-   *      «صوتی و تصویری»: that is the level the child's own children would move to.
-   *   3. A confirmed delete emits `deleted` → `onDeleted()` clears the node, toasts
+   *      Ã‚Â«Ã˜ÂµÃ™Ë†Ã˜ÂªÃ›Å’ Ã™Ë† Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â±Ã›Å’Ã‚Â»: that is the level the child's own children would move to.
+   *   3. A confirmed delete emits `deleted` Ã¢â€ â€™ `onDeleted()` clears the node, toasts
    *      and refetches the tree, so the row leaves the screen without a page reload.
    */
   openDelete(node: CategoryNode): void {
@@ -202,9 +202,9 @@ export class CategoryTree {
   }
 
   /**
-   * The dialog reports every close path here: ✕, Escape and the mask.
+   * The dialog reports every close path here: Ã¢Å“â€¢, Escape and the mask.
    *
-   * Binding only `onHide` was the bug the user hit — PrimeNG hid itself, the
+   * Binding only `onHide` was the bug the user hit Ã¢â‚¬â€ PrimeNG hid itself, the
    * one-way `[visible]` never changed, so the signal that feeds it still said
    * "open" and the dialog came straight back.
    */
@@ -216,7 +216,7 @@ export class CategoryTree {
 
   /**
    * The children of the deleted node move to its parent, so the dialog has to
-   * name that level. A root's children go to the roots, which is «سطح اصلی».
+   * name that level. A root's children go to the roots, which is Ã‚Â«Ã˜Â³Ã˜Â·Ã˜Â­ Ã˜Â§Ã˜ÂµÃ™â€žÃ›Å’Ã‚Â».
    */
   readonly deleteParentName = computed<string | null>(() => {
     const node = this.deletingNode();
@@ -228,10 +228,10 @@ export class CategoryTree {
     return this.tree()?.find((root) => root.id === node.parentId)?.name ?? null;
   });
 
-  /** Success → toast + refetch, so the row and its slug are really gone (tc 9). */
+  /** Success Ã¢â€ â€™ toast + refetch, so the row and its slug are really gone (tc 9). */
   onDeleted(node: CategoryNode): void {
     this.deletingNode.set(null);
-    this.toast.success(`«${node.name}» حذف شد.`);
+    this.toast.success(`Ã‚Â«${node.name}Ã‚Â» Ã˜Â­Ã˜Â°Ã™Â Ã˜Â´Ã˜Â¯.`);
     this.load();
   }
 
@@ -247,7 +247,7 @@ export class CategoryTree {
   };
 
   /**
-   * Every drop list that is on screen, by id — the price of nesting the tree.
+   * Every drop list that is on screen, by id Ã¢â‚¬â€ the price of nesting the tree.
    *
    * CDK shadows `CDK_DROP_LIST_GROUP` with `undefined` on a drop list element, so
    * a list nested inside another list (each parent's `ul` lives inside the roots
@@ -266,11 +266,11 @@ export class CategoryTree {
     'category-roots',
     'category-root-zone',
     ...this.roots()
-      .filter((node) => this.isExpanded(node))
+      .filter((node) => node.children.length > 0 && this.isExpanded(node))
       .map((node) => this.childrenListId(node.id)),
   ]);
 
-  /** The id of one parent's children list — see `droppableLists`. */
+  /** The id of one parent's children list Ã¢â‚¬â€ see `droppableLists`. */
   childrenListId(id: string): string {
     return `category-children-${id}`;
   }
@@ -283,13 +283,13 @@ export class CategoryTree {
   /**
    * One drop, two origins (BO-G03).
    *
-   * TRACE — «دفتر و کاغذ» (child of «لوازم تحریر») is dragged onto the root list
-   * and dropped between «کابل» and «لوازم جانبی موبایل»:
+   * TRACE Ã¢â‚¬â€ Ã‚Â«Ã˜Â¯Ã™ÂÃ˜ÂªÃ˜Â± Ã™Ë† ÃšÂ©Ã˜Â§Ã˜ÂºÃ˜Â°Ã‚Â» (child of Ã‚Â«Ã™â€žÃ™Ë†Ã˜Â§Ã˜Â²Ã™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â±Ã›Å’Ã˜Â±Ã‚Â») is dragged onto the root list
+   * and dropped between Ã‚Â«ÃšÂ©Ã˜Â§Ã˜Â¨Ã™â€žÃ‚Â» and Ã‚Â«Ã™â€žÃ™Ë†Ã˜Â§Ã˜Â²Ã™â€¦ Ã˜Â¬Ã˜Â§Ã™â€ Ã˜Â¨Ã›Å’ Ã™â€¦Ã™Ë†Ã˜Â¨Ã˜Â§Ã›Å’Ã™â€žÃ‚Â»:
    *
    *   1. CDK reports `previousContainer` = the stationery children list and
    *      `container` = the root list, `currentIndex` = 3.
    *   2. Same-container or not, the persistence is the same call: `place(node,
-   *      parentId, currentIndex + 1)` — the server renumbers both levels, so the
+   *      parentId, currentIndex + 1)` Ã¢â‚¬â€ the server renumbers both levels, so the
    *      client never has to patch a list of orders.
    *   3. `parentId` is the target list's owner: `null` for the root list, a
    *      root's id for its children list.
@@ -363,7 +363,7 @@ export class CategoryTree {
 }
 
 /**
- * Sort every level by `order` — the client does not trust the response order.
+ * Sort every level by `order` Ã¢â‚¬â€ the client does not trust the response order.
  *
  * A backend that forgets to sort (or a fixture written in another order) must not
  * leak onto the screen; positions are contiguous 1..N per level, so this is a

@@ -98,15 +98,21 @@
               <ng-container *ngTemplateOutlet="row; context: { $implicit: node }" />
 
               <!--
-                Every expanded root has a child list, even an empty one: a root with
-                no children used to render nothing here, so there was no target to
-                drag a category onto and a brand-new parent could never receive a
-                child. The list is always mounted (CDK caches a list's rect when the
-                drag starts, so it can appear mid-drag only as layout, never as a
-                target) and an empty one is pulled up over the bottom of its own row:
-                no gap in the list, and the row's lower half is the nest target.
+                Only a branch with children renders a list, and it is rendered during
+                a search too: the filter keeps a matching child under its parent, and
+                hiding the list made those matches unreachable.
+
+                An EMPTY root deliberately has no list. A drop target must exist (and
+                have its rect measured) before the drag starts, so an empty list would
+                have to be laid out at all times — a gap under every childless root.
+                Worse, when the dragged row comes from another list, the roots list
+                grows by one placeholder row, the cached rects below slide a row down
+                and CDK stops recognising the target: the box lit up and the drop fell
+                back to the source list. Nesting into a brand-new parent is therefore
+                the form's «دستهٔ والد» select, and drag nests under a parent that
+                already has a list.
               -->
-              @if (isExpanded(node)) {
+              @if (node.children.length > 0 && isExpanded(node)) {
                 <ul
                   cdkDropList
                   [id]="childrenListId(node.id)"
@@ -114,14 +120,7 @@
                   [cdkDropListData]="node.children"
                   [cdkDropListEnterPredicate]="leafOnly"
                   (cdkDropListDropped)="drop($event, node.id)"
-                  class="ms-4 space-y-1 rounded ps-2 sm:ms-8"
-                  [class]="
-                    node.children.length > 0
-                      ? 'border-s border-dashed border-gray-200 dark:border-gray-700'
-                      : dragging()
-                        ? '-mt-10 h-10 relative z-10 border border-dashed border-primary/60 bg-primary/5'
-                        : '-mt-10 h-10 relative z-10 border border-transparent pointer-events-none'
-                  "
+                  class="ms-4 space-y-1 border-s border-dashed border-gray-200 ps-2 sm:ms-8 dark:border-gray-700"
                   [attr.aria-label]="'زیردسته‌های ' + node.name"
                 >
                   @for (child of node.children; track child.id) {
