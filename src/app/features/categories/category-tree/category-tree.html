@@ -102,8 +102,9 @@
                 no children used to render nothing here, so there was no target to
                 drag a category onto and a brand-new parent could never receive a
                 child. The list is always mounted (CDK caches a list's rect when the
-                drag starts, so it cannot appear mid-drag) and an empty one is drawn
-                as a quiet dashed strip that lights up while something is dragged.
+                drag starts, so it can appear mid-drag only as layout, never as a
+                target) and an empty one is pulled up over the bottom of its own row:
+                no gap in the list, and the row's lower half is the nest target.
               -->
               @if (isExpanded(node)) {
                 <ul
@@ -118,8 +119,8 @@
                     node.children.length > 0
                       ? 'border-s border-dashed border-gray-200 dark:border-gray-700'
                       : dragging()
-                        ? 'min-h-8 border border-dashed border-primary/60 bg-primary/5'
-                        : 'min-h-8 border border-dashed border-transparent'
+                        ? '-mt-10 h-10 relative z-10 border border-dashed border-primary/60 bg-primary/5'
+                        : '-mt-10 h-10 relative z-10 border border-transparent pointer-events-none'
                   "
                   [attr.aria-label]="'زیردسته‌های ' + node.name"
                 >
