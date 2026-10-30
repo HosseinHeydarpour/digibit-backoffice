@@ -186,6 +186,39 @@ export class CategoryTree {
   };
 
   /**
+   * Every drop list that is on screen, by id — the price of nesting the tree.
+   *
+   * CDK shadows `CDK_DROP_LIST_GROUP` with `undefined` on a drop list element, so
+   * a list nested inside another list (each parent's `ul` lives inside the roots
+   * `ul`) is NOT in the group: the child list could only exchange rows with
+   * itself, and a child dropped on the root zone fell back into its own list,
+   * which looked like "the box does nothing". `cdkDropListConnectedTo` is the
+   * supported way out and it needs the ids of the lists that exist *right now*: a
+   * collapsed branch or an active search renders no child list, and an id that
+   * resolves to nothing leaves `undefined` in CDK's sibling array, which throws
+   * mid-drag.
+   */
+  readonly droppableLists = computed<string[]>(() => [
+    'category-roots',
+    'category-root-zone',
+    ...(this.search() === ''
+      ? this.roots()
+          .filter((node) => node.children.length > 0 && this.isExpanded(node))
+          .map((node) => this.childrenListId(node.id))
+      : []),
+  ]);
+
+  /** The id of one parent's children list — see `droppableLists`. */
+  childrenListId(id: string): string {
+    return `category-children-${id}`;
+  }
+
+  /**
+   * A click anywhere on a row opens its branch. A leaf has nothing to open, and
+   * the grip, the chevron and the pencil stop the click on their own.
+   */
+
+  /**
    * One drop, two origins (BO-G03).
    *
    * TRACE — «دفتر و کاغذ» (child of «لوازم تحریر») is dragged onto the root list

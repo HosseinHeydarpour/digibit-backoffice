@@ -713,12 +713,26 @@ order) + 1`; the form defaults to the page's `nextOrder()` and the validator rej
   text, its chevron points right in RTL, and its node template fought the phone layout. The lists are
   ordinary markup: one row line — icon level with the title, the name owns the flexible column, and
   the count, the status pill and the pencil sit together at the end; 44px controls on a phone.
-- **The label toggles its branch too.** Clicking the name of a category with children opens/closes it,
-  not only the chevron: a label that does nothing on click reads as broken. The pencil and the grip
-  stop the click.
+- **A branch row is ONE button.** Icon, name, chevron and the empty tail of the row are a single
+  `<button aria-expanded>` with the toggle on it, so a click anywhere in that region opens the
+  branch — the earlier version reacted only on the chevron or the four letters of the name, and read
+  as broken. It is a button and not a `(click)` on the row: the row also holds the grip and the
+  pencil (a button cannot contain a button), and a `div` with a click handler is neither keyboard
+  reachable nor lint-clean. The chevron follows the name (left of it in RTL) so it stays attached to
+  the label it opens; the pencil and the grip keep their own jobs.
 - **A child becomes a root by dropping it on the root zone.** The zone is an always-mounted empty
-  cdkDropList under the tree («برای دستهٔ اصلی کردن…»); a list that appears mid-drag may not be in
-  the group's set yet, so it is not toggled by dragging().
+  `cdkDropList` under the tree («برای دستهٔ اصلی کردن…»); a drop appends to the roots and the server
+  renumbers both levels.
+- **`cdkDropListGroup` does NOT reach a nested list.** CDK shadows `CDK_DROP_LIST_GROUP` with
+  `undefined` on every drop-list element, so each parent's children `<ul>` — nested inside the roots
+  `<ul>` — came out with no group and no connections: the child could only be dropped back into its
+  own list, and the root zone lit up but the drop did nothing. The lists are wired explicitly through
+  `[cdkDropListConnectedTo]="droppableLists()"`, which names every list that is on screen right now,
+  by id. A collapsed branch or an active search renders no child list, and an id that resolves to
+  nothing leaves `undefined` in CDK's sibling array (a mid-drag crash), so the computed mirrors the
+  render conditions. A spec pins the ids it returns to the ids in the DOM.
+- **Drag is off while the search box has text.** The tree is then a filtered projection, so a row's
+  index is not its slot and a drop would persist the wrong position.
 - **`cdkDropListEnterPredicate` guards the second level.** A child list accepts only a node with no
   children, so a third level cannot be dropped into existence; the API repeats the rule (plus a cycle
   check) and answers 422 for a hand-made request.

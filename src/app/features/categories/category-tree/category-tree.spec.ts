@@ -253,16 +253,52 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(text()).not.toContain('دفتر و کاغذ');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
-  it('BO-G03: clicking the label opens a branch, not only the chevron', () => {
-    const label = fixture.nativeElement.querySelector(
-      '[data-category-tree] li > div > button[aria-expanded]',
+  it('BO-G03: the icon, the name and the chevron are one toggle button', () => {
+    const toggle = fixture.nativeElement.querySelector(
+      '[data-category-tree] > ul > li > div > button[aria-expanded]',
     ) as HTMLButtonElement;
 
-    expect(label.textContent).toContain('لوازم تحریر');
-    label.click();
+    expect(toggle.querySelector('i.pi-pen-to-square')).toBeTruthy();
+    expect(toggle.textContent).toContain('لوازم تحریر');
+    expect(toggle.querySelector('.pi-chevron-down')).toBeTruthy();
+
+    toggle.click();
     fixture.detectChanges();
 
     expect(text()).not.toContain('دفتر و کاغذ');
+  });
+
+  it('BO-G03: the pencil does not toggle the branch it sits in', () => {
+    const pencil = fixture.nativeElement.querySelector('[data-edit-category]') as HTMLButtonElement;
+
+    pencil.click();
+    fixture.detectChanges();
+
+    expect(text()).toContain('دفتر و کاغذ');
+  });
+
+  it('BO-G03: every rendered drop list is connected to every other one', () => {
+    // CDK shadows the drop-list group on a nested list, so the child lists are
+    // wired by id. If a list is missing here, a drop into it silently does
+    // nothing — the exact bug this list exists to prevent.
+    expect(component().droppableLists()).toEqual([
+      'category-roots',
+      'category-root-zone',
+      'category-children-c-1',
+    ]);
+
+    const rendered = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+        '[data-category-tree] .cdk-drop-list',
+      ),
+    ).map((list) => list.id);
+
+    expect(rendered.sort()).toEqual([...component().droppableLists()].sort());
+
+    // A collapsed branch renders no list, and an id that resolves to nothing
+    // would leave `undefined` in CDK's sibling array.
+    component().toggle(TREE[0]!);
+    expect(component().droppableLists()).not.toContain('category-children-c-1');
   });
 
   it('BO-G03: the root zone appends a child back to the roots', async () => {

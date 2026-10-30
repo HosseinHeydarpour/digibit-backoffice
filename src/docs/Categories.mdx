@@ -79,10 +79,21 @@ chosen) appears without a refresh.
 ترتیب هر سطح از **۱** شروع می‌شود و پیوسته است. جابه‌جایی با **Angular CDK** انجام می‌شود: ردیف را
 از دستهٔ ⠿ بگیر و بکش؛ CDK نسخهٔ شناور ردیف، جای خالی مقصد و انیمیشن جابه‌جایی را خودش می‌سازد.
 رها کردن داخل فهرست یک دسته، آن را **زیردسته** می‌کند و رها کردن بین ریشه‌ها، آن را **دستهٔ اصلی**.
-سطح سوم رد می‌شود، `Escape` درگ را لغو می‌کند و رها کردن بیرون از فهرست، ردیف را به جای اولش
-برمی‌گرداند.
+برای بیرون آوردن یک زیردسته از شاخه‌اش، آن را روی کادر خط‌چین **«برای دستهٔ اصلی کردن…»** زیر درخت
+رها کن؛ به انتهای ریشه‌ها اضافه می‌شود. سطح سوم رد می‌شود، `Escape` درگ را لغو می‌کند و رها کردن
+بیرون از فهرست، ردیف را به جای اولش برمی‌گرداند. تا وقتی کادر جستجو متن دارد درگ خاموش است، چون
+فهرست فیلترشده جای ردیف‌ها را عوض می‌کند.
+
+باز و بسته کردن شاخه: کلیک روی **هر جای ردیف** (نام، آیکون، بج تعداد) — نه فقط پیکان. مداد و دستهٔ
+درگ کلیک را می‌گیرند تا کار خودشان را بکنند.
 
 Orders start at **1** and stay contiguous per level. Moving uses **Angular CDK**: grab a row by its
 ⠿ grip; CDK draws the floating preview, the placeholder and the slide animation itself. Dropping
-inside a root's list nests the row, dropping between roots makes it a root. A third level is
-refused, `Escape` cancels, and releasing outside any list puts the row back where it started.
+inside a root's list nests the row, dropping between roots makes it a root. To lift a child out of
+its branch, drop it on the dashed **«make it a root»** zone under the tree: it is appended to the
+roots. A third level is refused, `Escape` cancels, and releasing outside any list puts the row back
+where it started. Dragging is off while the search box has text, because the filtered list changes
+what an index means.
+
+Expanding a branch: click **anywhere on the row** (name, icon, count badge), not only the chevron.
+The pencil and the drag grip swallow the click so they keep doing their own job.

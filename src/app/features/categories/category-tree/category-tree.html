@@ -63,15 +63,24 @@
 
     @default {
       <!--
-        Two levels, two kinds of drop list, one row template. `cdkDropListGroup`
-        connects every list to every other, so a child can be dragged out to the
-        roots and a root can be dropped into a parent without wiring pairs by
-        hand. `leafOnly` stops a parent with children from entering a child list
-        (the tree is two levels).
+        Two levels, two kinds of drop list, one row template.
+
+        The lists are connected EXPLICITLY, not with `cdkDropListGroup`: a nested
+        `cdkDropList` does not inherit the group (CDK shadows the token with
+        `undefined` on the list element itself), so the child lists of the first
+        version could only exchange rows with themselves — a child dropped on the
+        root zone fell back into its own list and the tree never changed.
+        `droppableLists()` names every list that is on screen right now, which is
+        the one thing `connectedTo` cannot discover on its own. `leafOnly` stops a
+        parent with children from entering a child list (the tree is two levels).
+        A search is a filtered projection, so an index no longer means a slot:
+        drags are off until the search is cleared.
       -->
-      <div class="max-h-[70vh] overflow-auto p-2 sm:p-4" data-category-tree cdkDropListGroup>
+      <div class="max-h-[70vh] overflow-auto p-2 sm:p-4" data-category-tree>
         <ul
           cdkDropList
+          id="category-roots"
+          [cdkDropListConnectedTo]="droppableLists()"
           [cdkDropListData]="roots()"
           (cdkDropListDropped)="drop($event, null)"
           class="space-y-1"
@@ -80,6 +89,7 @@
           @for (node of roots(); track node.id) {
             <li
               cdkDrag
+              [cdkDragDisabled]="search() !== ''"
               [cdkDragData]="node"
               (cdkDragStarted)="onDragStarted(node)"
               (cdkDragEnded)="onDragEnded()"
@@ -90,6 +100,8 @@
               @if (node.children.length > 0 && isExpanded(node) && search() === '') {
                 <ul
                   cdkDropList
+                  [id]="childrenListId(node.id)"
+                  [cdkDropListConnectedTo]="droppableLists()"
                   [cdkDropListData]="node.children"
                   [cdkDropListEnterPredicate]="leafOnly"
                   (cdkDropListDropped)="drop($event, node.id)"
@@ -99,6 +111,7 @@
                   @for (child of node.children; track child.id) {
                     <li
                       cdkDrag
+                      [cdkDragDisabled]="search() !== ''"
                       [cdkDragData]="child"
                       (cdkDragStarted)="onDragStarted(child)"
                       (cdkDragEnded)="onDragEnded()"
@@ -115,13 +128,15 @@
 
         <!--
           A child can be dragged back to the root by dropping it here (BO-G03).
-          The zone is always mounted, not toggled on drag: `cdkDropListGroup`
-          connects the lists it knows about, and a list that appears mid-drag is
-          not guaranteed to be in that set yet. `leafOnly` keeps a parent with
-          children out of it, exactly like the child lists.
+          The zone is always mounted, not toggled on drag: a list that appears
+          mid-drag is not guaranteed to be connected yet, and a stable target is
+          also what a user can aim at. `leafOnly` keeps a parent with children
+          out of it, exactly like the child lists.
         -->
         <div
           cdkDropList
+          id="category-root-zone"
+          [cdkDropListConnectedTo]="droppableLists()"
           [cdkDropListData]="rootDropZone"
           [cdkDropListEnterPredicate]="leafOnly"
           (cdkDropListDropped)="dropToRoot($event)"
@@ -166,57 +181,49 @@
       <i class="pi pi-bars text-xs" aria-hidden="true"></i>
     </button>
 
-    <i
-      [class]="node.icon ?? 'pi pi-folder'"
-      class="shrink-0 text-gray-400 dark:text-gray-500"
-      aria-hidden="true"
-    ></i>
-
     <!--
-      The chevron sits AFTER the name (to its left in RTL), not before the icon:
-      the row reads «[grip] [icon] name ⌄ …count status pencil», so the toggle is
-      attached to the label it opens instead of being a second leading control.
+      A branch is ONE button — icon, name, chevron and the empty tail of the row —
+      because that is what a user clicks, and the previous version only reacted on
+      the chevron or the four letters of the name. It is a button rather than a
+      click handler on the row so the toggle is keyboard reachable by itself and
+      the row can still hold the pencil next to it (a button cannot contain one).
+      The chevron follows the name, in RTL to its left, so it is attached to the
+      label it opens.
     -->
     @if (node.children.length > 0) {
-      <!--
-        The whole label toggles, not only the chevron: clicking a category with
-        children is the obvious way to open it, and a dead label reads as broken.
-        The pencil and the drag handle stop the click, so they still do their job.
-      -->
       <button
         type="button"
         (click)="toggle(node)"
         [attr.aria-expanded]="isExpanded(node)"
-        class="min-w-0 flex-1 truncate text-start text-sm font-medium text-gray-900 hover:text-primary sm:flex-none sm:max-w-[26rem] dark:text-white dark:hover:text-primary"
-      >
-        {{ node.name }}
-      </button>
-    } @else {
-      <span
-        class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 sm:flex-none sm:max-w-[26rem] dark:text-white"
-      >
-        {{ node.name }}
-      </span>
-    }
-
-    @if (node.children.length > 0) {
-      <button
-        type="button"
-        (click)="toggle(node)"
-        [attr.aria-expanded]="isExpanded(node)"
-        [attr.aria-label]="(isExpanded(node) ? 'بستن ' : 'باز کردن ') + node.name"
-        class="inline-flex size-8 shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-gray-100 max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700"
+        class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded text-start"
       >
         <i
+          [class]="node.icon ?? 'pi pi-folder'"
+          class="shrink-0 text-gray-400 dark:text-gray-500"
+          aria-hidden="true"
+        ></i>
+
+        <span class="min-w-0 truncate text-sm font-medium text-gray-900 dark:text-white">
+          {{ node.name }}
+        </span>
+
+        <i
           [class]="isExpanded(node) ? 'pi pi-chevron-down' : 'pi pi-chevron-left'"
-          class="text-xs"
+          class="shrink-0 text-xs text-gray-400 dark:text-gray-500"
           aria-hidden="true"
         ></i>
       </button>
-    }
+    } @else {
+      <i
+        [class]="node.icon ?? 'pi pi-folder'"
+        class="shrink-0 text-gray-400 dark:text-gray-500"
+        aria-hidden="true"
+      ></i>
 
-    <!-- Pushes the meta + actions to the far end on a wide screen. -->
-    <span class="hidden flex-1 sm:block" aria-hidden="true"></span>
+      <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-white">
+        {{ node.name }}
+      </span>
+    }
 
     <span
       class="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
