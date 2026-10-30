@@ -1,0 +1,25 @@
+// src/app/features/categories/models/category.model.ts
+//
+// The category tree, as the categories screen reads it (BO-G01).
+//
+// `children` is always an array — never `null`/`undefined` — so the template and
+// the filter can walk it without a guard at every level. The API returns nested
+// data (`GET /categories?tree=true`); the flat list the product form uses stays
+// a separate endpoint, because a select needs a path, not a tree.
+
+import type { EntityId } from '@shared/models';
+
+/** One node of the category tree. */
+export interface CategoryNode {
+  readonly id: EntityId;
+  readonly name: string;
+  readonly slug: string;
+  /** PrimeIcons class, e.g. `pi pi-pen-to-square`; `null` renders a neutral box. */
+  readonly icon: string | null;
+  /** Sort key inside one parent; the API already returns the list sorted. */
+  readonly order: number;
+  readonly isActive: boolean;
+  /** How many products sit directly in this category (not in its children). */
+  readonly productCount: number;
+  readonly children: readonly CategoryNode[];
+}

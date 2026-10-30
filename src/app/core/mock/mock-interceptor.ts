@@ -104,6 +104,59 @@ function ok(data: unknown, message = ''): MockResolution {
 }
 
 /**
+ * The nested category list `GET /categories?tree=true` answers (BO-G01).
+ *
+ * TRACE — the flat fixture holds «لوازم تحریر» (order 1) and its two children:
+ *
+ *   1. `build(null)` takes the roots, sorted by `order`.
+ *   2. Each root gets `children: build(root.id)` — one level for the fixture,
+ *      but the function is recursive so a third level would just work.
+ *   3. `productCount` counts the products whose `categoryId` is that node, from
+ *      `catalogue()` (the export plus anything created this session).
+ *   4. The icon comes from a fixed map so a category looks the same on every
+ *      reload; an unknown slug falls back to a neutral folder.
+ */
+function categoryTree(): unknown[] {
+  const counts = new Map<string, number>();
+
+  for (const product of catalogue()) {
+    counts.set(product.categoryId, (counts.get(product.categoryId) ?? 0) + 1);
+  }
+
+  const build = (parentId: string | null): unknown[] =>
+    fixtures.MOCK_CATEGORIES.filter((category) => (category.parentId ?? null) === parentId)
+      .sort((a, b) => a.order - b.order)
+      .map((category) => ({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        icon: CATEGORY_ICONS[category.slug] ?? 'pi pi-folder',
+        order: category.order,
+        isActive: category.isActive,
+        productCount: counts.get(category.id) ?? 0,
+        children: build(category.id),
+      }));
+
+  return build(null);
+}
+
+/** One PrimeIcons glyph per catalogue category, so the tree reads at a glance. */
+const CATEGORY_ICONS: Readonly<Record<string, string>> = {
+  stationery: 'pi pi-pen-to-square',
+  paper: 'pi pi-book',
+  pens: 'pi pi-pencil',
+  storage: 'pi pi-hdd',
+  cables: 'pi pi-link',
+  'mobile-accessories': 'pi pi-mobile',
+  phones: 'pi pi-mobile',
+  cases: 'pi pi-shield',
+  'computer-accessories': 'pi pi-desktop',
+  batteries: 'pi pi-battery-half',
+  lighting: 'pi pi-lightbulb',
+  uncategorized: 'pi pi-inbox',
+};
+
+/**
  * The uniqueness answer `GET /products/slug-check` gives (BO-F16 tc 4).
  *
  * TRACE — `?slug=product-mvdxp0oajc1dk` (an existing product):
@@ -197,6 +250,12 @@ function resolve(
       return resolveProducts(method, id, sub, params, body, page, pageSize);
 
     case 'categories':
+      // `?tree=true` returns the nested shape the categories screen renders
+      // (BO-G01); the flat list stays what the product form's select reads.
+      if (params.get('tree') === 'true') {
+        return ok(categoryTree());
+      }
+
       return paged(fixtures.MOCK_CATEGORIES, page, pageSize);
     case 'brands':
       return paged(fixtures.MOCK_BRANDS, page, pageSize);

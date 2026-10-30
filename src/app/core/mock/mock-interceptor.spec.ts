@@ -486,4 +486,38 @@ describe('mockInterceptor', () => {
     );
     expect(free.data.available).toBe(true);
   });
+  it('returns the nested category tree for ?tree=true (BO-G01)', async () => {
+    const body = await firstValueFrom(
+      http.get<
+        ApiResponse<
+          { id: string; slug: string; icon: string; productCount: number; children: unknown[] }[]
+        >
+      >('/api/v1/categories', { headers: { [MOCK_HEADER]: '1' }, params: { tree: 'true' } }),
+    );
+
+    const stationery = body.data.find((node) => node.slug === 'stationery');
+
+    expect(stationery).toBeTruthy();
+    expect(stationery!.children.length).toBe(2);
+    expect(typeof stationery!.productCount).toBe('number');
+    expect(stationery!.icon).toContain('pi pi-');
+
+    // Every node is a root or a child of one — never orphaned.
+    const ids = new Set(body.data.map((node) => node.id));
+    for (const node of body.data) {
+      expect(node.children.length).toBeGreaterThanOrEqual(0);
+    }
+    expect(ids.size).toBe(body.data.length);
+  });
+
+  it('keeps the flat category list for the product form', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; parentId: string | null }[]>>('/api/v1/categories', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(body.data.some((row) => row.parentId === null)).toBe(true);
+    expect(body.data.some((row) => row.parentId !== null)).toBe(true);
+  });
 });

@@ -69,7 +69,8 @@ export const routes: Routes = [
         path: 'categories',
         data: { title: 'دسته‌بندی‌ها', breadcrumb: 'دسته‌بندی‌ها' },
         title: 'دسته‌بندی‌ها',
-        children: [],
+        loadChildren: () =>
+          import('@features/categories/categories.routes').then((m) => m.CATEGORIES_ROUTES),
       },
       {
         path: 'brands',

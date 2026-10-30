@@ -642,6 +642,27 @@ and its `data`. Every feature page after it follows that shape.
 - **Copy is best-effort.** `navigator.clipboard` may be missing or blocked; the button then simply
   does not flip to «کپی شد». No error toast for a convenience action.
 
+### Category tree (BO-G01)
+
+- **The tree endpoint is `?tree=true`, not a second shape guess.** `CategoriesService.tree()` asks
+  for nested data explicitly; the flat `/categories` list stays what the product form's select
+  reads. A single endpoint with a flag is the contract, so neither consumer can accidentally get the
+  other shape.
+- **The mock owns the hierarchy, the icon and the count.** `MOCK_CATEGORIES` gained four children
+  (two under «لوازم تحریر», two under «لوازم جانبی موبایل»); `categoryTree()` nests them by
+  `parentId`, sorts by `order`, counts products from `catalogue()` and maps a slug→icon table,
+  falling back to `pi pi-folder`. The function is recursive, so a third level needs no change.
+- **Filtering is pure and keeps ancestors.** `filterTree` (own spec, no TestBed) keeps a node when
+  it or a descendant matches, and keeps all children of a matching parent. Dropping a non-matching
+  parent would leave its matching child at depth 0, which reads like a bug.
+- **Phone layout is a scrolling card, not a scrolling page.** The tree sits in a `max-h-[70vh]
+overflow-auto` wrapper; the page itself must never scroll sideways (BO-B17).
+- **`ProductCount` counts only direct children.** A parent's number is its own products; summing the
+  subtree would need a different label, and «۱۲ محصول» that includes children is misleading when the
+  child already prints ۷.
+- **Always expanded.** `p-tree` gets `expanded: true` on every node: tc 1 asks for two visible levels,
+  and clicking each row to see one level is not a tree.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

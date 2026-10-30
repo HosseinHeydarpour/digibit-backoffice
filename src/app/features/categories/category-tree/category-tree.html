@@ -1,0 +1,133 @@
+<app-page-header title="دسته‌بندی‌ها" description="ساختار درختی دسته‌های فروشگاه">
+  <button
+    page-header-actions
+    type="button"
+    disabled
+    title="در BO-G02 فعال می‌شود"
+    class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    <i class="pi pi-plus" aria-hidden="true"></i>
+    افزودن دسته
+  </button>
+</app-page-header>
+
+<div
+  class="rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  <!--
+    Search sits in the card header, like the Arino tables, and filters the tree
+    in the browser (BO-G01 tc 6). The field only appears when there is something
+    to filter: an empty shop does not need a search box.
+  -->
+  @if (state() === 'data') {
+    <div class="border-b border-gray-200 p-4 dark:border-gray-700">
+      <label
+        for="category-search"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        جستجو
+      </label>
+      <p-iconfield class="w-full sm:max-w-md">
+        <p-inputicon class="pi pi-search" />
+        <input
+          id="category-search"
+          type="search"
+          pInputText
+          [value]="search()"
+          (input)="search.set($any($event.target).value)"
+          placeholder="نام یا نامک دسته…"
+          class="w-full"
+        />
+      </p-iconfield>
+    </div>
+  }
+
+  @switch (state()) {
+    @case ('loading') {
+      <div class="p-6" role="status" aria-label="در حال بارگذاری دسته‌بندی‌ها">
+        <app-loading-block [loading]="true" variant="list" [rows]="5" />
+      </div>
+    }
+
+    @case ('error') {
+      <div class="p-6">
+        <app-error-state
+          title="دریافت دسته‌بندی‌ها ناموفق بود"
+          description="اتصال خود را بررسی کنید و دوباره تلاش کنید."
+          (retry)="retry()"
+        />
+      </div>
+    }
+
+    @case ('empty') {
+      <app-empty-state
+        icon="pi pi-sitemap"
+        title="هنوز دسته‌ای ساخته نشده"
+        description="دسته‌بندی‌ها ساختار فروشگاه را می‌سازند؛ اولین دسته را در BO-G02 اضافه کنید."
+      />
+    }
+
+    @default {
+      <!--
+        `p-tree` scrolls inside the card (tc 9): a deep tree on a phone must not
+        push the page sideways or grow past the viewport.
+      -->
+      <div class="max-h-[70vh] overflow-auto p-2 sm:p-4" data-category-tree>
+        <p-tree [value]="nodes()" [filter]="false" [metaKeySelection]="false">
+          <ng-template pTemplate="default" let-node>
+            <div class="flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-1 py-1">
+              <i
+                [class]="node.data.icon ?? 'pi pi-folder'"
+                class="text-gray-400 dark:text-gray-500"
+                aria-hidden="true"
+              ></i>
+
+              <span class="min-w-0 truncate font-medium text-gray-900 dark:text-white">
+                {{ node.label }}
+              </span>
+
+              <code
+                class="hidden rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[11px] text-gray-500 sm:inline dark:bg-gray-700 dark:text-gray-400"
+                dir="ltr"
+              >
+                {{ node.data.slug }}
+              </code>
+
+              <span
+                class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                [attr.aria-label]="node.data.productCount + ' محصول'"
+              >
+                <i class="pi pi-box text-[10px]" aria-hidden="true"></i>
+                {{ node.data.productCount | persianDigits }}
+              </span>
+
+              <span
+                class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                [class]="
+                  node.data.isActive
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                "
+              >
+                {{ node.data.isActive ? 'فعال' : 'غیرفعال' }}
+              </span>
+            </div>
+          </ng-template>
+        </p-tree>
+      </div>
+
+      @if (nodes().length === 0) {
+        <!-- A filter that matches nothing is not an empty shop (tc 8). -->
+        <div class="p-6">
+          <app-empty-state
+            icon="pi pi-search"
+            title="دسته‌ای با این جستجو پیدا نشد"
+            description="عبارت کوتاه‌تری امتحان کنید یا جستجو را پاک کنید."
+            actionLabel="پاک کردن جستجو"
+            (action)="search.set('')"
+          />
+        </div>
+      }
+    }
+  }
+</div>
