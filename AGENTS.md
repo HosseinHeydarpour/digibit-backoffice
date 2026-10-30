@@ -711,8 +711,9 @@ order) + 1`; the form defaults to the page's `nextOrder()` and the validator rej
   where it was" behaviour; a hand-rolled pointer drag had none of those and could get stuck.
 - **`p-tree` is gone from this page.** Its toggler is `tabindex="-1"`, its empty state prints English
   text, its chevron points right in RTL, and its node template fought the phone layout. The lists are
-  ordinary markup: one row line — icon level with the title, the name owns the flexible column, and
-  the count, the status pill and the pencil sit together at the end; 44px controls on a phone.
+  ordinary markup: one row line - icon level with the title, the name owns the flexible column, and
+  the count, the status pill, the pencil and the trash sit together at the end; 44px controls on a
+  phone, and the count/status pills collapse below `sm` so the name still fits.
 - **A branch row is ONE button.** Icon, name, chevron and the empty tail of the row are a single
   `<button aria-expanded>` with the toggle on it, so a click anywhere in that region opens the
   branch — the earlier version reacted only on the chevron or the four letters of the name, and read
@@ -739,6 +740,34 @@ order) + 1`; the form defaults to the page's `nextOrder()` and the validator rej
 - **A drop sends `{ parentId, order }` through `PATCH /categories/:id`.** `order` is the 1-based slot
   the row landed on, and the server renumbers both the old and the new level — the client never
   patches a list of positions.
+
+### Deleting a category (BO-G04)
+
+- **The decision is a pure function; the dialog is one template.** `deleteDecision(node)` in
+  `category-delete/delete-decision.ts` answers `blocked | simple | children`, and the component only
+  renders the shape it was given. `blocked` means the node holds products OF ITS OWN (deleting it
+  would leave them pointing at nothing); `children` carries `childProducts` so the cascade radio can
+  switch itself off.
+- **A child's products do not block the delete, they block the CASCADE.** A parent whose own
+  products are zero is safe to delete by transfer: the child keeps its products and only changes
+  `parentId`. Refusing that would forbid a legitimate tidy-up, and cascading over those products
+  would orphan them silently.
+- **The strategy is a query, not a body.** `DELETE /categories/:id?strategy=transfer|cascade`.
+  `ApiService.delete` gained an optional `params` argument (same shape as `get`), so no feature builds
+  a URL by hand; a body on a DELETE is legal but some proxies drop it.
+- **The mock repeats every client rule and owns the renumbering.** It answers **409** (not 422: the
+  payload is fine, the data is not) when the node or a cascaded branch holds products; transfer
+  appends the children after the last sibling of the target level, cascade removes the branch, and
+  both end with `renumberLevel` so each level stays 1..N with no hole.
+- **The row grew a trash button, and the phone lost the count badge.** Grip + pencil + trash is three
+  44px controls below `sm`, so the count and status pills collapse there; the name keeps the rest.
+- **`MOCK_CATEGORIES` gained «صوتی و تصویری» → «هدفون», both at zero products.** Without a branch
+  that is empty of products but not of children, the transfer dialog had no reachable case in the
+  mock at all — every seeded root sells something and a root with products is refused.
+- **A root with no children cannot receive a drag yet.** Its child `cdkDropList` only renders when
+  `children.length > 0`, so nesting into a brand-new root is not possible by drag; the form's parent
+  select (BO-G03 tc 1) is the missing half. The empty mock branch above is what keeps BO-G04
+  reachable until that lands.
 
 ### Sales chart and Chart.js testing (BO-E03)
 

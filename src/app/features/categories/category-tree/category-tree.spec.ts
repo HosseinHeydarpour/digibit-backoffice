@@ -1,6 +1,7 @@
 import type { CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
+import { MessageService } from 'primeng/api';
 import { of, throwError } from 'rxjs';
 import type { Observable } from 'rxjs';
 
@@ -90,7 +91,11 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
 
     await TestBed.configureTestingModule({
       imports: [CategoryTree],
-      providers: [{ provide: CategoriesService, useValue: service }],
+      providers: [
+        { provide: CategoriesService, useValue: service },
+        // ToastService injects MessageService, which is not root-provided.
+        MessageService,
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(CategoryTree);
@@ -307,6 +312,28 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
 
     // Appended after the two existing roots, not inserted at the top.
     expect(service.placed).toEqual([{ id: 'c-1-1', parentId: null, order: 3 }]);
+  });
+
+  it('BO-G04: the trash button opens the delete dialog for that row', () => {
+    const trash = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-delete-category]',
+    ) as HTMLButtonElement;
+
+    trash.click();
+    fixture.detectChanges();
+
+    expect(component().deletingNode()).toMatchObject({ id: 'c-1' });
+    // A root: its children would move to the top level, which has no name.
+    expect(component().deleteParentName()).toBeNull();
+
+    component().closeDelete();
+    expect(component().deletingNode()).toBeNull();
+  });
+
+  it('BO-G04: deleting a child names the level its children would move to', () => {
+    component().openDelete(TREE[0]!.children[0]!);
+
+    expect(component().deleteParentName()).toBe('لوازم تحریر');
   });
 });
 

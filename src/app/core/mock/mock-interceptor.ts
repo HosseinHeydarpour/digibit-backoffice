@@ -163,6 +163,9 @@ const CATEGORY_ICONS: Readonly<Record<string, string>> = {
   batteries: 'pi pi-bolt',
   lighting: 'pi pi-lightbulb',
   uncategorized: 'pi pi-inbox',
+  office: 'pi pi-briefcase',
+  'audio-video': 'pi pi-volume-up',
+  headphones: 'pi pi-headphones',
 };
 
 /**
@@ -285,7 +288,7 @@ function resolve(
       // `?tree=true` returns the nested shape the categories screen renders
       // (BO-G01); the flat list stays what the product form's select reads.
       if (id) {
-        return resolveCategory(method, id, body);
+        return resolveCategory(method, id, params, body);
       }
 
       if (method === 'POST') {
@@ -661,12 +664,21 @@ function createCategory(body: unknown): MockResolution {
   return created(node, 'دسته ایجاد شد.');
 }
 
-/** `PUT/PATCH /categories/:id` → the updated node (tc 2). */
-function resolveCategory(method: string, id: string, body: unknown): MockResolution {
+/** `PUT/PATCH/DELETE /categories/:id` (tc 2 / BO-G04). */
+function resolveCategory(
+  method: string,
+  id: string,
+  params: ParamReader,
+  body: unknown,
+): MockResolution {
   const found = CATEGORIES.find((category) => category.id === id);
 
   if (!found) {
     return NOT_FOUND;
+  }
+
+  if (method === 'DELETE') {
+    return removeCategory(id, params.get('strategy') ?? 'transfer');
   }
 
   if (
@@ -807,6 +819,82 @@ function validationError(field: string, message: string): MockResolution {
       error: { code: 'VALIDATION', message, fields: { [field]: [message] } },
     },
   };
+}
+
+/** A 409 — the request is understood but the current data forbids it (BO-G04). */
+function conflict(code: string, message: string): MockResolution {
+  return { status: 409, body: { error: { code, message } } };
+}
+
+/** A node and every node under it. */
+function branchIds(id: string): string[] {
+  return [
+    id,
+    ...CATEGORIES.filter((category) => category.parentId === id).flatMap((child) =>
+      branchIds(child.id),
+    ),
+  ];
+}
+
+/**
+ * `DELETE /categories/:id?strategy=transfer|cascade` (BO-G04).
+ *
+ * TRACE — «لوازم کامپیوتر» (a root, two children, no products) is deleted with the
+ * default `strategy=transfer`:
+ *
+ *   1. No product in `catalogue()` points at the node, so the delete is allowed;
+ *      a node that sits on products answers 409 instead (tc 1/2), and so does a
+ *      cascade whose children hold some (tc 10).
+ *   2. Each child's `parentId` becomes the deleted node's parent (null here) and
+ *      it is appended after the last sibling.
+ *   3. The node leaves `CATEGORIES` and its old level is renumbered, so the roots
+ *      stay 1..N with no hole (tc 7).
+ *   4. Its slug leaves with it, so a later create may reuse it (tc 8).
+ */
+function removeCategory(id: string, strategy: string): MockResolution {
+  const found = CATEGORIES.find((category) => category.id === id);
+
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  const branch = branchIds(id);
+
+  if (catalogue().some((product) => product.categoryId === id)) {
+    return conflict('HAS_PRODUCTS', 'این دسته محصول دارد؛ اول آن‌ها را منتقل یا حذف کنید.');
+  }
+
+  if (
+    strategy === 'cascade' &&
+    catalogue().some((product) => branch.includes(product.categoryId))
+  ) {
+    return conflict('HAS_PRODUCTS', 'زیردسته‌ها محصول دارند؛ فقط انتقال مجاز است.');
+  }
+
+  const parentId = found.parentId ?? null;
+  const removed = strategy === 'cascade' ? branch : [id];
+
+  if (strategy !== 'cascade') {
+    let position = nextCategoryOrder(parentId);
+
+    for (const child of CATEGORIES.filter((category) => category.parentId === id)) {
+      child.parentId = parentId;
+      child.order = position;
+      position += 1;
+    }
+  }
+
+  for (const categoryId of removed) {
+    const index = CATEGORIES.findIndex((category) => category.id === categoryId);
+
+    if (index >= 0) {
+      CATEGORIES.splice(index, 1);
+    }
+  }
+
+  renumberLevel(parentId);
+
+  return ok({ id, deleted: removed }, 'دسته حذف شد.');
 }
 
 /** The flattened row `GET /products` returns. */

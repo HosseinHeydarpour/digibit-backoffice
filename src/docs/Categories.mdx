@@ -1,5 +1,6 @@
 import { Canvas, Meta } from '@storybook/addon-docs/blocks';
 
+import * as CategoryDeleteStories from '../app/features/categories/category-delete/category-delete.stories';
 import * as CategoryFormStories from '../app/features/categories/category-form/category-form.stories';
 import * as CategoryTreeStories from '../app/features/categories/category-tree/category-tree.stories';
 
@@ -7,11 +8,11 @@ import * as CategoryTreeStories from '../app/features/categories/category-tree/c
 
 # دسته‌بندی‌ها / Categories
 
-صفحهٔ درخت دسته‌ها (BO-G01): دادهٔ تودرتوی `GET /categories?tree=true` مستقیم به `p-tree` می‌رود و
+صفحهٔ درخت دسته‌ها (BO-G01): دادهٔ تودرتوی `GET /categories?tree=true` در دو سطح رندر می‌شود و
 هر ردیف نام، آیکون، تعداد محصول و وضعیت فعال/غیرفعال را نشان می‌دهد (نامک عمداً در ردیف نیست؛ در فرم قابل ویرایش است).
 
-The category tree screen (BO-G01): nested `GET /categories?tree=true` data goes straight into
-`p-tree`, and every row carries the name, slug, product count, icon and active/inactive pill.
+The category tree screen (BO-G01): nested `GET /categories?tree=true` data renders as two levels of
+plain lists, and every row carries the name, icon, product count and active/inactive pill.
 
 ## کاربرد / Use case
 
@@ -33,9 +34,9 @@ paging, which is out of scope here.
   فروشگاه دسته‌ای ندارد؛ همان قاعدهٔ داشبورد و لیست محصولات.
 - **خطا با «تلاش دوباره».** `catchError` مقدار `null` برمی‌گرداند و صفحه بلوک خطا را با دکمهٔ
   بازخوانی نشان می‌دهد، نه یک صفحهٔ خالی.
-- **در موبایل.** ناحیهٔ درخت داخل کارت اسکرول عمودی دارد (`max-h-[70vh]`)، نامک زیر `sm` پنهان
-  می‌شود و بج‌ها/نام در یک خط می‌شکنند تا صفحه سرریز افقی نکند (tc 9).
-- **همیشه باز.** هر گره `expanded: true` است تا هر دو سطح بدون کلیک دیده شوند (tc 1/2).
+- **در موبایل.** ناحیهٔ درخت داخل کارت اسکرول عمودی دارد (`max-h-[70vh]`)، و بج تعداد/وضعیت زیر
+  `sm` پنهان می‌شوند تا نام کنار سه دکمهٔ ردیف (دستهٔ درگ، مداد، سطل) جا شود (tc 9).
+- **هر شاخه در بار اول باز است** تا هر دو سطح بدون کلیک دیده شوند (tc 1/2).
 
 - **Filter in the browser, hierarchy intact.** `filterTree` is pure: a node stays when it or a
   descendant matches, and the ancestor of a match stays too, so no orphan floats at the root.
@@ -44,8 +45,9 @@ paging, which is out of scope here.
 - **`null` vs `[]`.** `null` is "no answer yet" (skeleton), `[]` is "no categories": the same rule
   the dashboard and the products list follow.
 - **Failure has a retry.** `catchError` yields `null` and the page renders the shared error block.
-- **On a phone** the tree scrolls inside the card, the slug hides below `sm`, and the row wraps.
-- **Always expanded.** Every node is `expanded: true`, so both levels show without a click.
+- **On a phone** the tree scrolls inside the card, and the count/status pills hide below `sm` so the
+  name fits next to the row's three controls (grip, pencil, trash).
+- **Every branch starts open**, so both levels show without a click.
 
 ## پیش‌نمایش / Preview
 
@@ -84,8 +86,8 @@ chosen) appears without a refresh.
 بیرون از فهرست، ردیف را به جای اولش برمی‌گرداند. تا وقتی کادر جستجو متن دارد درگ خاموش است، چون
 فهرست فیلترشده جای ردیف‌ها را عوض می‌کند.
 
-باز و بسته کردن شاخه: کلیک روی **هر جای ردیف** (نام، آیکون، بج تعداد) — نه فقط پیکان. مداد و دستهٔ
-درگ کلیک را می‌گیرند تا کار خودشان را بکنند.
+باز و بسته کردن شاخه: آیکون + نام + پیکان **یک دکمه** هستند، پس کلیک روی هر جای این برچسب شاخه را
+باز/بسته می‌کند — نه فقط پیکان. مداد، سطل و دستهٔ درگ دکمه‌های جدا هستند.
 
 Orders start at **1** and stay contiguous per level. Moving uses **Angular CDK**: grab a row by its
 ⠿ grip; CDK draws the floating preview, the placeholder and the slide animation itself. Dropping
@@ -95,5 +97,36 @@ roots. A third level is refused, `Escape` cancels, and releasing outside any lis
 where it started. Dragging is off while the search box has text, because the filtered list changes
 what an index means.
 
-Expanding a branch: click **anywhere on the row** (name, icon, count badge), not only the chevron.
-The pencil and the drag grip swallow the click so they keep doing their own job.
+Expanding a branch: the icon, name and chevron are a **single button**, so clicking anywhere on that
+label opens it — not only the chevron. The pencil, the trash and the drag grip are separate controls.
+
+## حذف دسته / Deleting (BO-G04)
+
+تا وقتی دسته محصول یا زیردسته دارد، حذفش یک تصمیم است نه یک تأیید ساده. تصمیم با یک تابع خالص
+(`deleteDecision`) گرفته می‌شود و یک دیالوگ آن را نشان می‌دهد:
+
+- **دسته‌ای که خودش محصول دارد حذف نمی‌شود.** تعدادش در همان دیالوگ نوشته می‌شود و فقط دکمهٔ «باشه»
+  دارد؛ حذف، محصول‌ها را بی‌دسته می‌کرد (tc 1/2).
+- **والد خالی دو گزینه دارد.** «انتقال به …» (پیش‌فرض) زیردسته‌ها را یک سطح بالا می‌برد و محصول‌هایشان
+  دست‌نخورده می‌ماند؛ «حذف زیردسته‌ها هم» کل شاخه را پاک می‌کند و قرمز است (tc 3/4).
+- **اگر زیردسته‌ها محصول داشته باشند، آبشار خاموش است** و فقط انتقال می‌ماند — وگرنه محصول‌های آن‌ها
+  بی‌دسته می‌شدند (tc 10).
+- **انصراف هیچ درخواستی نمی‌فرستد** (tc 5)؛ موفقیت یک toast می‌دهد و درخت را از سر می‌گیرد (tc 9)، پس
+  نامکِ آزادشده دوباره قابل استفاده است (tc 8).
+
+Deleting is a decision, not a confirmation. The pure `deleteDecision` answers which of the three
+shapes applies and one dialog renders it:
+
+- **A node with products of its own is refused** — the count is printed and the only button is
+  «باشه», because deleting it would orphan those products (tc 1/2).
+- **An empty parent gets a choice**: «transfer to …» (the default, loses nothing) or «delete the
+  children too» (red, deletes the branch) (tc 3/4).
+- **The cascade is disabled while a child holds products** — nothing would reassign them (tc 10).
+- **Cancel sends nothing** (tc 5); success toasts and refetches the tree (tc 9), so the freed slug
+  can be reused (tc 8).
+
+<Canvas of={CategoryDeleteStories.Blocked} />
+
+<Canvas of={CategoryDeleteStories.TransferChildren} />
+
+<Canvas of={CategoryDeleteStories.CascadeUnavailable} />

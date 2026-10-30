@@ -12,8 +12,7 @@ import type { EntityId } from '@shared/models';
 /** One node of the category tree. */
 export interface CategoryNode {
   readonly id: EntityId;
-  /** The parent this node sits under; 
-ull at the root (needed by BO-G03). */
+  /** The parent this node sits under; `null` at the root (needed by BO-G03). */
   readonly parentId: EntityId | null;
   readonly name: string;
   readonly slug: string;
@@ -39,3 +38,12 @@ export interface CategoryInput {
   readonly description: string;
   readonly parentId: EntityId | null;
 }
+
+/**
+ * What a delete does with the sub-categories (BO-G04).
+ *
+ * `transfer` gives them to the deleted node's parent and keeps their products;
+ * `cascade` deletes the whole branch. It is a closed union rather than a string
+ * so a typo in the dialog cannot reach the API as an unknown strategy.
+ */
+export type CategoryDeleteStrategy = 'transfer' | 'cascade';

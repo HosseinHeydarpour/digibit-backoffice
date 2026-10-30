@@ -135,6 +135,25 @@ export const MOCK_CATEGORIES = [
     order: 8,
     isActive: true,
   },
+  // BO-G04 needs a branch that is EMPTY of products but not empty of children,
+  // otherwise the transfer/cascade dialog has no reachable case in the mock:
+  // every other root sells something, and a category with products is refused.
+  {
+    id: 'pcat-audio',
+    parentId: null,
+    name: 'صوتی و تصویری',
+    slug: 'audio-video',
+    order: 9,
+    isActive: true,
+  },
+  {
+    id: 'pcat-audio-headphones',
+    parentId: 'pcat-audio',
+    name: 'هدفون',
+    slug: 'headphones',
+    order: 1,
+    isActive: true,
+  },
 ];
 
 export const MOCK_ORDERS = makeList(18, (i) => ({

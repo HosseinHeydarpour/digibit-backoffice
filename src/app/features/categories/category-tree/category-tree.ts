@@ -28,6 +28,7 @@
 import { DragDropModule, CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { LoadingBlock } from '@shared/components/loading-block/loading-block';
@@ -39,6 +40,7 @@ import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { catchError, of, take } from 'rxjs';
 
+import { CategoryDelete } from '../category-delete/category-delete';
 import { CategoryForm } from '../category-form/category-form';
 import type { CategoryNode } from '../models/category.model';
 import { CategoriesService } from '../services/categories.service';
@@ -48,6 +50,7 @@ import { filterTree } from './category-filter';
 @Component({
   selector: 'app-category-tree',
   imports: [
+    CategoryDelete,
     CategoryForm,
     Dialog,
     DragDropModule,
@@ -66,6 +69,7 @@ import { filterTree } from './category-filter';
 })
 export class CategoryTree {
   private readonly categories = inject(CategoriesService);
+  private readonly toast = inject(ToastService);
 
   /** `null` = no answer yet (skeleton), `[]` = the shop has no categories. */
   readonly tree = signal<readonly CategoryNode[] | null>(null);
@@ -83,6 +87,9 @@ export class CategoryTree {
   readonly dialogOpen = signal(false);
 
   readonly editing = signal<CategoryNode | null>(null);
+
+  /** The row whose delete dialog is open (BO-G04). */
+  readonly deletingNode = signal<CategoryNode | null>(null);
 
   /** The row currently being dragged — used to style the preview and the list. */
   readonly dragging = signal<CategoryNode | null>(null);
@@ -172,6 +179,47 @@ export class CategoryTree {
   closeDialog(): void {
     this.dialogOpen.set(false);
     this.editing.set(null);
+  }
+
+  /**
+   * Open the delete dialog for one row (BO-G04).
+   *
+   * TRACE — the trash on «هدفون» (a child of «صوتی و تصویری») is clicked:
+   *
+   *   1. `deletingNode` becomes that node, so the dialog's `@if` mounts
+   *      `app-category-delete` with it — no HTTP yet, the decision is local.
+   *   2. `deleteParentName()` follows `parentId` to the root and answers
+   *      «صوتی و تصویری»: that is the level the child's own children would move to.
+   *   3. A confirmed delete emits `deleted` → `onDeleted()` clears the node, toasts
+   *      and refetches the tree, so the row leaves the screen without a page reload.
+   */
+  openDelete(node: CategoryNode): void {
+    this.deletingNode.set(node);
+  }
+
+  closeDelete(): void {
+    this.deletingNode.set(null);
+  }
+
+  /**
+   * The children of the deleted node move to its parent, so the dialog has to
+   * name that level. A root's children go to the roots, which is «سطح اصلی».
+   */
+  readonly deleteParentName = computed<string | null>(() => {
+    const node = this.deletingNode();
+
+    if (!node || node.parentId === null) {
+      return null;
+    }
+
+    return this.tree()?.find((root) => root.id === node.parentId)?.name ?? null;
+  });
+
+  /** Success → toast + refetch, so the row and its slug are really gone (tc 9). */
+  onDeleted(node: CategoryNode): void {
+    this.deletingNode.set(null);
+    this.toast.success(`«${node.name}» حذف شد.`);
+    this.load();
   }
 
   /**

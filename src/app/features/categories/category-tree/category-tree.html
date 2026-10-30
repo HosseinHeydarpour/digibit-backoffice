@@ -225,8 +225,12 @@
       </span>
     }
 
+    <!--
+      The count and the status pill collapse on a phone so the name keeps a
+      readable width next to the four controls (grip, chevron, pencil, trash).
+    -->
     <span
-      class="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+      class="hidden shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 sm:inline-flex dark:bg-gray-700 dark:text-gray-300"
       [attr.aria-label]="node.productCount + ' محصول'"
     >
       <i class="pi pi-box text-[10px]" aria-hidden="true"></i>
@@ -253,6 +257,16 @@
     >
       <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
     </button>
+
+    <button
+      type="button"
+      (click)="openDelete(node)"
+      data-delete-category
+      [attr.aria-label]="'حذف دستهٔ ' + node.name"
+      class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 max-sm:size-11 dark:text-gray-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+    >
+      <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+    </button>
   </div>
 </ng-template>
 
@@ -277,6 +291,31 @@
       [defaultOrder]="nextOrder()"
       (saved)="onSaved()"
       (cancelled)="closeDialog()"
+    />
+  }
+</p-dialog>
+
+<!--
+  The delete dialog (BO-G04). A second `p-dialog` rather than a mode of the first:
+  the form has eight fields and a save button, this one has a decision and a red
+  button, and only one of them is ever on screen.
+-->
+<p-dialog
+  [visible]="deletingNode() !== null"
+  (onHide)="closeDelete()"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: '32rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+  header="حذف دسته"
+>
+  @if (deletingNode(); as node) {
+    <app-category-delete
+      [category]="node"
+      [parentName]="deleteParentName()"
+      (deleted)="onDeleted($event)"
+      (cancelled)="closeDelete()"
     />
   }
 </p-dialog>

@@ -70,9 +70,20 @@ export class ApiService {
       .pipe(map(unwrap), catchError(throwApiError));
   }
 
-  delete<T>(path: string): Observable<T> {
+  /**
+   * DELETE, with an optional query.
+   *
+   * The query is not decorative: a delete often carries a MODE rather than a
+   * body (`?strategy=transfer` on a category), and a body on a DELETE is legal
+   * but dropped by some proxies. Same shape as `get`, so a caller never builds a
+   * URL by hand.
+   */
+  delete<T>(path: string, params?: QueryParams): Observable<T> {
     return this.http
-      .delete<ApiResponse<T>>(this.url(path), { headers: JSON_HEADERS })
+      .delete<ApiResponse<T>>(this.url(path), {
+        params: toHttpParams(params),
+        headers: JSON_HEADERS,
+      })
       .pipe(map(unwrap), catchError(throwApiError));
   }
 
