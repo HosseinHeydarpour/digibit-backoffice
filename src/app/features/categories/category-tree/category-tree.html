@@ -13,11 +13,6 @@
 <div
   class="rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
 >
-  <!--
-    Search sits in the card header, like the Arino tables, and filters the tree
-    in the browser (BO-G01 tc 6). The field only appears when there is something
-    to filter: an empty shop does not need a search box.
-  -->
   @if (state() === 'data') {
     <div class="border-b border-gray-200 p-4 dark:border-gray-700">
       <label
@@ -62,138 +57,162 @@
       <app-empty-state
         icon="pi pi-sitemap"
         title="هنوز دسته‌ای ساخته نشده"
-        description="دسته‌بندی‌ها ساختار فروشگاه را می‌سازند؛ اولین دسته را در BO-G02 اضافه کنید."
+        description="دسته‌بندی‌ها ساختار فروشگاه را می‌سازند؛ اولین دسته را با دکمهٔ بالا اضافه کنید."
       />
     }
 
     @default {
       <!--
-        `p-tree` scrolls inside the card (tc 9): a deep tree on a phone must not
-        push the page sideways or grow past the viewport.
-
-        The tree is rendered only when there is something to show: an empty
-        `value` makes PrimeNG print its own English «No results found» under our
-        Persian empty state, which is one message too many.
+        Two levels, two kinds of drop list, one row template. `cdkDropListGroup`
+        connects every list to every other, so a child can be dragged out to the
+        roots and a root can be dropped into a parent without wiring pairs by
+        hand. `leafOnly` stops a parent with children from entering a child list
+        (the tree is two levels).
       -->
-      @if (nodes().length > 0) {
-        <div class="max-h-[70vh] overflow-auto p-2 sm:p-4" data-category-tree>
-          @if (dragging()) {
-            <!-- Drop zone for «make it a root» (BO-G03). -->
-            <div
-              (pointerenter)="onPointerEnterRoot()"
-              (pointerup)="onDropToRoot($event)"
-              data-drop-root
-              [class]="
-                dropTarget() === 'root'
-                  ? 'mb-2 rounded-lg border-2 border-dashed border-primary bg-primary/15 px-4 py-3 text-center text-xs font-medium text-primary'
-                  : 'mb-2 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-center text-xs font-medium text-primary'
-              "
+      <div class="max-h-[70vh] overflow-auto p-2 sm:p-4" data-category-tree cdkDropListGroup>
+        <ul
+          cdkDropList
+          [cdkDropListData]="roots()"
+          (cdkDropListDropped)="drop($event, null)"
+          class="space-y-1"
+          aria-label="دسته‌های اصلی"
+        >
+          @for (node of roots(); track node.id) {
+            <li
+              cdkDrag
+              [cdkDragData]="node"
+              (cdkDragStarted)="onDragStarted(node)"
+              (cdkDragEnded)="onDragEnded()"
+              class="rounded-lg bg-white dark:bg-gray-800"
             >
-              رها کنید تا دستهٔ اصلی شود
-            </div>
+              <ng-container *ngTemplateOutlet="row; context: { $implicit: node }" />
+
+              @if (node.children.length > 0 && isExpanded(node) && search() === '') {
+                <ul
+                  cdkDropList
+                  [cdkDropListData]="node.children"
+                  [cdkDropListEnterPredicate]="leafOnly"
+                  (cdkDropListDropped)="drop($event, node.id)"
+                  class="ms-4 space-y-1 border-s border-dashed border-gray-200 ps-2 sm:ms-8 dark:border-gray-700"
+                  [attr.aria-label]="'زیردسته‌های ' + node.name"
+                >
+                  @for (child of node.children; track child.id) {
+                    <li
+                      cdkDrag
+                      [cdkDragData]="child"
+                      (cdkDragStarted)="onDragStarted(child)"
+                      (cdkDragEnded)="onDragEnded()"
+                      class="rounded-lg bg-white dark:bg-gray-800"
+                    >
+                      <ng-container *ngTemplateOutlet="row; context: { $implicit: child }" />
+                    </li>
+                  }
+                </ul>
+              }
+            </li>
           }
+        </ul>
 
-          <p-tree
-            [value]="nodes()"
-            [filter]="false"
-            [metaKeySelection]="false"
-            style="--p-tree-background: transparent"
-          >
-            <!--
-              Chevron in the reading direction: collapsed points left in RTL,
-              open points down. PrimeNG's default is right, which reads as
-              "go back" to a Persian user.
-            -->
-            <ng-template pTemplate="togglericon" let-expanded>
-              <i
-                [class]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-left'"
-                class="text-xs"
-                aria-hidden="true"
-              ></i>
-            </ng-template>
-
-            <ng-template pTemplate="default" let-node>
-              <div
-                #row
-                tabindex="0"
-                role="button"
-                (pointerdown)="onPointerDown(node.data, $event)"
-                (pointermove)="onPointerMove($event)"
-                (pointerenter)="onPointerEnter(node.data)"
-                (pointerup)="onPointerUpOn(node.data, $event)"
-                (click)="onRowClick($event)"
-                [attr.aria-expanded]="node.children?.length ? node.expanded : null"
-                (keydown)="onRowKeydown($event, row)"
-                [class]="
-                  dropTarget() === node.data.id
-                    ? 'flex w-full min-w-0 cursor-grabbing flex-wrap items-center gap-x-3 gap-y-1 rounded bg-primary/10 py-1 ring-2 ring-primary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-                    : 'flex w-full min-w-0 cursor-grab flex-wrap items-center gap-x-3 gap-y-1 rounded py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-                "
-              >
-                <i
-                  [class]="node.data.icon ?? 'pi pi-folder'"
-                  class="text-gray-400 dark:text-gray-500"
-                  aria-hidden="true"
-                ></i>
-
-                <span class="min-w-0 truncate font-medium text-gray-900 dark:text-white">
-                  {{ node.label }}
-                </span>
-
-                <code
-                  class="hidden rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[11px] text-gray-500 sm:inline dark:bg-gray-700 dark:text-gray-400"
-                  dir="ltr"
-                >
-                  {{ node.data.slug }}
-                </code>
-
-                <span
-                  class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                  [attr.aria-label]="node.data.productCount + ' محصول'"
-                >
-                  <i class="pi pi-box text-[10px]" aria-hidden="true"></i>
-                  {{ node.data.productCount | persianDigits }}
-                </span>
-
-                <span
-                  class="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                  [class]="
-                    node.data.isActive
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                  "
-                >
-                  {{ node.data.isActive ? 'فعال' : 'غیرفعال' }}
-                </span>
-
-                <button
-                  type="button"
-                  (click)="openEdit(node.data); $event.stopPropagation()"
-                  data-edit-category
-                  [attr.aria-label]="'ویرایش دستهٔ ' + node.label"
-                  class="ms-auto inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
-                >
-                  <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
-                </button>
-              </div>
-            </ng-template>
-          </p-tree>
-        </div>
-      } @else {
-        <!-- A filter that matches nothing is not an empty shop (tc 8). -->
-        <div class="p-6">
-          <app-empty-state
-            icon="pi pi-search"
-            title="دسته‌ای با این جستجو پیدا نشد"
-            description="عبارت کوتاه‌تری امتحان کنید یا جستجو را پاک کنید."
-            actionLabel="پاک کردن جستجو"
-            (action)="search.set('')"
-          />
-        </div>
-      }
+        @if (roots().length === 0) {
+          <div class="p-2">
+            <app-empty-state
+              icon="pi pi-search"
+              title="دسته‌ای با این جستجو پیدا نشد"
+              description="عبارت کوتاه‌تری امتحان کنید یا جستجو را پاک کنید."
+              actionLabel="پاک کردن جستجو"
+              (action)="search.set('')"
+            />
+          </div>
+        }
+      </div>
     }
   }
 </div>
+
+<!--
+  One row, used by the roots and by every child list. On a phone the slug, the
+  product count and the status pill are hidden and the name gets the whole line —
+  the old `p-tree` template wrapped three badges around the name and made the
+  list unreadable at 375px.
+-->
+<ng-template #row let-node>
+  <div
+    class="group flex items-center gap-2 rounded-lg px-1 py-2 transition hover:bg-gray-50 dark:hover:bg-gray-700/40"
+  >
+    <button
+      type="button"
+      cdkDragHandle
+      class="inline-flex size-8 shrink-0 cursor-grab items-center justify-center rounded text-gray-300 transition hover:bg-gray-100 hover:text-gray-500 max-sm:size-11 dark:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+      [attr.aria-label]="'جابه‌جایی ' + node.name"
+    >
+      <i class="pi pi-bars text-xs" aria-hidden="true"></i>
+    </button>
+
+    @if (node.children.length > 0) {
+      <button
+        type="button"
+        (click)="toggle(node)"
+        [attr.aria-expanded]="isExpanded(node)"
+        [attr.aria-label]="(isExpanded(node) ? 'بستن ' : 'باز کردن ') + node.name"
+        class="inline-flex size-8 shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-gray-100 max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700"
+      >
+        <i
+          [class]="isExpanded(node) ? 'pi pi-chevron-down' : 'pi pi-chevron-left'"
+          class="text-xs"
+          aria-hidden="true"
+        ></i>
+      </button>
+    } @else {
+      <span class="size-8 shrink-0 max-sm:size-11" aria-hidden="true"></span>
+    }
+
+    <i
+      [class]="node.icon ?? 'pi pi-folder'"
+      class="shrink-0 text-gray-400 dark:text-gray-500"
+      aria-hidden="true"
+    ></i>
+
+    <div class="min-w-0 flex-1">
+      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ node.name }}</p>
+      <p
+        class="hidden truncate font-mono text-[11px] text-gray-500 sm:block dark:text-gray-400"
+        dir="ltr"
+      >
+        {{ node.slug }}
+      </p>
+    </div>
+
+    <span
+      class="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+      [attr.aria-label]="node.productCount + ' محصول'"
+    >
+      <i class="pi pi-box text-[10px]" aria-hidden="true"></i>
+      {{ node.productCount | persianDigits }}
+    </span>
+
+    <span
+      class="hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
+      [class]="
+        node.isActive
+          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+      "
+    >
+      {{ node.isActive ? 'فعال' : 'غیرفعال' }}
+    </span>
+
+    <button
+      type="button"
+      (click)="openEdit(node)"
+      data-edit-category
+      [attr.aria-label]="'ویرایش دستهٔ ' + node.name"
+      class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
+    >
+      <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+    </button>
+  </div>
+</ng-template>
+
 <!--
   One dialog for create and edit (BO-G02): the page keeps the mode in
   `editing()`, the form receives the node and the siblings it must not duplicate.

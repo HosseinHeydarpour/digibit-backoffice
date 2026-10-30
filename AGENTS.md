@@ -704,14 +704,20 @@ overflow-auto` wrapper; the page itself must never scroll sideways (BO-B17).
 order) + 1`; the form defaults to the page's `nextOrder()` and the validator rejects 0. The old
   fallback (`CATEGORIES.length + 1`) counted BOTH levels, so a new root could land on a number a
   root already had and the client-side sort had no tie-breaker — the «ترتیب گنگ» the user saw.
-- **Drag & drop is native HTML5, not `p-tree`'s.** Each row is `draggable`, a drop on another root
-  makes the row its child, and a dashed strip above the tree turns a child back into a root. The
-  guards are explicit: the target must be a root, the dragged node must have no children (two
-  levels only), and a node cannot be dropped on itself. The API repeats the same three rules, plus
-  a cycle check, so a hand-made request cannot corrupt the tree.
-- **The move is `PATCH /categories/:id` with `{ parentId }`.** A full `PUT` would let the drag
-  overwrite a name it is not editing; the mock treats a body that only carries `parentId` as a move
-  and skips the name/slug validation that the body intentionally omits.
+- **Drag & drop is Angular CDK, not `p-tree` and not hand-rolled HTML5.** The page renders two
+  levels as plain lists: one `cdkDropList` for the roots and one per parent, inside a
+  `cdkDropListGroup`. CDK supplies the floating preview, the placeholder, the slide animation,
+  touch support, Escape-to-cancel, keyboard dragging and the "released outside any list -> back
+  where it was" behaviour; a hand-rolled pointer drag had none of those and could get stuck.
+- **`p-tree` is gone from this page.** Its toggler is `tabindex="-1"`, its empty state prints English
+  text, its chevron points right in RTL, and its node template fought the phone layout. The lists are
+  ordinary markup: one row line, slug/count/status hidden below `sm`, 44px controls on a phone.
+- **`cdkDropListEnterPredicate` guards the second level.** A child list accepts only a node with no
+  children, so a third level cannot be dropped into existence; the API repeats the rule (plus a cycle
+  check) and answers 422 for a hand-made request.
+- **A drop sends `{ parentId, order }` through `PATCH /categories/:id`.** `order` is the 1-based slot
+  the row landed on, and the server renumbers both the old and the new level — the client never
+  patches a list of positions.
 
 ### Sales chart and Chart.js testing (BO-E03)
 

@@ -1,35 +1,42 @@
 // src/app/features/categories/category-tree/category-tree.ts
 //
-// The categories screen — `/categories` (BO-G01).
+// The categories screen — `/categories` (BO-G01/G02/G03).
 //
-// WHY THE TREE IS FILTERED IN THE BROWSER
-// ---------------------------------------
-// The catalogue is a handful of categories (eight roots, a few children in the
-// mock). Asking the API on every keystroke would add a request, a loading state
-// and a race for a list the client already holds; `filterTree` is a pure
-// function with its own spec instead.
+// WHY THE TREE IS RENDERED AS LISTS, NOT `p-tree`
+// -----------------------------------------------
+// `p-tree` owns its own DOM: its toggler is a `tabindex="-1"` button, its empty
+// state prints an English line, its chevron points right in RTL, and its rows
+// fought the responsive layout on a phone. More importantly, drag & drop needs a
+// CONTAINER per level — one drop list for the roots and one per parent — and
+// `p-tree` exposes no such containers.
 //
-// WHY A MATCH KEEPS ITS PARENT
-// ----------------------------
-// A tree that drops a parent because the PARENT does not match leaves an orphan
-// child floating at the root: the user searches «گوشی» and sees «لوازم جانبی»
-// disappear while «گوشی سامسونگ» stays at depth 0, which reads like a bug. The
-// filter keeps every ancestor of a match, and a matching parent keeps all of its
-// children, so the shape of the tree never lies about the hierarchy.
+// The page therefore renders `ul cdkDropList` lists itself: @angular/cdk was
+// already a dependency, and its drag & drop gives what the screen needs without
+// hand-rolled pointer bookkeeping — a visible drag preview, a placeholder where
+// the row will land, animated reordering, touch support, Escape to cancel, a
+// keyboard mode (Space to lift, arrows to move, Escape to drop back) and,
+// critically, an item that is dropped outside any list returns to where it was
+// instead of leaving the page stuck in a drag state.
+//
+// ORDER IS A SLOT, NOT A NUMBER
+// -----------------------------
+// A drop sends `{ parentId, order }` and the server re-sequences the level to
+// 1..N. Dropping «باتری» at the top makes it 1 and pushes the old 1 to 2, which
+// is the behaviour a user expects from a list, and it keeps two rows from
+// claiming the same position.
 
+import { DragDropModule, CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { LoadingBlock } from '@shared/components/loading-block/loading-block';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
-import { PrimeTemplate } from 'primeng/api';
-import type { TreeNode } from 'primeng/api';
 import { Dialog } from 'primeng/dialog';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
-import { Tree } from 'primeng/tree';
 import { catchError, of, take } from 'rxjs';
 
 import { CategoryForm } from '../category-form/category-form';
@@ -38,26 +45,21 @@ import { CategoriesService } from '../services/categories.service';
 
 import { filterTree } from './category-filter';
 
-/**
- * How many of the fields below a node the tree renders (tc 3/4/5): the product
- * count, then the status pill. Both live in the default node template, so a
- * child looks exactly like its parent minus the indentation.
- */
 @Component({
   selector: 'app-category-tree',
   imports: [
     CategoryForm,
     Dialog,
+    DragDropModule,
     EmptyState,
     ErrorState,
     IconField,
     InputIcon,
     InputText,
     LoadingBlock,
+    NgTemplateOutlet,
     PageHeader,
     PersianDigitsPipe,
-    PrimeTemplate,
-    Tree,
   ],
   templateUrl: './category-tree.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -65,67 +67,26 @@ import { filterTree } from './category-filter';
 export class CategoryTree {
   private readonly categories = inject(CategoriesService);
 
-  /**
-   * The last fetch. `null` is "no answer yet" (skeleton), `[]` is "the shop has
-   * no categories" — the same distinction the products list makes (BO-E07).
-   */
+  /** `null` = no answer yet (skeleton), `[]` = the shop has no categories. */
   readonly tree = signal<readonly CategoryNode[] | null>(null);
 
   readonly failed = signal(false);
 
   readonly search = signal('');
 
-  /** The dialog's state: closed, creating (null) or editing one node (BO-G02). */
+  /** The roots after the search filter, in `order`. */
+  readonly roots = computed(() => byOrder(filterTree(this.tree() ?? [], this.search())));
+
+  /** Collapsed branches; a freshly loaded tree starts fully open (tc 1). */
+  private readonly collapsed = signal<ReadonlySet<string>>(new Set());
+
   readonly dialogOpen = signal(false);
 
   readonly editing = signal<CategoryNode | null>(null);
 
-  /**
-   * The nodes at the edited node's level.
-   *
-   * TRACE — editing «دفتر و کاغذ» (child of «لوازم تحریر»):
-   *
-   *   1. `target.parentId` is `'pcat-stationery'` (not null), so the sibling list
-   *      is NOT the roots.
-   *   2. The root with that id is found and its children returned: the two
-   *      stationery children.
-   *   3. The form's duplicate check compares only against those two, so typing
-   *      «لوازم تحریر» (a root) is accepted while typing «خودکار و روان‌نویس»
-   *      is rejected. Creating (no target) returns the roots instead.
-   */
-  readonly siblings = computed<readonly CategoryNode[]>(() => {
-    const target = this.editing();
-    const roots = this.tree() ?? [];
-
-    if (!target || target.parentId === null) {
-      return roots;
-    }
-
-    return roots.find((node) => node.id === target.parentId)?.children ?? [];
-  });
-
-  /**
-   * Where a NEW category lands: one past the last position at its level.
-   *
-   * This is what fixes «ترتیب گنگ»: the form used to default to 1, so every new
-   * category collided with an existing one and the client-side sort had no
-   * tie-breaker.
-   */
-  readonly nextOrder = computed(
-    () => this.siblings().reduce((max, node) => Math.max(max, node.order), 0) + 1,
-  );
-
-  /** The node currently being dragged, and the row it hovers over (BO-G03). */
+  /** The row currently being dragged — used to style the preview and the list. */
   readonly dragging = signal<CategoryNode | null>(null);
 
-  readonly dropTarget = signal<string | null>(null);
-
-  /** The nodes the `p-tree` renders: filtered, sorted, shaped for PrimeNG. */
-  readonly nodes = computed<readonly TreeNode[]>(() =>
-    toTreeNodes(filterTree(this.tree() ?? [], this.search())),
-  );
-
-  /** One branch condition for the template. */
   readonly state = computed<'loading' | 'error' | 'empty' | 'data'>(() => {
     if (this.failed()) {
       return 'error';
@@ -138,33 +99,70 @@ export class CategoryTree {
     return this.tree()!.length === 0 ? 'empty' : 'data';
   });
 
+  /** Where a NEW category lands: one past the last sibling (BO-G02). */
+  readonly nextOrder = computed(
+    () => this.siblings().reduce((max, node) => Math.max(max, node.order), 0) + 1,
+  );
+
+  /**
+   * The nodes at the edited node's level.
+   *
+   * TRACE — editing «دفتر و کاغذ» (child of «لوازم تحریر»):
+   *
+   *   1. `target.parentId` is `'pcat-stationery'` (not null), so the sibling list
+   *      is NOT the roots.
+   *   2. The root with that id is found and its children returned.
+   *   3. Typing «لوازم تحریر» (a root) is accepted; «خودکار و روان‌نویس» is not.
+   */
+  readonly siblings = computed<readonly CategoryNode[]>(() => {
+    const target = this.editing();
+    const roots = this.tree() ?? [];
+
+    if (!target || target.parentId === null) {
+      return roots;
+    }
+
+    const parent = roots.find((node) => node.id === target.parentId);
+
+    return parent ? parent.children : roots;
+  });
+
   constructor() {
     this.load();
   }
 
-  /** Retry after a failed fetch (tc 7). */
   retry(): void {
     this.load();
   }
 
-  /** Open the dialog for a new ROOT category (BO-G02 tc 1). */
+  /** Expand/collapse one branch. */
+  toggle(node: CategoryNode): void {
+    const next = new Set(this.collapsed());
+    const key = String(node.id);
+
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+
+    this.collapsed.set(next);
+  }
+
+  isExpanded(node: CategoryNode): boolean {
+    return !this.collapsed().has(String(node.id));
+  }
+
   openCreate(): void {
     this.editing.set(null);
     this.dialogOpen.set(true);
   }
 
-  /** Open the dialog prefilled with an existing node (tc 2). */
   openEdit(node: CategoryNode): void {
     this.editing.set(node);
     this.dialogOpen.set(true);
   }
 
-  /**
-   * The form saved: close the dialog and refetch.
-   *
-   * Refetching rather than patching the array keeps one source of truth — the
-   * server's tree — and is what makes the new row's ICON appear (tc 7/10).
-   */
   onSaved(): void {
     this.dialogOpen.set(false);
     this.editing.set(null);
@@ -177,174 +175,60 @@ export class CategoryTree {
   }
 
   /**
-   * Drag a row with the mouse (BO-G03).
-   *
-   * Native HTML5 drag (`draggable` + `dragstart`) does not start reliably inside
-   * PrimeNG's tree — the node content already handles pointer events, and a
-   * `draggable` child inside a non-draggable node never becomes the drag source
-   * in Chromium. Pointer events are the primitive the browser actually fires, so
-   * the row is grabbed on `pointerdown` and becomes a drag only after the cursor
-   * moves 6px — a click is not a drag, and a drag is not a click.
+   * A child list accepts only leaves: the tree is two levels, so moving a parent
+   * under another root would create a third. `cdkDropListEnterPredicate` runs
+   * while hovering, so the list simply does not light up.
    */
-  onPointerDown(node: CategoryNode, event: PointerEvent): void {
-    if (event.button !== 0) {
-      return;
-    }
+  readonly leafOnly = (drag: CdkDrag): boolean => {
+    const node = drag.data as CategoryNode | undefined;
 
-    this.dragOrigin = { node, x: event.clientX, y: event.clientY };
-    this.suppressClick = false;
-  }
-
-  onPointerMove(event: PointerEvent): void {
-    const origin = this.dragOrigin;
-
-    if (!origin || this.dragging()) {
-      return;
-    }
-
-    if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 6) {
-      this.dragging.set(origin.node);
-    }
-  }
-
-  /** Highlight a row the pointer is over, if a drop there would be accepted. */
-  onPointerEnter(node: CategoryNode): void {
-    if (this.dragging() && this.canDropOn(node)) {
-      this.dropTarget.set(String(node.id));
-    }
-  }
+    return !!node && node.children.length === 0;
+  };
 
   /**
-   * Release over a row → become its child.
+   * One drop, two origins (BO-G03).
    *
-   * TRACE — dragging «دفتر و کاغذ» onto «حافظه و ذخیره‌سازی»:
+   * TRACE — «دفتر و کاغذ» (child of «لوازم تحریر») is dragged onto the root list
+   * and dropped between «کابل» and «لوازم جانبی موبایل»:
    *
-   *   1. `pointerdown` on the child stored the origin at (x: 120, y: 300).
-   *   2. `pointermove` to (x: 140, y: 305) passed the 6px threshold, so
-   *      `dragging` = the child and the strip above the tree appeared.
-   *   3. `pointerenter` on the target highlighted it because `canDropOn` saw a
-   *      root target and a child with no children of its own.
-   *   4. `pointerup` here → `suppressClick = true` (so the trailing click does
-   *      not toggle the node), then `move(child, 'pcat-storage')`.
-   *   5. `PATCH /categories/… { parentId }` → the mock renumbers both levels and
-   *      the page refetches: the child is now under «حافظه» with order 1.
+   *   1. CDK reports `previousContainer` = the stationery children list and
+   *      `container` = the root list, `currentIndex` = 3.
+   *   2. Same-container or not, the persistence is the same call: `place(node,
+   *      parentId, currentIndex + 1)` — the server renumbers both levels, so the
+   *      client never has to patch a list of orders.
+   *   3. `parentId` is the target list's owner: `null` for the root list, a
+   *      root's id for its children list.
+   *   4. The refetch replaces the optimistic order with the server's, and the
+   *      row lands at position 4.
    */
-  onPointerUpOn(node: CategoryNode, event: PointerEvent): void {
-    if (!this.dragging()) {
-      this.resetDrag();
+  drop(event: CdkDragDrop<readonly CategoryNode[]>, parentId: string | null): void {
+    const moved = event.item.data as CategoryNode | undefined;
+
+    if (!moved) {
       return;
     }
 
-    event.preventDefault();
-    this.suppressClick = true;
-
-    if (this.canDropOn(node)) {
-      this.move(this.dragging()!, String(node.id));
-      return;
-    }
-
-    this.resetDrag();
+    this.place(moved, parentId, event.currentIndex + 1);
   }
 
-  onPointerEnterRoot(): void {
-    if (this.dragging()) {
-      this.dropTarget.set('root');
-    }
+  onDragStarted(node: CategoryNode): void {
+    this.dragging.set(node);
   }
 
-  /** Release over the strip → become a top-level category. */
-  onDropToRoot(event?: Event): void {
-    event?.preventDefault();
-
-    const dragged = this.dragging();
-
-    if (!dragged) {
-      return;
-    }
-
-    this.suppressClick = true;
-    this.move(dragged, null);
-  }
-
-  /**
-   * A pointerup leaves a `click` behind; after a real drag that click must not
-   * reach PrimeNG's node handler, or dropping a row would also expand/collapse
-   * it. One click is swallowed per drag.
-   */
-  onRowClick(event: MouseEvent): void {
-    if (!this.suppressClick) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    this.suppressClick = false;
-  }
-
-  /**
-   * A row accepts a drop when the target is a root, the dragged node is not that
-   * root's child already, and the dragged node has no children of its own (the
-   * tree is two levels, so moving a parent under another root would make three).
-   */
-  canDropOn(node: CategoryNode): boolean {
-    const dragged = this.dragging();
-
-    return (
-      !!dragged &&
-      dragged.id !== node.id &&
-      node.parentId === null &&
-      dragged.parentId !== node.id &&
-      dragged.children.length === 0
-    );
-  }
-
-  resetDrag(): void {
-    this.dragOrigin = null;
+  onDragEnded(): void {
     this.dragging.set(null);
-    this.dropTarget.set(null);
   }
 
-  private dragOrigin: { node: CategoryNode; x: number; y: number } | null = null;
-
-  private suppressClick = false;
-
-  private move(node: CategoryNode, parentId: string | null): void {
+  private place(node: CategoryNode, parentId: string | null, order: number): void {
     this.categories
-      .move(String(node.id), parentId)
+      .place(String(node.id), parentId, order)
       .pipe(take(1))
       .subscribe({
-        next: () => {
-          this.resetDrag();
-          this.load();
-        },
-        error: () => this.resetDrag(),
+        next: () => this.load(),
+        // A refused move (third level, cycle) is already reported by the
+        // interceptor; reloading puts the row back where the server has it.
+        error: () => this.load(),
       });
-  }
-
-  /**
-   * Enter / Space on a focused row toggles its branch (tc 9 keyboard).
-   *
-   * PrimeNG puts the only toggle button at `tabindex="-1"`, so a keyboard user
-   * can never reach it: the row itself is focusable instead, and this forwards
-   * the key to that button so the component's own expand/collapse logic runs —
-   * including a bare `p-treenode` row that has no children, where there is
-   * nothing to forward to and nothing happens.
-   */
-  onRowKeydown(event: KeyboardEvent, row: HTMLElement): void {
-    if (event.key !== 'Enter' && event.key !== ' ') {
-      return;
-    }
-
-    const toggle = row
-      .closest('p-treenode')
-      ?.querySelector<HTMLButtonElement>('button.p-tree-node-toggle-button');
-
-    if (!toggle) {
-      return;
-    }
-
-    event.preventDefault();
-    toggle.click();
   }
 
   private load(): void {
@@ -365,34 +249,14 @@ export class CategoryTree {
 }
 
 /**
- * CategoryNode → PrimeNG `TreeNode`, sorted by `order` at every level.
+ * Sort every level by `order` — the client does not trust the response order.
  *
- * `expanded` is always true: tc 1 asks for two visible levels, and a user who
- * has to click every row to see what is inside is not reading a tree.
- *
- * SORTING IS DONE HERE, not trusted from the response: the API contract says
- * `order` decides the position, and a backend that forgets to sort (or a test
- * fixture written in another order) must not leak into the screen. A tree whose
- * roots are 4, 1, 7 reads like random data.
- *
- * TRACE — `{ id: 'c-1', name: 'لوازم تحریر', order: 1, icon: 'pi pi-pen-to-square',
- * children: [{ …دفتر و کاغذ, order: 1 }] }` becomes
- * `{ key: 'c-1', label: 'لوازم تحریر', expanded: true, data: <the node>,
- *    children: [{ key: 'c-1-1', label: 'دفتر و کاغذ', … }] }`.
- *
- * `data` carries the whole node so the row template can print `slug`,
- * `productCount` and `isActive` without a second lookup, and `label` is what the
- * Tree prints for a node without a custom template — the fallback if a future
- * page forgets to pass one.
+ * A backend that forgets to sort (or a fixture written in another order) must not
+ * leak onto the screen; positions are contiguous 1..N per level, so this is a
+ * stable, deterministic sort.
  */
-function toTreeNodes(nodes: readonly CategoryNode[]): TreeNode[] {
+function byOrder(nodes: readonly CategoryNode[]): readonly CategoryNode[] {
   return [...nodes]
     .sort((a, b) => a.order - b.order)
-    .map((node) => ({
-      key: node.id,
-      label: node.name,
-      data: node,
-      expanded: true,
-      children: toTreeNodes(node.children),
-    }));
+    .map((node) => ({ ...node, children: byOrder(node.children) }));
 }

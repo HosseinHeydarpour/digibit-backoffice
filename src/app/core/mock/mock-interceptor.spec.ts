@@ -689,4 +689,24 @@ describe('mockInterceptor', () => {
     expect(after.data[0].order).toBe(1);
     expect(after.data.find((node) => node.id === first.id)!.order).toBe(2);
   });
+  it('an order-only PATCH reorders the level (BO-G03)', async () => {
+    await firstValueFrom(
+      http.patch<ApiResponse<unknown>>(
+        '/api/v1/categories/pcat-cables',
+        { order: 1 },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    const after = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; order: number }[]>>('/api/v1/categories', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { tree: 'true' },
+      }),
+    );
+
+    expect(after.data[0].id).toBe('pcat-cables');
+    expect(after.data[0].order).toBe(1);
+    expect(after.data.find((node) => node.id === 'pcat-stationery')!.order).toBe(2);
+  });
 });

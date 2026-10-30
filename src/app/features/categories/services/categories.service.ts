@@ -32,12 +32,16 @@ export class CategoriesService {
   }
 
   /**
-   * Move a category under another (or back to the root) — BO-G03 drag & drop.
+   * Place a category at a position inside a level (BO-G03 drop).
    *
-   * `PATCH`, not `PUT`: the drag sends one field, and a full update would let a
-   * stale tab overwrite a name it is not editing.
+   * One call carries both halves of a drag: the list it landed in (`parentId`,
+   * `null` for the roots) and the slot it landed on (`order`, 1-based). The
+   * server renumbers the level, so the client never patches a list of orders.
    */
-  move(id: string, parentId: string | null): Observable<CategoryNode> {
-    return this.api.patch<CategoryNode>(`/categories/${encodeURIComponent(id)}`, { parentId });
+  place(id: string, parentId: string | null, order: number): Observable<CategoryNode> {
+    return this.api.patch<CategoryNode>(`/categories/${encodeURIComponent(id)}`, {
+      parentId,
+      order,
+    });
   }
 }

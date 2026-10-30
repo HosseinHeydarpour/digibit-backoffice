@@ -669,8 +669,13 @@ function resolveCategory(method: string, id: string, body: unknown): MockResolut
     return NOT_FOUND;
   }
 
-  if (method === 'PATCH' && body && typeof body === 'object' && 'parentId' in body) {
-    return moveCategory(id, body);
+  if (
+    method === 'PATCH' &&
+    body &&
+    typeof body === 'object' &&
+    ('parentId' in body || 'order' in body)
+  ) {
+    return placeCategory(id, body);
   }
 
   if (method !== 'PUT' && method !== 'PATCH') {
@@ -705,22 +710,30 @@ function resolveCategory(method: string, id: string, body: unknown): MockResolut
 }
 
 /**
- * Moving a category between levels (BO-G03 drag & drop).
+ * Placing a category: which level, which slot (BO-G03 drag & drop).
  *
- * A `PATCH` that carries only `parentId` must not run the full field validation:
- * the body has no name or slug, and `validateCategory` would reject both. The
- * rules that DO apply are structural:
+ * A `PATCH` that carries only `parentId`/`order` must not run the full field
+ * validation — the body has no name or slug, and `validateCategory` would reject
+ * both. The rules that DO apply are structural:
  *
- *   - the parent must exist (a child of another node is refused: the tree is two
- *     levels, so nesting under a child would create a third);
- *   - a node cannot move under itself or under one of its own children.
+ *   - the parent must exist, and a category WITH children cannot become a child
+ *     (the tree is two levels, so nesting under a child would create a third);
+ *   - a node cannot move under itself or under one of its own descendants.
  *
- * TRACE — dragging «دفتر و کاغذ» (child of «لوازم تحریر») onto the root:
- * `PATCH { parentId: null }` → it becomes a root with
- * `order = nextCategoryOrder(null)`, so it lands last instead of colliding with
- * the roots' positions 1..8.
+ * `order` is a slot: `placeCategoryAt` re-sequences the destination level to
+ * 1..N, and the level the node came from is closed up as well.
+ *
+ * TRACE — «دفتر و کاغذ» (child of «لوازم تحریر») is dropped on the root list
+ * between the third and fourth roots:
+ *
+ *   1. `PATCH { parentId: null, order: 4 }`.
+ *   2. The parent check passes (null root), the cycle guard passes.
+ *   3. `found.parentId = null`; the old parent level is renumbered (its second
+ *      child becomes 1); `placeCategoryAt(found, 4)` inserts it at index 3 and
+ *      renumbers the roots 1..9.
+ *   4. The page refetches and the row appears exactly where it was dropped.
  */
-function moveCategory(id: string, body: unknown): MockResolution {
+function placeCategory(id: string, body: unknown): MockResolution {
   const found = CATEGORIES.find((category) => category.id === id);
 
   if (!found) {
@@ -728,10 +741,16 @@ function moveCategory(id: string, body: unknown): MockResolution {
   }
 
   const data = asRecord(body);
-  const parentId = typeof data['parentId'] === 'string' ? data['parentId'] : null;
+  const parentId =
+    'parentId' in data
+      ? typeof data['parentId'] === 'string'
+        ? data['parentId']
+        : null
+      : (found.parentId ?? null);
 
-  // A parent with children cannot become a child itself: the tree is two levels.
-  if (parentId !== null && CATEGORIES.some((category) => category.parentId === found.id)) {
+  const hasChildren = CATEGORIES.some((category) => category.parentId === found.id);
+
+  if (parentId !== null && hasChildren) {
     return validationError('parentId', 'دستهٔ دارای زیرمجموعه قابل انتقال نیست.');
   }
 
@@ -754,12 +773,13 @@ function moveCategory(id: string, body: unknown): MockResolution {
   const oldParent = found.parentId ?? null;
 
   found.parentId = parentId;
-  found.order = nextCategoryOrder(parentId, found.id);
-  renumberLevel(parentId);
 
   if (oldParent !== parentId) {
     renumberLevel(oldParent);
   }
+
+  placeCategoryAt(found, amount(data['order'], nextCategoryOrder(parentId, found.id)));
+  renumberLevel(parentId);
 
   return ok(found, 'دسته جابه‌جا شد.');
 }

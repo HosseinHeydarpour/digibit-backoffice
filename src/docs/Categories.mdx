@@ -76,14 +76,13 @@ chosen) appears without a refresh.
 <Canvas of={CategoryFormStories.Edit} />
 ## ترتیب و جابه‌جایی / Order and moving (BO-G03)
 
-هر دسته یک «ترتیب» دارد که در همان سطح مقایسه می‌شود و از **۱** شروع می‌شود: دستهٔ تازه
-`max(هم‌سطح‌ها) + 1` می‌گیرد، پس هیچ‌وقت روی شمارهٔ یک ردیف موجود نمی‌نشیند. ردیف‌ها را می‌توان با
-موس کشید: رها کردن روی یک دستهٔ اصلی، آن را **زیردسته** می‌کند؛ رها کردن روی نوار بالای درخت، یک
-زیردسته را **دستهٔ اصلی** می‌کند. اگر جابه‌جایی سطح سوم بسازد، ردیف مقصد هایلایت نمی‌شود و درخواستی
-نمی‌رود.
+ترتیب هر سطح از **۱** شروع می‌شود و پیوسته است. جابه‌جایی با **Angular CDK** انجام می‌شود: ردیف را
+از دستهٔ ⠿ بگیر و بکش؛ CDK نسخهٔ شناور ردیف، جای خالی مقصد و انیمیشن جابه‌جایی را خودش می‌سازد.
+رها کردن داخل فهرست یک دسته، آن را **زیردسته** می‌کند و رها کردن بین ریشه‌ها، آن را **دستهٔ اصلی**.
+سطح سوم رد می‌شود، `Escape` درگ را لغو می‌کند و رها کردن بیرون از فهرست، ردیف را به جای اولش
+برمی‌گرداند.
 
-Each category has an `order` compared only within its level and starting at **1**: a new one gets
-`max(siblings) + 1`, so it can never land on a number another row already holds. Rows can be dragged:
-dropping on a root makes it a subcategory, and dropping on the strip above the tree makes a child a
-root again. A move that would create a third level is refused — the target row simply does not
-highlight and no request is sent.
+Orders start at **1** and stay contiguous per level. Moving uses **Angular CDK**: grab a row by its
+⠿ grip; CDK draws the floating preview, the placeholder and the slide animation itself. Dropping
+inside a root's list nests the row, dropping between roots makes it a root. A third level is
+refused, `Escape` cancels, and releasing outside any list puts the row back where it started.

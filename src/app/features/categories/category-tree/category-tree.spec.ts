@@ -1,7 +1,8 @@
+import type { CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
-import type { Observable } from 'rxjs';
 import { of, throwError } from 'rxjs';
+import type { Observable } from 'rxjs';
 
 import type { CategoryNode } from '../models/category.model';
 import { CategoriesService } from '../services/categories.service';
@@ -12,35 +13,35 @@ const TREE: readonly CategoryNode[] = [
   {
     id: 'c-1',
     parentId: null,
-    description: '',
     name: 'لوازم تحریر',
     slug: 'stationery',
     icon: 'pi pi-pen-to-square',
     order: 1,
     isActive: true,
+    description: '',
     productCount: 12,
     children: [
       {
         id: 'c-1-1',
         parentId: 'c-1',
-        description: '',
         name: 'دفتر و کاغذ',
         slug: 'paper',
         icon: 'pi pi-book',
         order: 1,
         isActive: true,
+        description: '',
         productCount: 7,
         children: [],
       },
       {
         id: 'c-1-2',
         parentId: 'c-1',
-        description: '',
         name: 'خودکار و روان‌نویس',
         slug: 'pens',
         icon: 'pi pi-pencil',
         order: 2,
         isActive: false,
+        description: '',
         productCount: 0,
         children: [],
       },
@@ -49,12 +50,12 @@ const TREE: readonly CategoryNode[] = [
   {
     id: 'c-2',
     parentId: null,
-    description: '',
     name: 'گوشی موبایل',
     slug: 'phones',
     icon: 'pi pi-mobile',
     order: 2,
     isActive: true,
+    description: '',
     productCount: 3,
     children: [],
   },
@@ -65,22 +66,22 @@ class CategoriesServiceStub {
 
   calls = 0;
 
-  moves: { id: string; parentId: string | null }[] = [];
-
-  move(id: string, parentId: string | null): Observable<CategoryNode> {
-    this.moves.push({ id, parentId });
-
-    return of(TREE[0]!);
-  }
+  placed: { id: string; parentId: string | null; order: number }[] = [];
 
   tree(): Observable<readonly CategoryNode[]> {
     this.calls += 1;
 
     return this.fail ? throwError(() => new Error('offline')) : of(TREE);
   }
+
+  place(id: string, parentId: string | null, order: number): Observable<CategoryNode> {
+    this.placed.push({ id, parentId, order });
+
+    return of(TREE[0]!);
+  }
 }
 
-describe('CategoryTree (BO-G01)', () => {
+describe('CategoryTree (BO-G01/G02/G03)', () => {
   let fixture: ComponentFixture<CategoryTree>;
   let service: CategoriesServiceStub;
 
@@ -97,34 +98,45 @@ describe('CategoryTree (BO-G01)', () => {
     fixture.detectChanges();
   });
 
+  function component(): CategoryTree {
+    return fixture.componentInstance;
+  }
+
   function text(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
 
-  it('tc 1/2/10: renders both levels, in the order the API sent them', async () => {
-    const rows = fixture.nativeElement.querySelectorAll('[data-category-tree] p-treenode');
+  it('tc 1/2: renders the roots and the expansion children in one nested list', () => {
+    const roots = fixture.nativeElement.querySelectorAll('[data-category-tree] > ul > li');
 
-    // Two roots + two descendants (the second root has none).
-    expect(rows.length).toBe(4);
+    expect(roots.length).toBe(2);
     expect(text()).toContain('لوازم تحریر');
     expect(text()).toContain('دفتر و کاغذ');
     expect(text()).toContain('گوشی موبایل');
-
-    const labels = Array.from(
-      fixture.nativeElement.querySelectorAll(
-        '[data-category-tree] p-treenode',
-      ) as NodeListOf<HTMLElement>,
-    ).map((node) => node.textContent?.trim() ?? '');
-    expect(labels[0]).toContain('لوازم تحریر');
-    expect(labels.at(-1)).toContain('گوشی موبایل');
   });
 
-  it('tc 3/4/5: prints the product count, the status pill and the icon of every node', () => {
+  it('tc 3/4/5: prints the product count, the status pill and the icon', () => {
     expect(text()).toContain('۱۲');
     expect(text()).toContain('فعال');
     expect(text()).toContain('غیرفعال');
     expect(text()).toContain('stationery');
     expect(fixture.nativeElement.querySelector('.pi-pen-to-square')).toBeTruthy();
+  });
+
+  it('tc 10: orders every level by `order`, whatever the API answered', async () => {
+    service.tree = () => of([TREE[1]!, TREE[0]!]);
+    const fresh = TestBed.createComponent(CategoryTree);
+    await fresh.whenStable();
+    fresh.detectChanges();
+
+    const names = Array.from(
+      fresh.nativeElement.querySelectorAll(
+        '[data-category-tree] > ul > li',
+      ) as NodeListOf<HTMLElement>,
+    ).map((node) => node.textContent ?? '');
+
+    expect(names[0]).toContain('لوازم تحریر');
+    expect(names.at(-1)).toContain('گوشی موبایل');
   });
 
   it('tc 6: a search filters the tree and keeps the matching branch', async () => {
@@ -138,16 +150,12 @@ describe('CategoryTree (BO-G01)', () => {
     expect(text()).not.toContain('لوازم تحریر');
   });
 
-  it('tc 8: a search that matches nothing explains itself instead of an empty tree', async () => {
+  it('tc 8: a search that matches nothing explains itself instead of an empty list', async () => {
     component().search.set('ناموجود');
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[data-category-tree]')).toBeNull();
     expect(text()).toContain('دسته‌ای با این جستجو پیدا نشد');
-    // PrimeNG prints its own English empty line inside an empty tree; the tree
-    // is not mounted at all so that message cannot appear under ours.
-    expect(text()).not.toContain('No results found');
   });
 
   it('tc 7: an empty catalogue shows the shared empty state', async () => {
@@ -177,45 +185,6 @@ describe('CategoryTree (BO-G01)', () => {
     expect((failed.nativeElement as HTMLElement).textContent).toContain('لوازم تحریر');
   });
 
-  function component(): CategoryTree {
-    return fixture.componentInstance;
-  }
-  it('sorts every level by `order`, whatever order the API answered in', async () => {
-    service.tree = () =>
-      of([
-        { ...TREE[1]!, order: 2 }, // گوشی موبایل
-        { ...TREE[0]!, order: 1 }, // لوازم تحریر
-      ]);
-
-    const fresh = TestBed.createComponent(CategoryTree);
-    await fresh.whenStable();
-    fresh.detectChanges();
-
-    const labels = Array.from(
-      fresh.nativeElement.querySelectorAll(
-        '[data-category-tree] p-treenode',
-      ) as NodeListOf<HTMLElement>,
-    ).map((node) => node.textContent?.trim() ?? '');
-
-    expect(labels[0]).toContain('لوازم تحریر');
-    expect(labels[0]).toContain('دفتر و کاغذ'); // its children follow it
-    expect(labels.at(-1)).toContain('گوشی موبایل');
-  });
-
-  it('Enter on a focused row toggles the branch (keyboard)', async () => {
-    const firstRow = fixture.nativeElement.querySelector(
-      '[data-category-tree] p-treenode [role="button"]',
-    ) as HTMLElement;
-    expect(firstRow.getAttribute('tabindex')).toBe('0');
-
-    const before = fixture.nativeElement.querySelectorAll('p-treenode').length;
-    firstRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const after = fixture.nativeElement.querySelectorAll('p-treenode').length;
-    expect(after).toBeLessThan(before);
-  });
   it('BO-G02: the header button opens a create dialog with the roots as siblings', () => {
     component().openCreate();
     fixture.detectChanges();
@@ -229,7 +198,7 @@ describe('CategoryTree (BO-G01)', () => {
     ).toEqual(['c-1', 'c-2']);
   });
 
-  it('BO-G02: editing a child passes the node and its own level as siblings', async () => {
+  it('BO-G02: editing a child passes the node and its own level as siblings', () => {
     component().openEdit(TREE[0]!.children[0]!);
     fixture.detectChanges();
 
@@ -250,30 +219,44 @@ describe('CategoryTree (BO-G01)', () => {
     expect(component().dialogOpen()).toBe(false);
     expect(service.calls).toBe(before + 1);
   });
-  it('BO-G03: a drop onto a root moves the node under it and reloads', async () => {
-    component().dragging.set(TREE[1]!); // «گوشی موبایل», a root with no children
-    component().onPointerUpOn(TREE[0]!, new Event('pointerup') as PointerEvent);
+
+  it('BO-G03: a drop persists the target list and the 1-based slot', async () => {
+    component().drop(dropEvent(TREE[1]!, 0), null);
     await fixture.whenStable();
 
-    expect(service.moves).toEqual([{ id: 'c-2', parentId: 'c-1' }]);
-    expect(component().dragging()).toBeNull();
+    expect(service.placed).toEqual([{ id: 'c-2', parentId: null, order: 1 }]);
   });
 
-  it('BO-G03: dropping on the root strip makes the row a top-level category', async () => {
-    component().dragging.set(TREE[0]!.children[0]!); // «دفتر و کاغذ»
-    component().onDropToRoot();
+  it('BO-G03: dropping into a children list sends that parent id', async () => {
+    component().drop(dropEvent(TREE[1]!, 1), 'c-1');
     await fixture.whenStable();
 
-    expect(service.moves).toEqual([{ id: 'c-1-1', parentId: null }]);
+    expect(service.placed).toEqual([{ id: 'c-2', parentId: 'c-1', order: 2 }]);
   });
 
-  it('BO-G03: a node with children cannot be nested, and a child cannot accept a drop', () => {
-    // «لوازم تحریر» has children → moving it under another root would be 3 levels.
-    component().dragging.set(TREE[0]!);
-    expect(component().canDropOn(TREE[1]!)).toBe(false);
+  it('BO-G03: a parent with children cannot enter a children list (third level)', () => {
+    const leaf = { data: TREE[1]! } as CdkDrag;
+    const parent = { data: TREE[0]! } as CdkDrag;
 
-    // A child target cannot take children at all.
-    component().dragging.set(TREE[1]!);
-    expect(component().canDropOn(TREE[0]!.children[0]!)).toBe(false);
+    expect(component().leafOnly(leaf)).toBe(true);
+    expect(component().leafOnly(parent)).toBe(false);
+  });
+
+  it('BO-G03: a branch can be collapsed and reopened', () => {
+    const toggle = fixture.nativeElement.querySelector(
+      '[data-category-tree] > ul > li button[aria-expanded]',
+    ) as HTMLButtonElement;
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    toggle.click();
+    fixture.detectChanges();
+
+    expect(text()).not.toContain('دفتر و کاغذ');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 });
+
+/** The three fields the drop handler reads, without a real CDK drag. */
+function dropEvent(item: CategoryNode, currentIndex: number): CdkDragDrop<readonly CategoryNode[]> {
+  return { item: { data: item }, currentIndex } as CdkDragDrop<readonly CategoryNode[]>;
+}
