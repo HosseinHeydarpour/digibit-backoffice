@@ -290,6 +290,7 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
       'category-roots',
       'category-root-zone',
       'category-children-c-1',
+      'category-children-c-2',
     ]);
 
     const rendered = Array.from(

@@ -137,12 +137,18 @@ shapes applies and one dialog renders it:
 ## والد و آیکون / Parent and icon (BO-G03/G04)
 
 فرم دسته حالا یک سلکت **«دستهٔ والد»** دارد: فقط ریشه‌ها را پیشنهاد می‌دهد (سطح سوم وجود ندارد)، خود
-دسته را حذف می‌کند و برای دسته‌ای که زیردسته دارد قفل است. این همان راهی است که یک دستهٔ **تازه** را
-زیرمجموعه می‌کند — درگ فقط بین فهرست‌های موجود جابه‌جا می‌کند.
+دسته را حذف می‌کند و برای دسته‌ای که زیردسته دارد قفل است.
 
-آیکون‌ها از ۱۲ به ۶۰ گزینه رسیده‌اند و سلکت آیکون **جستجو** دارد (`filter` روی برچسب فارسی).
+آیکون‌ها از ۱۲ به ۶۰ گزینه رسیده‌اند و سلکت آیکون **جستجو** دارد (`filter` روی برچسب فارسی)؛ وقتی
+چیزی پیدا نشود «موردی پیدا نشد» می‌نویسد، نه متن انگلیسی پیش‌فرض PrimeNG.
+
+هر ریشهٔ باز، حتی بدون فرزند، یک فهرست زیردسته دارد: نوار خط‌چین کوتاهی که تا وقتی چیزی کشیده نشده
+شفاف است و در درگ روشن می‌شود. پس یک دستهٔ **تازه** هم با درگ فرزند قبول می‌کند.
 
 The category form now has a **parent select**: roots only (there is no third level), the node itself is
-filtered out, and it is read-only for a node that has children. That is how a **new** category becomes
-a child — drag only moves rows between lists that already exist. The icon picker grew from 12 to 60
-options and is searchable by its Persian label.
+filtered out, and it is read-only for a node that has children. The icon picker grew from 12 to 60
+options and is searchable by its Persian label; an empty search says «موردی پیدا نشد» instead of
+PrimeNG's English default.
+
+Every expanded root now owns a child list, even an empty one: a short dashed strip that stays
+transparent until something is dragged, so a **brand-new** category accepts children by drag too.

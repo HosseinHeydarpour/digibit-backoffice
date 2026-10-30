@@ -254,19 +254,20 @@ export class CategoryTree {
    * `ul`) is NOT in the group: the child list could only exchange rows with
    * itself, and a child dropped on the root zone fell back into its own list,
    * which looked like "the box does nothing". `cdkDropListConnectedTo` is the
-   * supported way out and it needs the ids of the lists that exist *right now*: a
-   * collapsed branch or an active search renders no child list, and an id that
-   * resolves to nothing leaves `undefined` in CDK's sibling array, which throws
-   * mid-drag.
+   * supported way out and it needs the ids of the lists that exist *right now*:
+   * a collapsed branch renders no child list, and an id that resolves to nothing
+   * leaves `undefined` in CDK's sibling array, which throws mid-drag.
+   *
+   * Every EXPANDED root is listed, empty or not: a childless root now renders an
+   * empty list as its own drop target, and leaving it out here made it light up
+   * during a drag while the drop still fell back to the roots.
    */
   readonly droppableLists = computed<string[]>(() => [
     'category-roots',
     'category-root-zone',
-    ...(this.search() === ''
-      ? this.roots()
-          .filter((node) => node.children.length > 0 && this.isExpanded(node))
-          .map((node) => this.childrenListId(node.id))
-      : []),
+    ...this.roots()
+      .filter((node) => this.isExpanded(node))
+      .map((node) => this.childrenListId(node.id)),
   ]);
 
   /** The id of one parent's children list — see `droppableLists`. */

@@ -98,12 +98,14 @@
               <ng-container *ngTemplateOutlet="row; context: { $implicit: node }" />
 
               <!--
-                Rendered during a search too (tc 6): the filter keeps a matching
-                child under its parent, and hiding the list made those matches
-                unreachable — the parent looked empty until the search cleared.
-                Dragging is off while the box has text, so no drop is possible.
+                Every expanded root has a child list, even an empty one: a root with
+                no children used to render nothing here, so there was no target to
+                drag a category onto and a brand-new parent could never receive a
+                child. The list is always mounted (CDK caches a list's rect when the
+                drag starts, so it cannot appear mid-drag) and an empty one is drawn
+                as a quiet dashed strip that lights up while something is dragged.
               -->
-              @if (node.children.length > 0 && isExpanded(node)) {
+              @if (isExpanded(node)) {
                 <ul
                   cdkDropList
                   [id]="childrenListId(node.id)"
@@ -111,7 +113,14 @@
                   [cdkDropListData]="node.children"
                   [cdkDropListEnterPredicate]="leafOnly"
                   (cdkDropListDropped)="drop($event, node.id)"
-                  class="ms-4 space-y-1 border-s border-dashed border-gray-200 ps-2 sm:ms-8 dark:border-gray-700"
+                  class="ms-4 space-y-1 rounded ps-2 sm:ms-8"
+                  [class]="
+                    node.children.length > 0
+                      ? 'border-s border-dashed border-gray-200 dark:border-gray-700'
+                      : dragging()
+                        ? 'min-h-8 border border-dashed border-primary/60 bg-primary/5'
+                        : 'min-h-8 border border-dashed border-transparent'
+                  "
                   [attr.aria-label]="'زیردسته‌های ' + node.name"
                 >
                   @for (child of node.children; track child.id) {
