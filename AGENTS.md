@@ -662,6 +662,24 @@ overflow-auto` wrapper; the page itself must never scroll sideways (BO-B17).
   child already prints ۷.
 - **Always expanded.** `p-tree` gets `expanded: true` on every node: tc 1 asks for two visible levels,
   and clicking each row to see one level is not a tree.
+- **The component sorts; it does not trust the response.** `toTreeNodes` sorts each level by `order`
+  before mapping, so a backend that forgets (or a fixture written out of order) cannot leak onto the
+  screen. The mock sorts too, but only the client-side sort is under test.
+- **Keyboard rides on the row, not on PrimeNG's toggler.** v21 renders the only toggle button with
+  `tabindex="-1"` and leaves the node itself unfocusable, so a keyboard user cannot reach the tree at
+  all. The row wrapper is `tabindex="0"` with `aria-expanded`, and Enter/Space forwards a click to
+  that button so the component's own expand/collapse logic still runs.
+- **The toggler icon is a template.** PrimeNG's default chevron points right when collapsed, which
+  reads as "go back" in RTL; a `togglericon` template prints `pi-chevron-left` (collapsed) and
+  `pi-chevron-down` (open).
+- **The tree's background is a token override, not a repaint.** The preset paints `.p-tree` with
+  `--p-tree-background` (a near-black in dark mode), so the element carries
+  `style="--p-tree-background: transparent"` and the card's surface shows through.
+- **An empty tree is not rendered.** PrimeNG prints its own English «No results found» inside an
+  empty `value`, which would sit under our Persian empty state; the wrapper is only mounted when
+  `nodes().length > 0`.
+- **Icon names are checked against the shipped PrimeIcons.** `pi-hdd` and `pi-battery-half` do not
+  exist in the font and render as blank space; storage uses `pi-database` and batteries `pi-bolt`.
 
 ### Sales chart and Chart.js testing (BO-E03)
 

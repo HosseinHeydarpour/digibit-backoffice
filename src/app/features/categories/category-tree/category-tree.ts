@@ -98,6 +98,32 @@ export class CategoryTree {
     this.load();
   }
 
+  /**
+   * Enter / Space on a focused row toggles its branch (tc 9 keyboard).
+   *
+   * PrimeNG puts the only toggle button at `tabindex="-1"`, so a keyboard user
+   * can never reach it: the row itself is focusable instead, and this forwards
+   * the key to that button so the component's own expand/collapse logic runs —
+   * including a bare `p-treenode` row that has no children, where there is
+   * nothing to forward to and nothing happens.
+   */
+  onRowKeydown(event: KeyboardEvent, row: HTMLElement): void {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    const toggle = row
+      .closest('p-treenode')
+      ?.querySelector<HTMLButtonElement>('button.p-tree-node-toggle-button');
+
+    if (!toggle) {
+      return;
+    }
+
+    event.preventDefault();
+    toggle.click();
+  }
+
   private load(): void {
     this.failed.set(false);
 
@@ -116,13 +142,18 @@ export class CategoryTree {
 }
 
 /**
- * CategoryNode → PrimeNG `TreeNode`.
+ * CategoryNode → PrimeNG `TreeNode`, sorted by `order` at every level.
  *
  * `expanded` is always true: tc 1 asks for two visible levels, and a user who
  * has to click every row to see what is inside is not reading a tree.
  *
- * TRACE — `{ id: 'c-1', name: 'لوازم تحریر', icon: 'pi pi-pen-to-square',
- * children: [{ …دفتر و کاغذ }] }` becomes
+ * SORTING IS DONE HERE, not trusted from the response: the API contract says
+ * `order` decides the position, and a backend that forgets to sort (or a test
+ * fixture written in another order) must not leak into the screen. A tree whose
+ * roots are 4, 1, 7 reads like random data.
+ *
+ * TRACE — `{ id: 'c-1', name: 'لوازم تحریر', order: 1, icon: 'pi pi-pen-to-square',
+ * children: [{ …دفتر و کاغذ, order: 1 }] }` becomes
  * `{ key: 'c-1', label: 'لوازم تحریر', expanded: true, data: <the node>,
  *    children: [{ key: 'c-1-1', label: 'دفتر و کاغذ', … }] }`.
  *
@@ -132,11 +163,13 @@ export class CategoryTree {
  * page forgets to pass one.
  */
 function toTreeNodes(nodes: readonly CategoryNode[]): TreeNode[] {
-  return nodes.map((node) => ({
-    key: node.id,
-    label: node.name,
-    data: node,
-    expanded: true,
-    children: toTreeNodes(node.children),
-  }));
+  return [...nodes]
+    .sort((a, b) => a.order - b.order)
+    .map((node) => ({
+      key: node.id,
+      label: node.name,
+      data: node,
+      expanded: true,
+      children: toTreeNodes(node.children),
+    }));
 }

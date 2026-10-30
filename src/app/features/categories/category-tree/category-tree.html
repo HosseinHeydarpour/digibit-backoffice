@@ -71,52 +71,81 @@
       <!--
         `p-tree` scrolls inside the card (tc 9): a deep tree on a phone must not
         push the page sideways or grow past the viewport.
+
+        The tree is rendered only when there is something to show: an empty
+        `value` makes PrimeNG print its own English «No results found» under our
+        Persian empty state, which is one message too many.
       -->
-      <div class="max-h-[70vh] overflow-auto p-2 sm:p-4" data-category-tree>
-        <p-tree [value]="nodes()" [filter]="false" [metaKeySelection]="false">
-          <ng-template pTemplate="default" let-node>
-            <div class="flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-1 py-1">
+      @if (nodes().length > 0) {
+        <div class="max-h-[70vh] overflow-auto p-2 sm:p-4" data-category-tree>
+          <p-tree
+            [value]="nodes()"
+            [filter]="false"
+            [metaKeySelection]="false"
+            style="--p-tree-background: transparent"
+          >
+            <!--
+              Chevron in the reading direction: collapsed points left in RTL,
+              open points down. PrimeNG's default is right, which reads as
+              "go back" to a Persian user.
+            -->
+            <ng-template pTemplate="togglericon" let-expanded>
               <i
-                [class]="node.data.icon ?? 'pi pi-folder'"
-                class="text-gray-400 dark:text-gray-500"
+                [class]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-left'"
+                class="text-xs"
                 aria-hidden="true"
               ></i>
+            </ng-template>
 
-              <span class="min-w-0 truncate font-medium text-gray-900 dark:text-white">
-                {{ node.label }}
-              </span>
-
-              <code
-                class="hidden rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[11px] text-gray-500 sm:inline dark:bg-gray-700 dark:text-gray-400"
-                dir="ltr"
+            <ng-template pTemplate="default" let-node>
+              <div
+                #row
+                tabindex="0"
+                role="button"
+                [attr.aria-expanded]="node.children?.length ? node.expanded : null"
+                (keydown)="onRowKeydown($event, row)"
+                class="flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
-                {{ node.data.slug }}
-              </code>
+                <i
+                  [class]="node.data.icon ?? 'pi pi-folder'"
+                  class="text-gray-400 dark:text-gray-500"
+                  aria-hidden="true"
+                ></i>
 
-              <span
-                class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                [attr.aria-label]="node.data.productCount + ' محصول'"
-              >
-                <i class="pi pi-box text-[10px]" aria-hidden="true"></i>
-                {{ node.data.productCount | persianDigits }}
-              </span>
+                <span class="min-w-0 truncate font-medium text-gray-900 dark:text-white">
+                  {{ node.label }}
+                </span>
 
-              <span
-                class="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                [class]="
-                  node.data.isActive
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                "
-              >
-                {{ node.data.isActive ? 'فعال' : 'غیرفعال' }}
-              </span>
-            </div>
-          </ng-template>
-        </p-tree>
-      </div>
+                <code
+                  class="hidden rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[11px] text-gray-500 sm:inline dark:bg-gray-700 dark:text-gray-400"
+                  dir="ltr"
+                >
+                  {{ node.data.slug }}
+                </code>
 
-      @if (nodes().length === 0) {
+                <span
+                  class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                  [attr.aria-label]="node.data.productCount + ' محصول'"
+                >
+                  <i class="pi pi-box text-[10px]" aria-hidden="true"></i>
+                  {{ node.data.productCount | persianDigits }}
+                </span>
+
+                <span
+                  class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  [class]="
+                    node.data.isActive
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                  "
+                >
+                  {{ node.data.isActive ? 'فعال' : 'غیرفعال' }}
+                </span>
+              </div>
+            </ng-template>
+          </p-tree>
+        </div>
+      } @else {
         <!-- A filter that matches nothing is not an empty shop (tc 8). -->
         <div class="p-6">
           <app-empty-state

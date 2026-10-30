@@ -127,8 +127,11 @@ describe('CategoryTree (BO-G01)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[data-category-tree]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-category-tree]')).toBeNull();
     expect(text()).toContain('دسته‌ای با این جستجو پیدا نشد');
+    // PrimeNG prints its own English empty line inside an empty tree; the tree
+    // is not mounted at all so that message cannot appear under ours.
+    expect(text()).not.toContain('No results found');
   });
 
   it('tc 7: an empty catalogue shows the shared empty state', async () => {
@@ -161,4 +164,40 @@ describe('CategoryTree (BO-G01)', () => {
   function component(): CategoryTree {
     return fixture.componentInstance;
   }
+  it('sorts every level by `order`, whatever order the API answered in', async () => {
+    service.tree = () =>
+      of([
+        { ...TREE[1]!, order: 2 }, // گوشی موبایل
+        { ...TREE[0]!, order: 1 }, // لوازم تحریر
+      ]);
+
+    const fresh = TestBed.createComponent(CategoryTree);
+    await fresh.whenStable();
+    fresh.detectChanges();
+
+    const labels = Array.from(
+      fresh.nativeElement.querySelectorAll(
+        '[data-category-tree] p-treenode',
+      ) as NodeListOf<HTMLElement>,
+    ).map((node) => node.textContent?.trim() ?? '');
+
+    expect(labels[0]).toContain('لوازم تحریر');
+    expect(labels[0]).toContain('دفتر و کاغذ'); // its children follow it
+    expect(labels.at(-1)).toContain('گوشی موبایل');
+  });
+
+  it('Enter on a focused row toggles the branch (keyboard)', async () => {
+    const firstRow = fixture.nativeElement.querySelector(
+      '[data-category-tree] p-treenode [role="button"]',
+    ) as HTMLElement;
+    expect(firstRow.getAttribute('tabindex')).toBe('0');
+
+    const before = fixture.nativeElement.querySelectorAll('p-treenode').length;
+    firstRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const after = fixture.nativeElement.querySelectorAll('p-treenode').length;
+    expect(after).toBeLessThan(before);
+  });
 });
