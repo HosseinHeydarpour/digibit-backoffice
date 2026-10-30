@@ -172,13 +172,16 @@
       aria-hidden="true"
     ></i>
 
-    <div class="min-w-0 flex-1">
+    <div class="min-w-0 flex-1 sm:max-w-[26rem]">
       <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ node.name }}</p>
-      <p
-        class="hidden truncate font-mono text-[11px] text-gray-500 sm:block dark:text-gray-400"
-        dir="ltr"
-      >
-        {{ node.slug }}
+      <!--
+        The slug is INLINE with `dir="ltr"`: as a block with `dir="ltr"` it becomes
+        an LTR paragraph inside an RTL column, so its text jumps to the far left
+        of the row while the name stays right. Inline keeps it tucked under the
+        name, still reading left-to-right.
+      -->
+      <p class="hidden truncate text-[11px] sm:block">
+        <code dir="ltr" class="font-mono text-gray-500 dark:text-gray-400">{{ node.slug }}</code>
       </p>
     </div>
 
@@ -206,7 +209,7 @@
       (click)="openEdit(node)"
       data-edit-category
       [attr.aria-label]="'ویرایش دستهٔ ' + node.name"
-      class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
+      class="ms-auto inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
     >
       <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
     </button>
