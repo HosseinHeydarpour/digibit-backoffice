@@ -1,0 +1,57 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as BrandFormStories from '../app/features/brands/brand-form/brand-form.stories';
+import * as BrandListStories from '../app/features/brands/brand-list/brand-list.stories';
+
+<Meta title="Features/Brands" />
+
+# برندها / Brands
+
+صفحهٔ برندها (BO-G05): یک لیست صفحه‌بندی‌شده با جستجو، پیل وضعیت، سوییچ فعال/غیرفعال و
+دیالوگ ایجاد/ویرایش؛ همان الگوی صفحهٔ دسته‌بندی‌ها، بدون درخت.
+
+The brands screen (BO-G05): a paged, searchable list with a status pill, an active switch and a
+create/edit dialog — the categories page's structure without the tree.
+
+## کاربرد / Use case
+
+وقتی فروشگاه چند برند دارد و محصول باید در فیلتر برند دسته‌بندی شود. صفحه برای چند ده برند ساخته
+شده؛ لیست هزارتایی به صفحه‌بندی و جستجوی سمت سرور (که همین‌جا هست) و شاید مجازی‌سازی نیاز دارد.
+
+Use it when the shop carries more than a handful of brands and the product filters group by them.
+The page is built for a few dozen brands; it already searches and pages on the server, so a
+thousand rows would only need virtual scrolling on top.
+
+## رفتارها / Behaviour
+
+- **جستجو debounce دارد و سمت سرور است.** هر عبارت تازه از صفحهٔ ۱ شروع می‌شود و برچسب
+  «صفحهٔ ۱ از ۳» از `total` سرور می‌آید، نه از تعداد ردیف‌های بارگذاری‌شده (tc 1).
+- **ناوبری صفحه دکمه است، نه لینک.** «قبلی/بعدی» با `disabled` واقعی و متن صفحه، و با یک صفحه
+  اصلاً رندر نمی‌شود.
+- **سوییچ وضعیت خوش‌بین است.** پیل قبل از پاسخ سرور عوض می‌شود؛ خطا صفحه را دوباره می‌گیرد و
+  پیام خطا از اینترسپتور می‌آید، نه از دکمه (tc 6).
+- **حذف با هشدار تعداد محصول.** اگر برند در محصولی استفاده شده باشد، متن تأیید می‌گوید
+  «N محصول بدون برند می‌شوند»؛ خود محصول‌ها حذف نمی‌شوند و از فیلتر برند هم برداشته می‌شوند (tc 7/9).
+- **نام و نامک یکتا هستند.** خطای ۴۲۲ سرور زیر همان فیلد می‌نشیند و دیالوگ باز می‌ماند (tc 5).
+- **نامک از نام ساخته می‌شود** (`slugify` مشترک) و با ویرایش دستی دیگر عوض نمی‌شود (tc 4).
+- **لوگو تا BO-G06 یک نشانی تصویر است**؛ همان قاب ۴۰px با پیش‌نمایش و حرف اول به‌عنوان جایگزین.
+
+- **Search is debounced and server-side.** Every query starts at page 1, and the label comes from the
+  server's `total`, not from the loaded rows (tc 1).
+- **Paging is two real buttons.** They disable at the edges and disappear when there is one page.
+- **The status switch is optimistic**; a failure reloads the page and the interceptor reports it (tc 6).
+- **Delete warns with the product count**; those products are unbranded, never deleted, and the brand
+  leaves the product filter (tc 7/9).
+- **Name and slug are unique**; a 422 lands under its field and the dialog stays open (tc 5).
+- **The slug follows the name** until edited by hand (tc 4).
+- **The logo is a URL until BO-G06** adds the upload, with a 40px preview and an initial fallback.
+
+## پیش‌نمایش / Preview
+
+<Canvas of={BrandListStories.Default} />
+
+## ایجاد و ویرایش / Create and edit
+
+<Canvas of={BrandFormStories.Create} />
+
+<Canvas of={BrandFormStories.Edit} />

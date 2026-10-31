@@ -76,7 +76,7 @@ export const routes: Routes = [
         path: 'brands',
         data: { title: 'برندها', breadcrumb: 'برندها' },
         title: 'برندها',
-        children: [],
+        loadChildren: () => import('@features/brands/brands.routes').then((m) => m.BRANDS_ROUTES),
       },
       {
         path: 'orders',

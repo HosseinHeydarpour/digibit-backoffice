@@ -1,0 +1,144 @@
+<form [formGroup]="form" (submit)="$event.preventDefault(); save()" class="space-y-5">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div class="sm:col-span-2">
+      <label
+        for="brand-name"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        نام برند <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="brand-name"
+        type="text"
+        pInputText
+        formControlName="name"
+        placeholder="مثلاً سامسونگ"
+        class="w-full"
+      />
+      @if (errorFor('name')) {
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ errorFor('name') }}</p>
+      }
+    </div>
+
+    <div class="sm:col-span-2">
+      <label
+        for="brand-slug"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        نامک (slug) <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="brand-slug"
+        type="text"
+        pInputText
+        formControlName="slug"
+        (input)="onSlugInput()"
+        dir="ltr"
+        placeholder="samsung"
+        class="w-full text-left font-mono"
+      />
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        از نام ساخته می‌شود و قابل ویرایش است؛ فقط حروف انگلیسی، عدد و خط تیره.
+      </p>
+      @if (errorFor('slug')) {
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ errorFor('slug') }}</p>
+      }
+    </div>
+
+    <!--
+      The logo is a URL for now: BO-G06 owns the upload, its size/type checks and
+      the remove-from-server button. Keeping the field here means the form is
+      already the one the upload will attach to.
+    -->
+    <div class="sm:col-span-2">
+      <label
+        for="brand-logo"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        لوگو (نشانی تصویر)
+      </label>
+      <div class="flex items-center gap-3">
+        <span
+          class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 text-sm font-bold text-gray-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300"
+        >
+          @if (logoPreview()) {
+            <img
+              [src]="logoPreview()"
+              [alt]="form.controls.name.value + ' — لوگو'"
+              class="size-full object-contain"
+            />
+          } @else {
+            {{ form.controls.name.value.trim().charAt(0) || '؟' }}
+          }
+        </span>
+        <input
+          id="brand-logo"
+          type="url"
+          pInputText
+          formControlName="logo"
+          dir="ltr"
+          placeholder="https://…"
+          class="w-full text-left"
+        />
+      </div>
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        بارگذاری فایل در BO-G06 اضافه می‌شود؛ تا آن موقع نشانی تصویر کافی است.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <p-toggleswitch inputId="brand-active" formControlName="isActive" />
+      <label for="brand-active" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+        فعال
+      </label>
+    </div>
+
+    <div class="sm:col-span-2">
+      <label
+        for="brand-description"
+        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        توضیحات
+      </label>
+      <textarea
+        id="brand-description"
+        rows="3"
+        pTextarea
+        formControlName="description"
+        placeholder="توضیح کوتاه (اختیاری)"
+        class="w-full"
+      ></textarea>
+    </div>
+  </div>
+
+  @if (saveError(); as message) {
+    <div
+      role="alert"
+      class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"
+    >
+      {{ message }}
+    </div>
+  }
+
+  <div
+    class="flex flex-col-reverse gap-2 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end dark:border-gray-700"
+  >
+    <button
+      type="button"
+      (click)="cancel()"
+      class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 max-sm:min-h-11 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+    >
+      انصراف
+    </button>
+    <button
+      type="submit"
+      pLoading
+      [loading]="saving()"
+      data-save-brand
+      class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11"
+    >
+      <i [class]="saving() ? 'pi pi-spinner pi-spin' : 'pi pi-check'" aria-hidden="true"></i>
+      {{ saving() ? 'در حال ذخیره…' : isEdit() ? 'ذخیره تغییرات' : 'افزودن برند' }}
+    </button>
+  </div>
+</form>

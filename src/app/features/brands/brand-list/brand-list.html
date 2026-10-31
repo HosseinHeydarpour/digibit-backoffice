@@ -1,0 +1,257 @@
+<app-page-header title="برندها" description="مدیریت برندهای فروشگاه">
+  @if (canManage()) {
+    <button
+      page-header-actions
+      type="button"
+      (click)="openCreate()"
+      data-add-brand
+      class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+    >
+      <i class="pi pi-plus" aria-hidden="true"></i>
+      افزودن برند
+    </button>
+  }
+</app-page-header>
+
+<section
+  class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  <label for="brand-search" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+    جستجو
+  </label>
+  <p-iconfield class="w-full sm:max-w-md">
+    <p-inputicon class="pi pi-search" />
+    <input
+      #searchInput
+      id="brand-search"
+      type="search"
+      pInputText
+      [value]="search()"
+      (input)="onSearch($any($event.target).value)"
+      placeholder="نام یا نامک برند…"
+      class="w-full"
+    />
+  </p-iconfield>
+</section>
+
+<div
+  class="rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  @if (failed()) {
+    <div class="p-6">
+      <app-error-state
+        title="دریافت برندها ناموفق بود"
+        description="اتصال خود را بررسی کنید و دوباره تلاش کنید."
+        (retry)="retry()"
+      />
+    </div>
+  } @else if (rows() === null) {
+    <div class="p-6" role="status" aria-label="در حال بارگذاری برندها">
+      <app-loading-block [loading]="true" variant="list" [rows]="5" />
+    </div>
+  } @else if (rows()!.length === 0) {
+    @if (search() !== '') {
+      <app-empty-state
+        icon="pi pi-search"
+        title="برندی با این جستجو پیدا نشد"
+        description="عبارت کوتاه‌تری امتحان کنید یا جستجو را پاک کنید."
+        actionLabel="پاک کردن جستجو"
+        (action)="clearSearch(searchInput)"
+      />
+    } @else {
+      <app-empty-state
+        icon="pi pi-tags"
+        title="هنوز برندی ساخته نشده"
+        description="برندها محصول را در فیلترها دسته‌بندی می‌کنند؛ اولین برند را با دکمهٔ بالا اضافه کنید."
+      />
+    }
+  } @else {
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-700/50">
+          <tr>
+            <th
+              scope="col"
+              class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            >
+              برند
+            </th>
+            <th
+              scope="col"
+              class="hidden px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 sm:table-cell dark:text-gray-400"
+            >
+              تعداد محصول
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            >
+              وضعیت
+            </th>
+            @if (canManage()) {
+              <th
+                scope="col"
+                class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+              >
+                عملیات
+              </th>
+            }
+          </tr>
+        </thead>
+
+        <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+          @for (item of rows(); track item.id) {
+            <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/50">
+              <!-- Logo + name + slug: the slug under the name, read left-to-right. -->
+              <td class="px-6 py-4 text-start">
+                <span class="flex items-center gap-3">
+                  <span
+                    class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 text-sm font-bold text-gray-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                  >
+                    @if (item.logo) {
+                      <img
+                        [src]="item.logo"
+                        [alt]="item.name + ' — لوگو'"
+                        class="size-full object-contain"
+                      />
+                    } @else {
+                      {{ item.name.charAt(0) }}
+                    }
+                  </span>
+
+                  <span class="min-w-0">
+                    <span
+                      class="block max-w-48 truncate text-sm font-medium text-gray-900 dark:text-white"
+                      [title]="item.name"
+                    >
+                      {{ item.name }}
+                    </span>
+                    <span
+                      class="block max-w-48 truncate text-[11px] text-gray-500 dark:text-gray-400"
+                    >
+                      <code dir="ltr">{{ item.slug }}</code>
+                    </span>
+                  </span>
+                </span>
+              </td>
+
+              <td
+                class="hidden px-6 py-4 text-start text-sm tabular-nums text-gray-500 sm:table-cell dark:text-gray-400"
+              >
+                {{ item.productCount | persianDigits }}
+              </td>
+
+              <td class="px-6 py-4 text-start">
+                <span
+                  class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+                  [class]="
+                    item.isActive
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                  "
+                >
+                  {{ item.isActive ? 'فعال' : 'غیرفعال' }}
+                </span>
+              </td>
+
+              @if (canManage()) {
+                <td class="px-6 py-4 text-start">
+                  <div class="flex items-center gap-1">
+                    <button
+                      type="button"
+                      (click)="toggleStatus(item)"
+                      [attr.data-toggle-brand]="item.id"
+                      [attr.aria-pressed]="item.isActive"
+                      [attr.aria-label]="
+                        (item.isActive ? 'غیرفعال کردن ' : 'فعال کردن ') + item.name
+                      "
+                      class="inline-flex size-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-400 dark:hover:bg-gray-700"
+                    >
+                      <i class="pi pi-power-off text-sm" aria-hidden="true"></i>
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="openEdit(item)"
+                      [attr.data-edit-brand]="item.id"
+                      [attr.aria-label]="'ویرایش ' + item.name"
+                      class="inline-flex size-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-400 dark:hover:bg-gray-700"
+                    >
+                      <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="removeBrand(item)"
+                      [attr.data-delete-brand]="item.id"
+                      [attr.aria-label]="'حذف ' + item.name"
+                      class="inline-flex size-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-red-50 hover:text-red-600 max-sm:size-11 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                    >
+                      <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!--
+      Server paging: the arrows are the whole control because a brand list is
+      short, and «صفحهٔ ۲ از ۳» tells the user where they are. Both buttons are
+      real <button>s, and they disappear (not just disable) when there is one page.
+    -->
+    @if (pageCount() > 1) {
+      <div
+        class="flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-3 dark:border-gray-700"
+      >
+        <button
+          type="button"
+          (click)="goTo(page() - 1)"
+          [disabled]="page() === 1"
+          data-prev-page
+          class="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 max-sm:min-h-11 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+        >
+          <i class="pi pi-chevron-right text-xs" aria-hidden="true"></i>
+          قبلی
+        </button>
+
+        <span class="text-sm text-gray-600 dark:text-gray-300">
+          صفحهٔ {{ page() | persianDigits }} از {{ pageCount() | persianDigits }}
+        </span>
+
+        <button
+          type="button"
+          (click)="goTo(page() + 1)"
+          [disabled]="page() === pageCount()"
+          data-next-page
+          class="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 max-sm:min-h-11 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+        >
+          بعدی
+          <i class="pi pi-chevron-left text-xs" aria-hidden="true"></i>
+        </button>
+      </div>
+    }
+  }
+</div>
+
+<!--
+  One dialog for create and edit, the same split as the categories page: the page
+  owns `<p-dialog>` and the form is a plain component inside it.
+-->
+<p-dialog
+  [visible]="dialogOpen()"
+  (visibleChange)="dialogOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: '34rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+  [header]="editing() ? 'ویرایش برند' : 'افزودن برند'"
+>
+  @if (dialogOpen()) {
+    <app-brand-form [brand]="editing()" (saved)="onSaved($event)" (cancelled)="closeDialog()" />
+  }
+</p-dialog>

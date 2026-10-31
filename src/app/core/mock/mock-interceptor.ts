@@ -198,6 +198,42 @@ function seedCategories(): MockCategory[] {
 const CATEGORIES: MockCategory[] = seedCategories();
 
 /**
+ * The mutable brand store (BO-G05).
+ *
+ * `MOCK_BRANDS` stays the frozen seed; this array takes the writes, and
+ * `resetMockState()` rebuilds it, so a spec that renames a brand cannot leak into
+ * the next one. `productCount` is NOT stored: it is counted from `catalogue()` on
+ * every read, or a delete would leave a stale number on the row.
+ */
+interface MockBrand {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+  isActive: boolean;
+  description: string;
+  createdAt: number;
+}
+
+function seedBrands(): MockBrand[] {
+  return fixtures.MOCK_BRANDS.map((brand) => ({
+    ...brand,
+    logo: brand.logo ?? null,
+    description: '',
+    createdAt: fixtures.FIXTURE_NOW,
+  }));
+}
+
+const BRANDS: MockBrand[] = seedBrands();
+
+/**
+ * The brand a product lost when its brand was deleted: product id → brand id or
+ * `null`. The seed products are frozen, so the change is an overlay applied by
+ * `catalogue()` — the same trick `MOVED_PRODUCTS` uses for categories (tc 7).
+ */
+const MOVED_BRANDS = new Map<string, string | null>();
+
+/**
  * The uniqueness answer `GET /products/slug-check` gives (BO-F16 tc 4).
  *
  * TRACE — `?slug=product-mvdxp0oajc1dk` (an existing product):
@@ -307,7 +343,7 @@ function resolve(
 
       return paged(CATEGORIES, page, pageSize);
     case 'brands':
-      return paged(fixtures.MOCK_BRANDS, page, pageSize);
+      return resolveBrands(method, id, sub, params, body, page, pageSize);
     case 'coupons':
       return paged(fixtures.MOCK_COUPONS, page, pageSize);
     case 'shipping-methods':
@@ -835,6 +871,186 @@ function placeCategory(id: string, body: unknown): MockResolution {
 }
 
 /** Is `candidateId` somewhere under `ancestorId`? (cycle guard) */
+/**
+ * `GET/POST /brands` (BO-G05 tc 1/2).
+ *
+ * TRACE — the list page asks for «سامسونگ»:
+ *
+ *   1. `query` is trimmed and lower-cased; Persian has no case, so a Latin slug
+ *      match still works.
+ *   2. The filter looks at name AND slug, because the row prints both.
+ *   3. `toBrandListItem` counts the products per row from `catalogue()`, so the
+ *      number is the one the products table would show (tc 1).
+ *   4. `paged` slices the rows and returns the server's total, which is what the
+ *      «صفحهٔ ۱ از ۳» label needs.
+ */
+function resolveBrands(
+  method: string,
+  id: string | undefined,
+  sub: string | undefined,
+  params: ParamReader,
+  body: unknown,
+  page: number,
+  pageSize: number,
+): MockResolution {
+  if (id) {
+    return resolveBrand(method, id, sub, body);
+  }
+
+  if (method === 'POST') {
+    return createBrand(body);
+  }
+
+  const query = (params.get('query') ?? '').trim().toLowerCase();
+  const rows = BRANDS.filter(
+    (brand) => query === '' || `${brand.name} ${brand.slug}`.toLowerCase().includes(query),
+  );
+
+  return paged(rows.map(toBrandListItem), page, pageSize);
+}
+
+/** Products that point at this brand and are not soft-deleted. */
+function brandProductCount(brandId: string): number {
+  return catalogue().filter(
+    (product) => product.brandId === brandId && !DELETED_IDS.has(product.id),
+  ).length;
+}
+
+function toBrandListItem(brand: MockBrand): Record<string, unknown> {
+  return {
+    id: brand.id,
+    name: brand.name,
+    slug: brand.slug,
+    logo: brand.logo,
+    isActive: brand.isActive,
+    productCount: brandProductCount(brand.id),
+  };
+}
+
+function toBrand(brand: MockBrand): Record<string, unknown> {
+  return { ...toBrandListItem(brand), description: brand.description, createdAt: brand.createdAt };
+}
+
+/** Name and slug are unique across the catalogue; the edited brand owns its own. */
+function validateBrand(body: unknown, selfId?: string): MockResolution | null {
+  const data = asRecord(body);
+  const name = text(data['name'], '').trim();
+  const slug = text(data['slug'], '').trim();
+  const fields: Record<string, string[]> = {};
+  const others = BRANDS.filter((brand) => brand.id !== selfId);
+
+  if (name === '') {
+    fields['name'] = ['نام برند الزامی است.'];
+  } else if (others.some((brand) => brand.name.trim() === name)) {
+    fields['name'] = ['برندی با این نام وجود دارد.'];
+  }
+
+  if (slug === '') {
+    fields['slug'] = ['نامک (slug) الزامی است.'];
+  } else if (others.some((brand) => brand.slug === slug)) {
+    fields['slug'] = ['این نامک قبلاً استفاده شده است.'];
+  }
+
+  if (Object.keys(fields).length === 0) {
+    return null;
+  }
+
+  return {
+    status: 422,
+    body: { error: { code: 'VALIDATION', message: 'اطلاعات برند کامل نیست.', fields } },
+  };
+}
+
+function createBrand(body: unknown): MockResolution {
+  const rejected = validateBrand(body);
+
+  if (rejected) {
+    return rejected;
+  }
+
+  const data = asRecord(body);
+  const logo = data['logo'];
+
+  const brand: MockBrand = {
+    id: `brand-new-${BRANDS.length + 1}`,
+    name: text(data['name'], 'بدون نام').trim(),
+    slug: text(data['slug'], `brand-new-${BRANDS.length + 1}`).trim(),
+    logo: logo === null || logo === undefined || logo === '' ? null : String(logo),
+    isActive: data['isActive'] !== false,
+    description: text(data['description'], ''),
+    createdAt: Date.now(),
+  };
+
+  BRANDS.push(brand);
+
+  return created(toBrand(brand), 'برند ایجاد شد.');
+}
+
+/**
+ * `GET/PUT/PATCH/DELETE /brands/:id` (BO-G05 tc 2/3/6/7).
+ *
+ * A delete never leaves an orphan: the products of that brand are mapped to
+ * `null` in `MOVED_BRANDS`, so the next read shows «—» in their brand column and
+ * the products filter no longer offers the row (tc 7/9).
+ */
+function resolveBrand(
+  method: string,
+  id: string,
+  sub: string | undefined,
+  body: unknown,
+): MockResolution {
+  const found = BRANDS.find((brand) => brand.id === id);
+
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  if (method === 'DELETE') {
+    const affected = catalogue().filter(
+      (product) => product.brandId === id && !DELETED_IDS.has(product.id),
+    );
+
+    for (const product of affected) {
+      MOVED_BRANDS.set(product.id, null);
+    }
+
+    const index = BRANDS.findIndex((brand) => brand.id === id);
+
+    if (index >= 0) {
+      BRANDS.splice(index, 1);
+    }
+
+    return ok({ id, movedProducts: affected.length }, 'برند حذف شد.');
+  }
+
+  if (method === 'PATCH' && sub === 'status') {
+    found.isActive = asRecord(body)['isActive'] !== false;
+
+    return ok(toBrand(found), 'وضعیت برند تغییر کرد.');
+  }
+
+  if (method !== 'PUT' && method !== 'PATCH') {
+    return ok(toBrand(found));
+  }
+
+  const rejected = validateBrand(body, id);
+
+  if (rejected) {
+    return rejected;
+  }
+
+  const data = asRecord(body);
+  const logo = data['logo'];
+
+  found.name = text(data['name'], found.name).trim();
+  found.slug = text(data['slug'], found.slug).trim();
+  found.logo = logo === null || logo === undefined || logo === '' ? null : String(logo);
+  found.isActive = data['isActive'] !== false;
+  found.description = text(data['description'], found.description);
+
+  return ok(toBrand(found), 'برند ذخیره شد.');
+}
+
 function isDescendantOf(candidateId: string, ancestorId: string): boolean {
   let current = CATEGORIES.find((category) => category.id === candidateId);
 
@@ -995,8 +1211,10 @@ const MOVED_PRODUCTS = new Map<string, string>();
 export function resetMockState(): void {
   DELETED_IDS.clear();
   MOVED_PRODUCTS.clear();
+  MOVED_BRANDS.clear();
   CREATED_PRODUCTS.length = 0;
   CATEGORIES.splice(0, CATEGORIES.length, ...seedCategories());
+  BRANDS.splice(0, BRANDS.length, ...seedBrands());
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */
@@ -1108,9 +1326,14 @@ const CREATED_PRODUCTS: fixtures.MockProduct[] = [];
 /** Every product the mock knows about: the export plus this session's writes. */
 function catalogue(): fixtures.MockProduct[] {
   return [...fixtures.MOCK_PRODUCTS, ...CREATED_PRODUCTS].map((product) => {
-    const moved = MOVED_PRODUCTS.get(product.id);
+    const movedCategory = MOVED_PRODUCTS.get(product.id);
+    const movedBrand = MOVED_BRANDS.get(product.id);
+    const categoryId = movedCategory === undefined ? product.categoryId : movedCategory;
+    const brandId = movedBrand === undefined ? product.brandId : movedBrand;
 
-    return moved === undefined ? product : { ...product, categoryId: moved };
+    return categoryId === product.categoryId && brandId === product.brandId
+      ? product
+      : { ...product, categoryId, brandId };
   });
 }
 

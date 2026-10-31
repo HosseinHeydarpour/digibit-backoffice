@@ -894,6 +894,104 @@ describe('mockInterceptor', () => {
     expect(moved.data.map((item) => item.id)).toContain(created.data.id);
   });
 
+  it('pages and searches the brand list (BO-G05 tc 1)', async () => {
+    const page = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; productCount: number }[]> & { meta: { total: number } }>(
+        '/api/v1/brands',
+        { headers: { [MOCK_HEADER]: '1' }, params: { page: 1, pageSize: 3 } },
+      ),
+    );
+
+    expect(page.data).toHaveLength(3);
+    expect(page.meta.total).toBe(8);
+
+    const search = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/brands', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { query: 'brand-6' },
+      }),
+    );
+
+    expect(search.data.map((brand) => brand.id)).toEqual(['6']);
+  });
+
+  it('creates a brand and refuses a duplicate name or slug (tc 2/5)', async () => {
+    const created = await firstValueFrom(
+      http.post<ApiResponse<{ id: string; slug: string }>>(
+        '/api/v1/brands',
+        { name: 'برند آزمایشی', slug: 'test-brand', isActive: true },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(created.data.slug).toBe('test-brand');
+
+    const clash = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>(
+          '/api/v1/brands',
+          { name: 'برند آزمایشی', slug: 'another' },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((error: HttpErrorResponse) => of(error))),
+    );
+
+    expect(clash.status).toBe(422);
+    expect(clash.error.error.fields.name[0]).toContain('وجود دارد');
+  });
+
+  it('updates a brand and toggles it (tc 3/6)', async () => {
+    const updated = await firstValueFrom(
+      http.put<ApiResponse<{ name: string }>>(
+        '/api/v1/brands/1',
+        { name: 'سندیسک پلاس', slug: 'brand-1', isActive: true, description: '' },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+    expect(updated.data.name).toBe('سندیسک پلاس');
+
+    const toggled = await firstValueFrom(
+      http.patch<ApiResponse<{ isActive: boolean }>>(
+        '/api/v1/brands/1/status',
+        { isActive: false },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+    expect(toggled.data.isActive).toBe(false);
+  });
+
+  it('deletes a brand and unbrands its products (tc 7/9)', async () => {
+    const before = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { brandId: '6' },
+      }),
+    );
+    expect(before.data.length).toBeGreaterThan(0);
+
+    const removed = await firstValueFrom(
+      http.delete<ApiResponse<{ movedProducts: number }>>('/api/v1/brands/6', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(removed.data.movedProducts).toBe(before.data.length);
+
+    const after = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/products', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { brandId: '6' },
+      }),
+    );
+    expect(after.data).toEqual([]);
+
+    const brands = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/brands', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(brands.data.map((brand) => brand.id)).not.toContain('6');
+  });
+
   /** `POST /categories` with only the fields the mock needs. */
   async function createCategory(name: string, slug: string, parentId?: string): Promise<string> {
     const created = await firstValueFrom(
