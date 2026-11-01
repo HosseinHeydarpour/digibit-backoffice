@@ -34,7 +34,9 @@ thousand rows would only need virtual scrolling on top.
   «N محصول بدون برند می‌شوند»؛ خود محصول‌ها حذف نمی‌شوند و از فیلتر برند هم برداشته می‌شوند (tc 7/9).
 - **نام و نامک یکتا هستند.** خطای ۴۲۲ سرور زیر همان فیلد می‌نشیند و دیالوگ باز می‌ماند (tc 5).
 - **نامک از نام ساخته می‌شود** (`slugify` مشترک) و با ویرایش دستی دیگر عوض نمی‌شود (tc 4).
-- **لوگو تا BO-G06 یک نشانی تصویر است**؛ همان قاب ۴۰px با پیش‌نمایش و حرف اول به‌عنوان جایگزین.
+- **لوگو هنگام ذخیره آپلود می‌شود.** انتخاب فایل فقط پیش‌نمایش ۱:۱ با `blob:` و اعتبارسنجی
+  است؛ «ذخیره» اول `POST /media` و بعد برند را با URL می‌فرستد. «انصراف» هیچ درخواستی نمی‌فرستد.
+  PNG/SVG/WebP تا ۱ مگابایت؛ «حذف لوگو» مقدار `logo: null` می‌فرستد (tc 1–10).
 
 - **Search is debounced and server-side.** Every query starts at page 1, and the label comes from the
   server's `total`, not from the loaded rows (tc 1).
@@ -44,7 +46,9 @@ thousand rows would only need virtual scrolling on top.
   leaves the product filter (tc 7/9).
 - **Name and slug are unique**; a 422 lands under its field and the dialog stays open (tc 5).
 - **The slug follows the name** until edited by hand (tc 4).
-- **The logo is a URL until BO-G06** adds the upload, with a 40px preview and an initial fallback.
+- **The logo uploads on save.** Picking a file only validates it and shows a 1:1 `blob:` preview;
+  «ذخیره» sends `POST /media` first and then the brand with the returned URL. «انصراف» sends
+  nothing. PNG/SVG/WebP up to 1 MB; «حذف لوگو» saves `logo: null` (tc 1–10).
 
 ## پیش‌نمایش / Preview
 
@@ -55,3 +59,5 @@ thousand rows would only need virtual scrolling on top.
 <Canvas of={BrandFormStories.Create} />
 
 <Canvas of={BrandFormStories.Edit} />
+
+<Canvas of={BrandFormStories.WithLogo} />

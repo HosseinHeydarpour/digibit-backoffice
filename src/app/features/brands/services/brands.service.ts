@@ -51,6 +51,28 @@ export class BrandsService {
   }
 
   /**
+   * `POST /media` — the logo bytes, answered with the URL the brand stores
+   * (BO-G06).
+   *
+   * TRACE — `uploadLogo(png)`:
+   *
+   *   1. `FormData` carries the file under `file`, the name the contract fixes.
+   *   2. `ApiService.post` sends it without a manual `Content-Type`; Angular
+   *      adds the multipart boundary itself.
+   *   3. The 201 body is `{ data: { url } }`, so `map` hands the form one string.
+   *
+   * The mock answers with a `blob:` URL because it has no CDN; the real endpoint
+   * answers an absolute URL. The form treats both as server-owned and never
+   * revokes them.
+   */
+  uploadLogo(file: File): Observable<string> {
+    const body = new FormData();
+    body.append('file', file);
+
+    return this.api.post<{ url: string }>('/media', body).pipe(map((answer) => answer.url));
+  }
+
+  /**
    * `PATCH /brands/:id/status` — the optimistic toggle (tc 6).
    *
    * Its own endpoint, like the products' status, because the row's switch flips

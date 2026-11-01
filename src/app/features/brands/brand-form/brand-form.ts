@@ -1,6 +1,7 @@
 // src/app/features/brands/brand-form/brand-form.ts
 //
-// The create/edit brand form (BO-G05), rendered inside the page's dialog.
+// The create/edit brand form (BO-G05 + logo upload BO-G06), rendered inside the
+// page's dialog.
 //
 // Same split as `CategoryForm`: this component owns no overlay, so a story and a
 // spec can mount it without animation providers, and the page decides when it is
@@ -15,10 +16,23 @@
 //   4. A 422 with `fields` (a name or slug another brand owns, tc 5) lands under
 //      that field and the dialog stays open with the typed values.
 //   5. Success emits `saved`; the page closes the dialog and refetches the list.
+//
+// TRACE — a PNG is picked for the same brand (BO-G06):
+//
+//   1. `onLogoSelected` validates it against `brand-logo.ts`; nothing is sent.
+//      A `blob:` URL previews it, and `logoFile` holds the bytes in memory.
+//   2. «ذخیره» → `save()` uploads first: `POST /media` → URL.
+//   3. The URL goes into the `logo` control, the local blob is revoked, and the
+//      brand POST/PUT carries `logo: <url>`.
+//   4. A failed upload stops before the brand request and shows the sentence
+//      under the logo. A failed brand save keeps the server URL, so «تلاش
+//      دوباره» does not upload the same file twice.
+//   5. «انصراف» revokes the blob and sends nothing; the server owns no orphan.
 
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -38,6 +52,8 @@ import { take } from 'rxjs';
 
 import type { Brand, BrandInput } from '../models/brand.model';
 import { BrandsService } from '../services/brands.service';
+
+import { LOGO_ACCEPT, LOGO_HINT, logoAlt, logoErrorMessage, validateLogoFile } from './brand-logo';
 
 /** The same ASCII/hyphen rule the categories use, because a slug is a URL. */
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -64,6 +80,7 @@ const slugRule: ValidatorFn = (control) => {
 export class BrandForm {
   private readonly brands = inject(BrandsService);
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   /** The brand being edited, or `null` for a new one. */
   readonly brand = input<Brand | null>(null);
@@ -80,6 +97,7 @@ export class BrandForm {
   readonly form = this.fb.nonNullable.group({
     name: ['', requiredName],
     slug: ['', slugRule],
+    // The URL the server owns; a local file never reaches this control.
     logo: [''],
     isActive: [true],
     description: [''],
@@ -87,8 +105,20 @@ export class BrandForm {
 
   readonly isEdit = computed(() => this.brand() !== null);
 
-  /** Live preview of whatever URL is typed; empty means the initial fallback. */
+  /** A server URL or the `blob:` preview of `logoFile`; empty means the initial. */
   readonly logoPreview = signal('');
+
+  /** The file picked this session; uploaded only when «ذخیره» is pressed. */
+  readonly logoFile = signal<File | null>(null);
+
+  readonly logoError = signal<string | null>(null);
+
+  /**
+   * The `blob:` URL this form created. Kept apart from `logoPreview` because
+   * the mock's server URL is also a `blob:` — revoking that would break the row
+   * in the list after a successful save.
+   */
+  private localPreviewUrl: string | null = null;
 
   private slugEdited = false;
 
@@ -96,6 +126,7 @@ export class BrandForm {
     effect(() => {
       const brand = this.brand();
       this.slugEdited = brand !== null;
+      this.revokeLocalPreview();
       this.form.reset({
         name: brand?.name ?? '',
         slug: brand?.slug ?? '',
@@ -103,7 +134,9 @@ export class BrandForm {
         isActive: brand?.isActive ?? true,
         description: brand?.description ?? '',
       });
+      this.logoFile.set(null);
       this.logoPreview.set(brand?.logo ?? '');
+      this.logoError.set(null);
       this.serverErrors.set({});
       this.saveError.set(null);
     });
@@ -114,12 +147,69 @@ export class BrandForm {
       }
     });
 
-    this.form.controls.logo.valueChanges.subscribe((logo) => this.logoPreview.set(logo.trim()));
+    this.destroyRef.onDestroy(() => this.revokeLocalPreview());
+  }
+
+  /** A getter, not a field: the constants live in the eager spec graph too. */
+  get logoAccept(): string {
+    return LOGO_ACCEPT;
+  }
+
+  get logoHint(): string {
+    return LOGO_HINT;
   }
 
   /** A manual slug edit wins over the generated one (tc 4). */
   onSlugInput(): void {
     this.slugEdited = true;
+  }
+
+  /** The image's alt tracks the name as it is typed (tc 10). */
+  logoAltFor(): string {
+    return logoAlt(this.form.controls.name.value);
+  }
+
+  /**
+   * Choose a logo. This is the only file gate: a rejected file never gets a
+   * preview and never reaches `POST /media` (tc 4/5).
+   */
+  onLogoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    // Reset so picking the SAME file again fires `change` once more.
+    input.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    const error = validateLogoFile(file);
+
+    if (error !== null) {
+      this.logoError.set(logoErrorMessage(file, error));
+      return;
+    }
+
+    // Replacing the preview frees the previous local URL before it is dropped.
+    this.revokeLocalPreview();
+    const preview = URL.createObjectURL(file);
+    this.localPreviewUrl = preview;
+    this.logoFile.set(file);
+    this.logoPreview.set(preview);
+    this.logoError.set(null);
+  }
+
+  /**
+   * Remove the logo. Before saving this is a local change only — no request,
+   * no confirm: «ذخیره» is what sends `logo: null` (tc 3).
+   */
+  removeLogo(): void {
+    this.revokeLocalPreview();
+    this.logoFile.set(null);
+    this.logoPreview.set('');
+    this.logoError.set(null);
+    this.form.controls.logo.setValue('');
   }
 
   /** First visible message for a field: server copy first, then the local rule. */
@@ -143,7 +233,21 @@ export class BrandForm {
     return 'فقط حروف انگلیسی، عدد و خط تیره مجاز است.';
   }
 
-  /** Validate → POST/PUT (tc 2/3/5). A server 422 stays on the field. */
+  /**
+   * Validate → upload (only when a file is waiting) → POST/PUT (tc 1/2/3/5/8).
+   *
+   * TRACE — a fresh PNG and a valid form:
+   *
+   *   1. `uploadLogo(file)` posts the bytes and answers with the server URL.
+   *   2. The URL replaces the local preview, the blob is revoked, and the
+   *      `logo` control holds the URL — never the `blob:` the browser made.
+   *   3. `saveBrand(url)` builds the same `BrandInput` BO-G05 sent and calls
+   *      create/update; a 422 still lands under its field.
+   *
+   * An upload failure returns before `saveBrand`, so the brand is untouched;
+   * a brand failure after a successful upload leaves the URL in the control,
+   * and a retry uploads nothing.
+   */
   save(): void {
     if (this.saving()) {
       return;
@@ -152,21 +256,54 @@ export class BrandForm {
     this.form.markAllAsTouched();
     this.serverErrors.set({});
     this.saveError.set(null);
+    this.logoError.set(null);
 
     if (this.form.invalid) {
       return;
     }
 
+    this.saving.set(true);
+
+    const file = this.logoFile();
+
+    if (!file) {
+      this.saveBrand(this.form.controls.logo.value);
+      return;
+    }
+
+    this.brands
+      .uploadLogo(file)
+      .pipe(take(1))
+      .subscribe({
+        next: (url) => {
+          this.form.controls.logo.setValue(url);
+          this.logoPreview.set(url);
+          this.logoFile.set(null);
+          this.revokeLocalPreview();
+          this.saveBrand(url);
+        },
+        error: (error: unknown) => {
+          this.saving.set(false);
+          this.logoError.set(this.logoUploadMessage(error));
+        },
+      });
+  }
+
+  cancel(): void {
+    this.revokeLocalPreview();
+    this.cancelled.emit();
+  }
+
+  private saveBrand(logo: string): void {
     const value = this.form.getRawValue();
+    const trimmedLogo = logo.trim();
     const dto: BrandInput = {
       name: value.name.trim(),
       slug: value.slug.trim(),
-      logo: value.logo.trim() === '' ? null : value.logo.trim(),
+      logo: trimmedLogo === '' ? null : trimmedLogo,
       isActive: value.isActive,
       description: value.description.trim(),
     };
-
-    this.saving.set(true);
 
     const editing = this.brand();
     const request = editing ? this.brands.update(editing.id, dto) : this.brands.create(dto);
@@ -190,8 +327,20 @@ export class BrandForm {
     });
   }
 
-  cancel(): void {
-    this.cancelled.emit();
+  private logoUploadMessage(error: unknown): string {
+    return error instanceof ApiError && error.message.trim() !== ''
+      ? error.message
+      : 'بارگذاری لوگو ناموفق بود. دوباره تلاش کنید.';
+  }
+
+  /** Only the `blob:` this form made; a server URL (even the mock's) survives. */
+  private revokeLocalPreview(): void {
+    if (this.localPreviewUrl === null) {
+      return;
+    }
+
+    URL.revokeObjectURL(this.localPreviewUrl);
+    this.localPreviewUrl = null;
   }
 
   private applyServerErrors(fields: Readonly<Record<string, readonly string[]>> | undefined): void {

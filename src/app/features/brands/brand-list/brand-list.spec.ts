@@ -25,7 +25,7 @@ const NOKIA: BrandListItem = {
   id: '7',
   name: 'نوکیا',
   slug: 'brand-7',
-  logo: null,
+  logo: 'https://cdn.test/nokia.webp',
   isActive: false,
   productCount: 0,
 };
@@ -115,6 +115,17 @@ describe('BrandList (BO-G05)', () => {
     expect(element().textContent).toContain('غیرفعال');
     // Two rows, 12 total → two pages; the label reports the server total.
     expect(fixture.componentInstance.pageCount()).toBe(2);
+  });
+
+  it('tc 9: a row with a logo renders it; a row without one keeps the initial', () => {
+    const rows = element().querySelectorAll('tbody tr');
+
+    expect(rows[0].querySelector('img')).toBeNull();
+    expect(rows[0].querySelector('[data-brand-avatar]')?.textContent?.trim()).toBe('س');
+
+    const image = rows[1].querySelector('img');
+    expect(image?.getAttribute('src')).toBe('https://cdn.test/nokia.webp');
+    expect(image?.getAttribute('alt')).toBe('نوکیا — لوگو');
   });
 
   it('tc 6: the toggle flips the row before the answer and calls the endpoint', async () => {

@@ -13,7 +13,7 @@ export interface BrandListItem {
   readonly id: EntityId;
   readonly name: string;
   readonly slug: string;
-  /** A URL; `null` renders the initial-letter fallback (BO-G06 owns the upload). */
+  /** A URL from `POST /media`; `null` renders the initial-letter fallback. */
   readonly logo: string | null;
   readonly isActive: boolean;
   /** How many products point at this brand right now. */
