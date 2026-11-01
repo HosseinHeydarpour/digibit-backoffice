@@ -828,22 +828,26 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   logic, and the HTTP response stays the source of truth.
 - **`p-toggleswitch`, visible at every width.** The row control is PrimeNG's switch, not a power
   icon: the knob and track change on the optimistic flip, so the state is visible at 375px where the
-  text pill is `sm+` only. The host keeps the native 40×24 track; below `sm` it is `box-content` with
-  `px-0.5 py-2.5`, so the padding makes a 44×44 hit box without stretching the track. `[ngModel]` is
-  one-way and `(onChange)` calls the same handler, so the switch can never write a row the service
-  has not accepted.
+  text pill is `sm+` only. The switch keeps its native 40×24 track at every width; a
+  `<label class="inline-flex items-center justify-center max-sm:size-11">` wrapper is the 44px phone
+  hit box. The switch calls `$event.preventDefault()` on its own click, so the label does not forward
+  a switch click twice — a click on the label's padding still activates the nested input exactly
+  once. `[ngModel]` is one-way and `(onChange)` calls the same handler, so the switch can never write
+  a row the service has not accepted.
 - **A stable name, not an action.** The accessible name is «وضعیت دستهٔ …» / «وضعیت برند …» and the
   state comes from `aria-checked`; there is no `aria-pressed`. An action name («غیرفعال کردن …») would
   contradict `aria-checked="true"` and would change after every click.
 - **The off track clears contrast against the card.** The slider's PT border is
   `--p-text-muted-color` — surface-500 in light, surface-400 in dark — so the off state is visible
   instead of Aura's ~1.4:1 transparent-border track.
-- **Phone layout keeps the state reachable.** The category row hides the drag grip below `sm`
-  (dragging on a 320px screen is not a real affordance), leaving switch, pencil and trash and roughly
-  112px for the name at 320px. The brand row puts its one switch in the status cell at every width
-  and hides the text pill below `sm` when the switch is present, so the status cell ends around
-  256px from the start edge at 320px and only the actions need horizontal scroll. Row order is count,
-  pill, switch, pencil, trash; delete stays last.
+- **Phone layout keeps the state reachable.** The category row hides the drag grip and the desktop
+  pencil/trash below `sm`, leaving the switch and one 44px kebab; the name keeps roughly 164px at
+  320px. The kebab opens a per-row `<p-menu popup appendTo="body">` with «ویرایش» and, for every
+  non-default row, «حذف» — the same handlers as the desktop buttons, and appending to body keeps the
+  scrolling tree from clipping it. The brand row puts its one switch in the status cell at every
+  width and hides the text pill below `sm` when the switch is present, so the status cell ends around
+  256px from the start edge at 320px and only the actions need horizontal scroll. Desktop row order
+  is count, pill, switch, pencil, trash; delete stays last.
 - **The error toast belongs to the interceptor; success is component-owned.** A failed toggle only
   rolls back, because the error interceptor already printed the reason. Success prints
   «دسته غیرفعال شد.» / «برند فعال شد.» once the server agreed.
