@@ -35,6 +35,7 @@ import { ErrorState } from '@shared/components/error-state/error-state';
 import { LoadingBlock } from '@shared/components/loading-block/loading-block';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
+import { isOnline, OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { Dialog } from 'primeng/dialog';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
@@ -238,13 +239,29 @@ export class BrandList implements OnInit, OnDestroy {
    * The switch flips first and the server is asked after (tc 6) — the same
    * optimistic rule the products list follows. A failure reloads the page, which
    * is the rollback, and the interceptor owns the error message (tc 3/4).
+   *
+   * Offline is refused before the flip (BO-G07): a row that changes and changes
+   * back teaches the user nothing. The guard is a hint, not proof — the server
+   * error path still exists for a request that fails anyway.
    */
   toggleStatus(item: BrandListItem): void {
+    if (!this.canManage()) {
+      return;
+    }
+
+    if (!isOnline()) {
+      this.toast.warning(OFFLINE_MESSAGE);
+      return;
+    }
+
     const next = !item.isActive;
     this.patchRow(item.id, next);
 
     this.brands.setActive(item.id, next).subscribe({
-      next: (brand) => this.patchRow(brand.id, brand.isActive),
+      next: (brand) => {
+        this.patchRow(brand.id, brand.isActive);
+        this.toast.success(brand.isActive ? 'برند فعال شد.' : 'برند غیرفعال شد.');
+      },
       error: () => this.load(),
     });
   }

@@ -3,6 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ConfirmService } from '@core/services/confirm';
+import { ToastService } from '@core/services/toast';
+import { OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { MessageService } from 'primeng/api';
 import { Subject, of } from 'rxjs';
 import type { Observable } from 'rxjs';
@@ -99,20 +101,29 @@ class ConfirmStub {
   }
 }
 
+class ToastStub {
+  success = vi.fn();
+  warning = vi.fn();
+  error = vi.fn();
+}
+
 describe('BrandList (BO-G05)', () => {
   let fixture: ComponentFixture<BrandList>;
   let service: BrandsServiceStub;
   let confirm: ConfirmStub;
+  let toast: ToastStub;
 
   beforeEach(async () => {
     service = new BrandsServiceStub();
     confirm = new ConfirmStub();
+    toast = new ToastStub();
 
     await TestBed.configureTestingModule({
       imports: [BrandList],
       providers: [
         { provide: BrandsService, useValue: service },
         { provide: ConfirmService, useValue: confirm },
+        { provide: ToastService, useValue: toast },
         MessageService,
         { provide: PERMISSIONS, useValue: signal<readonly string[]>(['products.view']) },
       ],
@@ -122,6 +133,8 @@ describe('BrandList (BO-G05)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
   });
+
+  afterEach(() => vi.restoreAllMocks());
 
   function element(): HTMLElement {
     return fixture.nativeElement as HTMLElement;
@@ -189,6 +202,24 @@ describe('BrandList (BO-G05)', () => {
     expect(fixture.componentInstance.rows()?.[0].isActive).toBe(false);
     expect(service.toggled).toEqual([{ id: '6', isActive: false }]);
     await fixture.whenStable();
+  });
+
+  it('BO-G07 tc 4: a successful toggle reports the new state', async () => {
+    (element().querySelector('[data-toggle-brand="6"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(toast.success).toHaveBeenCalledWith('برند غیرفعال شد.');
+  });
+
+  it('BO-G07 tc 7: offline does not flip the row, sends nothing, and warns', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+
+    (element().querySelector('[data-toggle-brand="6"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.rows()?.[0].isActive).toBe(true);
+    expect(service.toggled).toEqual([]);
+    expect(toast.warning).toHaveBeenCalledWith(OFFLINE_MESSAGE);
   });
 
   it('tc 7: delete asks first, and cancelling sends nothing', async () => {
