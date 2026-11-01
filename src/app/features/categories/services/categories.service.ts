@@ -34,6 +34,20 @@ export class CategoriesService {
   }
 
   /**
+   * `PATCH /categories/:id/status` — the quick status toggle (BO-G07).
+   *
+   * Same shape as `BrandsService.setActive`: its own endpoint because the row
+   * flips before the answer, and a full PUT would need every form field. The
+   * server refuses to deactivate the default bucket, which the UI mirrors by
+   * not rendering the toggle on that row.
+   */
+  setActive(id: EntityId, isActive: boolean): Observable<CategoryNode> {
+    return this.api.patch<CategoryNode>(`/categories/${encodeURIComponent(id)}/status`, {
+      isActive,
+    });
+  }
+
+  /**
    * Place a category at a position inside a level (BO-G03 drop).
    *
    * One call carries both halves of a drag: the list it landed in (`parentId`,

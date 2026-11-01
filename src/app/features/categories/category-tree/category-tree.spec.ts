@@ -1,8 +1,12 @@
 import type { CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
+import { signal } from '@angular/core';
+import type { WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
-import { MessageService } from 'primeng/api';
-import { of, throwError } from 'rxjs';
+import { PERMISSIONS } from '@core/auth/permissions.token';
+import { ToastService } from '@core/services/toast';
+import { OFFLINE_MESSAGE } from '@shared/utils/connectivity';
+import { Subject, of, throwError } from 'rxjs';
 import type { Observable } from 'rxjs';
 
 import type { CategoryNode } from '../models/category.model';
@@ -58,6 +62,7 @@ const TREE: readonly CategoryNode[] = [
     isActive: true,
     description: '',
     productCount: 3,
+    isDefault: true,
     children: [],
   },
 ];
@@ -68,6 +73,13 @@ class CategoriesServiceStub {
   calls = 0;
 
   placed: { id: string; parentId: string | null; order: number }[] = [];
+
+  toggled: { id: string; isActive: boolean }[] = [];
+
+  toggleError = false;
+
+  /** Holds the answer open so a spec can see the optimistic state first. */
+  toggleHold: Subject<CategoryNode> | null = null;
 
   tree(): Observable<readonly CategoryNode[]> {
     this.calls += 1;
@@ -80,21 +92,41 @@ class CategoriesServiceStub {
 
     return of(TREE[0]!);
   }
+
+  setActive(id: string, isActive: boolean): Observable<CategoryNode> {
+    this.toggled.push({ id, isActive });
+
+    if (this.toggleError) {
+      return throwError(() => new Error('offline'));
+    }
+
+    return this.toggleHold ? this.toggleHold.asObservable() : of({ ...TREE[0]!, id, isActive });
+  }
+}
+
+class ToastStub {
+  success = vi.fn();
+  warning = vi.fn();
+  error = vi.fn();
 }
 
 describe('CategoryTree (BO-G01/G02/G03)', () => {
   let fixture: ComponentFixture<CategoryTree>;
   let service: CategoriesServiceStub;
+  let toast: ToastStub;
+  let permissions: WritableSignal<readonly string[]>;
 
   beforeEach(async () => {
     service = new CategoriesServiceStub();
+    toast = new ToastStub();
+    permissions = signal<readonly string[]>(['products.view']);
 
     await TestBed.configureTestingModule({
       imports: [CategoryTree],
       providers: [
         { provide: CategoriesService, useValue: service },
-        // ToastService injects MessageService, which is not root-provided.
-        MessageService,
+        { provide: ToastService, useValue: toast },
+        { provide: PERMISSIONS, useValue: permissions },
       ],
     }).compileComponents();
 
@@ -102,6 +134,8 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
   });
+
+  afterEach(() => vi.restoreAllMocks());
 
   function component(): CategoryTree {
     return fixture.componentInstance;
@@ -334,6 +368,82 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     component().openDelete(TREE[0]!.children[0]!);
 
     expect(component().deleteParentName()).toBe('لوازم تحریر');
+  });
+
+  it('BO-G07 tc 1/2/8: flips the row before the answer, keeps it, and toasts', async () => {
+    const hold = new Subject<CategoryNode>();
+    service.toggleHold = hold;
+
+    const toggle = fixture.nativeElement.querySelector(
+      '[data-toggle-category="c-1"]',
+    ) as HTMLButtonElement;
+
+    expect(toggle.getAttribute('aria-label')).toBe('غیرفعال کردن دستهٔ لوازم تحریر');
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+
+    toggle.click();
+    fixture.detectChanges();
+
+    // The server has not answered yet; the tree already shows the new state.
+    expect(component().tree()?.[0].isActive).toBe(false);
+    expect(service.toggled).toEqual([{ id: 'c-1', isActive: false }]);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+
+    hold.next({ ...TREE[0]!, isActive: false });
+    hold.complete();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component().tree()?.[0].isActive).toBe(false);
+    expect(toast.success).toHaveBeenCalledWith('دسته غیرفعال شد.');
+  });
+
+  it('BO-G07 tc 3/4: an API error reloads the tree (rollback) and leaves the toast to the interceptor', async () => {
+    service.toggleError = true;
+    const before = service.calls;
+
+    (
+      fixture.nativeElement.querySelector('[data-toggle-category="c-1"]') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(service.calls).toBe(before + 1);
+    expect(component().tree()?.[0].isActive).toBe(true);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('BO-G07 tc 7: offline changes nothing and warns instead', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+
+    (
+      fixture.nativeElement.querySelector('[data-toggle-category="c-1"]') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(component().tree()?.[0].isActive).toBe(true);
+    expect(service.toggled).toEqual([]);
+    expect(toast.warning).toHaveBeenCalledWith(OFFLINE_MESSAGE);
+  });
+
+  it('BO-G07: the default bucket has no status toggle and no delete button', () => {
+    expect(fixture.nativeElement.querySelector('[data-toggle-category="c-1"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-toggle-category="c-2"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-delete-category="c-2"]')).toBeNull();
+  });
+
+  it('BO-G07 tc 9: without products.view the toggle and the other row actions are hidden', () => {
+    permissions.set([]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-toggle-category]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-edit-category]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-delete-category]')).toBeNull();
+
+    component().toggleStatus(TREE[0]!);
+
+    expect(service.toggled).toEqual([]);
   });
 });
 

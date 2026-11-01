@@ -263,26 +263,43 @@
       {{ node.isActive ? 'فعال' : 'غیرفعال' }}
     </span>
 
-    <button
-      type="button"
-      (click)="openEdit(node)"
-      data-edit-category
-      [attr.aria-label]="'ویرایش دستهٔ ' + node.name"
-      class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
-    >
-      <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
-    </button>
-
-    @if (!node.isDefault) {
+    @if (canManage()) {
       <button
         type="button"
-        (click)="openDelete(node)"
-        data-delete-category
-        [attr.aria-label]="'حذف دستهٔ ' + node.name"
-        class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 max-sm:size-11 dark:text-gray-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+        (click)="openEdit(node)"
+        data-edit-category
+        [attr.aria-label]="'ویرایش دستهٔ ' + node.name"
+        class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
       >
-        <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+        <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
       </button>
+
+      @if (!node.isDefault) {
+        <button
+          type="button"
+          (click)="toggleStatus(node)"
+          [attr.data-toggle-category]="node.id"
+          [attr.aria-pressed]="node.isActive"
+          [attr.aria-label]="
+            (node.isActive ? 'غیرفعال کردن دستهٔ ' : 'فعال کردن دستهٔ ') + node.name
+          "
+          class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
+        >
+          <i class="pi pi-power-off text-sm" aria-hidden="true"></i>
+        </button>
+      }
+
+      @if (!node.isDefault) {
+        <button
+          type="button"
+          (click)="openDelete(node)"
+          data-delete-category
+          [attr.aria-label]="'حذف دستهٔ ' + node.name"
+          class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 max-sm:size-11 dark:text-gray-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+        >
+          <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+        </button>
+      }
     }
   </div>
 </ng-template>

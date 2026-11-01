@@ -35,7 +35,7 @@ paging, which is out of scope here.
 - **خطا با «تلاش دوباره».** `catchError` مقدار `null` برمی‌گرداند و صفحه بلوک خطا را با دکمهٔ
   بازخوانی نشان می‌دهد، نه یک صفحهٔ خالی.
 - **در موبایل.** ناحیهٔ درخت داخل کارت اسکرول عمودی دارد (`max-h-[70vh]`)، و بج تعداد/وضعیت زیر
-  `sm` پنهان می‌شوند تا نام کنار سه دکمهٔ ردیف (دستهٔ درگ، مداد، سطل) جا شود (tc 9).
+  `sm` پنهان می‌شوند تا نام کنار چهار دکمهٔ ردیف (دستهٔ درگ، وضعیت، مداد، سطل) جا شود (tc 9).
 - **هر شاخه در بار اول باز است** تا هر دو سطح بدون کلیک دیده شوند (tc 1/2).
 
 - **Filter in the browser, hierarchy intact.** `filterTree` is pure: a node stays when it or a
@@ -46,7 +46,7 @@ paging, which is out of scope here.
   the dashboard and the products list follow.
 - **Failure has a retry.** `catchError` yields `null` and the page renders the shared error block.
 - **On a phone** the tree scrolls inside the card, and the count/status pills hide below `sm` so the
-  name fits next to the row's three controls (grip, pencil, trash).
+  name fits next to the row's four controls (grip, status, pencil, trash).
 - **Every branch starts open**, so both levels show without a click.
 
 ## پیش‌نمایش / Preview
@@ -99,6 +99,21 @@ what an index means.
 
 Expanding a branch: the icon, name and chevron are a **single button**, so clicking anywhere on that
 label opens it — not only the chevron. The pencil, the trash and the drag grip are separate controls.
+
+## وضعیت سریع / Quick status (BO-G07)
+
+دکمهٔ برق هر ردیف وضعیت را بدون باز کردن فرم عوض می‌کند. ردیف **اول** عوض می‌شود و بعد درخواست
+`PATCH /categories/:id/status` می‌رود؛ اگر سرور رد کند درخت دوباره گرفته می‌شود و ردیف به حالت قبل
+برمی‌گردد. پیام خطا مال اینترسپتور است و اینجا تکرار نمی‌شود، ولی موفقیت toast خودش را دارد. وقتی
+مرورگر آفلاین است هیچ تغییری و هیچ درخواستی نمی‌فرستد و یک هشدار نشان می‌دهد. «بدون دسته‌بندی»
+دکمهٔ وضعیت ندارد، چون غیرفعال‌شدنش آن را از لیست دسته‌های فرم محصول حذف می‌کند؛ سرور هم همین را
+با ۴۰۹ رد می‌کند.
+
+Each row's power button changes the status without opening the form. The row flips **first** and
+`PATCH /categories/:id/status` follows; a refusal reloads the tree and puts the row back. The error
+toast belongs to the interceptor and is not repeated here, while success gets its own. Offline, the
+toggle changes nothing, sends nothing and shows a warning. «بدون دسته‌بندی» has no toggle because
+deactivating it would drop the fallback from the product form's lookup — the server refuses with 409.
 
 ## حذف دسته / Deleting (BO-G04)
 

@@ -364,7 +364,7 @@ function resolve(
       // `?tree=true` returns the nested shape the categories screen renders
       // (BO-G01); the flat list stays what the product form's select reads.
       if (id) {
-        return resolveCategory(method, id, params, body);
+        return resolveCategory(method, id, sub, params, body);
       }
 
       if (method === 'POST') {
@@ -741,10 +741,11 @@ function createCategory(body: unknown): MockResolution {
   return created(node, 'دسته ایجاد شد.');
 }
 
-/** `PUT/PATCH/DELETE /categories/:id` (tc 2 / BO-G04). */
+/** `PUT/PATCH/DELETE /categories/:id` (tc 2 / BO-G04 / BO-G07). */
 function resolveCategory(
   method: string,
   id: string,
+  sub: string | undefined,
   params: ParamReader,
   body: unknown,
 ): MockResolution {
@@ -756,6 +757,21 @@ function resolveCategory(
 
   if (method === 'DELETE') {
     return removeCategory(id, params.get('strategy') ?? 'transfer');
+  }
+
+  // The quick toggle (BO-G07). The default bucket is the fallback for the
+  // products of a deleted category; deactivating it would drop it from the
+  // product form's lookup, so the server refuses even if a stale row asks.
+  if (method === 'PATCH' && sub === 'status') {
+    const isActive = asRecord(body)['isActive'] !== false;
+
+    if (found.isDefault && !isActive) {
+      return conflict('DEFAULT_CATEGORY', 'دستهٔ پیش‌فرض قابل غیرفعال‌سازی نیست.');
+    }
+
+    found.isActive = isActive;
+
+    return ok(found, isActive ? 'دسته فعال شد.' : 'دسته غیرفعال شد.');
   }
 
   if (

@@ -28,12 +28,14 @@
 import { CdkDrag, CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { LoadingBlock } from '@shared/components/loading-block/loading-block';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
+import { isOnline, OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { Dialog } from 'primeng/dialog';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
@@ -70,6 +72,10 @@ import { filterTree } from './category-filter';
 export class CategoryTree {
   private readonly categories = inject(CategoriesService);
   private readonly toast = inject(ToastService);
+  private readonly permissions = inject(PERMISSIONS);
+
+  /** Row actions exist only for a signed-in user with the module grant (tc 9). */
+  readonly canManage = computed(() => this.permissions().includes('products.view'));
 
   /** `null` = no answer yet (skeleton), `[]` = the shop has no categories. */
   readonly tree = signal<readonly CategoryNode[] | null>(null);
@@ -158,6 +164,53 @@ export class CategoryTree {
 
   isExpanded(node: CategoryNode): boolean {
     return !this.collapsed().has(String(node.id));
+  }
+
+  /**
+   * The quick status toggle (BO-G07): the row flips first and the server is
+   * asked after, the same optimistic rule the brands list and products list
+   * follow. A refusal reloads the tree (the rollback) and leaves the message to
+   * the error interceptor — a second toast here would report one failure twice.
+   *
+   * The default bucket has no toggle: deactivating it would drop the fallback
+   * from the product form's category lookup. The server enforces the same rule.
+   */
+  toggleStatus(node: CategoryNode): void {
+    if (!this.canManage() || node.isDefault) {
+      return;
+    }
+
+    if (!isOnline()) {
+      this.toast.warning(OFFLINE_MESSAGE);
+      return;
+    }
+
+    const next = !node.isActive;
+
+    this.patchNode(String(node.id), next);
+
+    this.categories
+      .setActive(String(node.id), next)
+      .pipe(take(1))
+      .subscribe({
+        next: (updated) => {
+          this.patchNode(String(updated.id), updated.isActive);
+          this.toast.success(updated.isActive ? 'دسته فعال شد.' : 'دسته غیرفعال شد.');
+        },
+        error: () => this.load(),
+      });
+  }
+
+  /** Replace one node's flag without refetching; every level is rebuilt immutably. */
+  private patchNode(id: string, isActive: boolean): void {
+    const patch = (nodes: readonly CategoryNode[]): readonly CategoryNode[] =>
+      nodes.map((node) =>
+        String(node.id) === id
+          ? { ...node, isActive }
+          : { ...node, children: patch(node.children) },
+      );
+
+    this.tree.update((tree) => (tree === null ? tree : patch(tree)));
   }
 
   openCreate(): void {

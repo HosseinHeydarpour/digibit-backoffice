@@ -609,6 +609,42 @@ describe('mockInterceptor', () => {
     expect(clash.status).toBe(422);
     expect(clash.error.error.fields.slug[0]).toContain('قبلاً');
   });
+
+  it('toggles a category through its status endpoint and the tree reflects it (BO-G07)', async () => {
+    const toggled = await firstValueFrom(
+      http.patch<ApiResponse<{ isActive: boolean }>>(
+        '/api/v1/categories/pcat-stationery/status',
+        { isActive: false },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(toggled.data.isActive).toBe(false);
+
+    const tree = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; isActive: boolean }[]>>('/api/v1/categories', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { tree: 'true' },
+      }),
+    );
+
+    expect(tree.data.find((node) => node.id === 'pcat-stationery')?.isActive).toBe(false);
+  });
+
+  it('refuses to deactivate the default bucket (BO-G07 validation)', async () => {
+    const refused = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          '/api/v1/categories/pcat-uncategorized/status',
+          { isActive: false },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((error: HttpErrorResponse) => of(error))),
+    );
+
+    expect(refused.status).toBe(409);
+    expect(refused.error.error.message).toContain('پیش‌فرض');
+  });
   it('appends a new category after its siblings (BO-G03 ordering)', async () => {
     const created = await firstValueFrom(
       http.post<ApiResponse<{ id: string; order: number; parentId: string | null }>>(

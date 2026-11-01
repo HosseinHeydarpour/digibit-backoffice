@@ -1,3 +1,5 @@
+import { signal } from '@angular/core';
+import { PERMISSIONS } from '@core/auth/permissions.token';
 import type { Meta, StoryObj } from '@storybook/angular';
 import { applicationConfig } from '@storybook/angular';
 import type { Observable } from 'rxjs';
@@ -72,11 +74,45 @@ const TREE: readonly CategoryNode[] = [
       },
     ],
   },
+  {
+    id: 'c-3',
+    parentId: null,
+    description: '',
+    name: 'بدون دسته‌بندی',
+    slug: 'uncategorized',
+    icon: 'pi pi-inbox',
+    order: 3,
+    isActive: true,
+    productCount: 2,
+    // The fallback bucket: it keeps its row but has no status toggle (BO-G07).
+    isDefault: true,
+    children: [],
+  },
 ];
 
-class StaticCategoriesService implements Pick<CategoriesService, 'tree'> {
+class StaticCategoriesService implements Pick<CategoriesService, 'tree' | 'setActive'> {
   tree(): Observable<readonly CategoryNode[]> {
     return of(TREE);
+  }
+
+  setActive(id: string, isActive: boolean): Observable<CategoryNode> {
+    const find = (nodes: readonly CategoryNode[]): CategoryNode | undefined => {
+      for (const node of nodes) {
+        if (node.id === id) {
+          return node;
+        }
+
+        const found = find(node.children);
+
+        if (found) {
+          return found;
+        }
+      }
+
+      return undefined;
+    };
+
+    return of({ ...(find(TREE) ?? TREE[0]!), id, isActive });
   }
 }
 
@@ -91,7 +127,10 @@ const meta: Meta<CategoryTree> = {
   component: CategoryTree,
   decorators: [
     applicationConfig({
-      providers: [{ provide: CategoriesService, useValue: new StaticCategoriesService() }],
+      providers: [
+        { provide: CategoriesService, useValue: new StaticCategoriesService() },
+        { provide: PERMISSIONS, useValue: signal<readonly string[]>(['products.view']) },
+      ],
     }),
   ],
   parameters: {
@@ -107,6 +146,10 @@ const meta: Meta<CategoryTree> = {
           '**Rows are draggable (BO-G03) with Angular CDK.** Grab the grip and move the row: dropping',
           "it inside a root's list nests it, dropping it between roots makes it a root. A third level",
           'is refused, Escape cancels, and every drop renumbers the level so positions stay 1..N.',
+          '',
+          '**The status toggle is optimistic (BO-G07).** The row flips before the answer and reloads if',
+          'the API refuses; the interceptor owns the error toast. The default bucket («بدون دسته‌بندی»)',
+          'has no toggle, because deactivating it would remove the fallback from the product form.',
         ].join('\n'),
       },
     },
