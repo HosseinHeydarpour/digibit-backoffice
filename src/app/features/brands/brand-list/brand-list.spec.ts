@@ -1,15 +1,13 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ConfirmService } from '@core/services/confirm';
 import { MessageService } from 'primeng/api';
-import { Dialog } from 'primeng/dialog';
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import type { Observable } from 'rxjs';
 
-import type { Brand, BrandListItem, BrandQuery } from '../models/brand.model';
+import type { Brand, BrandInput, BrandListItem, BrandQuery } from '../models/brand.model';
 import { BrandsService } from '../services/brands.service';
 
 import { BrandList } from './brand-list';
@@ -39,6 +37,13 @@ class BrandsServiceStub {
 
   toggled: { id: string; isActive: boolean }[] = [];
 
+  created: BrandInput | null = null;
+
+  uploads: File[] = [];
+
+  /** Holds the logo upload open so a spec can close the dialog mid-save. */
+  uploadHold: Subject<string> | null = null;
+
   failList = false;
 
   list(
@@ -55,6 +60,18 @@ class BrandsServiceStub {
 
   get(id: string): Observable<Brand> {
     return of({ ...SAMSUNG, id, description: 'توضیح', createdAt: 1 });
+  }
+
+  create(dto: BrandInput): Observable<Brand> {
+    this.created = dto;
+
+    return of({ ...SAMSUNG, ...dto, id: 'brand-new-9', description: '', createdAt: 1 });
+  }
+
+  uploadLogo(file: File): Observable<string> {
+    this.uploads.push(file);
+
+    return this.uploadHold ? this.uploadHold.asObservable() : of('https://cdn.test/uploaded.webp');
   }
 
   setActive(id: string, isActive: boolean): Observable<Brand> {
@@ -108,6 +125,39 @@ describe('BrandList (BO-G05)', () => {
 
   function element(): HTMLElement {
     return fixture.nativeElement as HTMLElement;
+  }
+
+  async function openCreate(): Promise<void> {
+    fixture.componentInstance.openCreate();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  async function typeName(value: string): Promise<void> {
+    const input = element().querySelector('#brand-name') as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    setter.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+  }
+
+  async function selectLogo(): Promise<void> {
+    const input = element().querySelector('#brand-logo-file') as HTMLInputElement;
+    Object.defineProperty(input, 'files', {
+      value: [new File([new Uint8Array(4)], 'logo.png', { type: 'image/png' })],
+      configurable: true,
+    });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+  }
+
+  function pressEscape(): void {
+    const dialog = element().querySelector('.p-dialog') as HTMLElement;
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
   }
 
   it('tc 1: renders the rows with their slug, product count and status pill', () => {
@@ -190,25 +240,57 @@ describe('BrandList (BO-G05)', () => {
     expect(fixture.componentInstance.editing()).toMatchObject({ id: '6', description: 'توضیح' });
   });
 
-  it('locks every close path while the form is saving', () => {
-    const dialog = fixture.debugElement.query(By.directive(Dialog)).componentInstance as Dialog;
+  it('blocks Escape and the mask while a save is in flight', async () => {
+    const upload = new Subject<string>();
+    service.uploadHold = upload;
 
-    expect(dialog.closable).toBe(true);
-    expect(dialog.closeOnEscape).toBe(true);
-    expect(dialog.dismissableMask).toBe(true);
+    await openCreate();
+    await typeName('سامسونگ');
+    await selectLogo();
 
-    fixture.componentInstance.formSaving.set(true);
+    (element().querySelector('[data-save-brand]') as HTMLButtonElement).click();
+    await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(dialog.closable).toBe(false);
-    expect(dialog.closeOnEscape).toBe(false);
-    expect(dialog.dismissableMask).toBe(false);
+    expect(fixture.componentInstance.formSaving()).toBe(true);
+    expect(service.uploads).toHaveLength(1);
 
-    fixture.componentInstance.formSaving.set(false);
+    // PrimeNG bound its escape/mask listeners when the dialog opened; neither
+    // may reach closeDialog while the upload owns the transaction.
+    pressEscape();
+    expect(fixture.componentInstance.dialogOpen()).toBe(true);
+    expect(service.created).toBeNull();
+
+    const mask = element().querySelector('.p-dialog-mask');
+    expect(mask).not.toBeNull();
+    mask?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     fixture.detectChanges();
 
-    expect(dialog.closable).toBe(true);
-    expect(dialog.closeOnEscape).toBe(true);
-    expect(dialog.dismissableMask).toBe(true);
+    expect(fixture.componentInstance.dialogOpen()).toBe(true);
+    expect(service.created).toBeNull();
+
+    // The remaining close affordances are gone/disabled.
+    expect(element().querySelector('.p-dialog-close-button')).toBeNull();
+    expect((element().querySelector('[data-cancel-brand]') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+
+    upload.next('https://cdn.test/uploaded.webp');
+    upload.complete();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(service.created?.logo).toBe('https://cdn.test/uploaded.webp');
+    expect(fixture.componentInstance.dialogOpen()).toBe(false);
+  });
+
+  it('closes on Escape when no save is running', async () => {
+    await openCreate();
+
+    expect(fixture.componentInstance.dialogOpen()).toBe(true);
+
+    pressEscape();
+
+    expect(fixture.componentInstance.dialogOpen()).toBe(false);
   });
 });

@@ -205,11 +205,28 @@ export class BrandList implements OnInit, OnDestroy {
   }
 
   /**
-   * `visibleChange` also fires for a mask click or Escape. Those are disabled
-   * while `formSaving()`, but a hidden dialog must never leave the busy flag on
-   * for the next open.
+   * PrimeNG binds the Escape listener once, when the dialog opens, so changing
+   * `closeOnEscape` later cannot release it. Escape is handled here instead;
+   * while saving it is a no-op, and `closeOnEscape` on the dialog stays false.
+   */
+  onDialogEscape(): void {
+    if (this.formSaving()) {
+      return;
+    }
+
+    this.closeDialog();
+  }
+
+  /**
+   * `visibleChange` is the last line of defence: a close event that arrives
+   * during a save is refused. No normal path reaches this branch — the mask is
+   * never dismissable, Escape is handled above, and the X and cancel are locked.
    */
   onDialogVisibility(visible: boolean): void {
+    if (!visible && this.formSaving()) {
+      return;
+    }
+
     this.dialogOpen.set(visible);
 
     if (!visible) {
