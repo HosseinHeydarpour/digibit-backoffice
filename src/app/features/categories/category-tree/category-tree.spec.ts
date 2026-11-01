@@ -388,10 +388,14 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     ) as HTMLElement;
     const input = toggle.querySelector('input') as HTMLInputElement;
 
-    expect(input.getAttribute('aria-label')).toBe('غیرفعال کردن دستهٔ لوازم تحریر');
-    expect(toggle.classList.contains('max-sm:min-h-11')).toBe(true);
-    expect(toggle.classList.contains('max-sm:min-w-11')).toBe(true);
+    expect(input.getAttribute('aria-label')).toBe('وضعیت دستهٔ لوازم تحریر');
+    expect(toggle.classList.contains('max-sm:box-content')).toBe(true);
+    expect(toggle.classList.contains('max-sm:px-0.5')).toBe(true);
+    expect(toggle.classList.contains('max-sm:py-2.5')).toBe(true);
     expect(toggle.getAttribute('data-p-checked')).toBe('true');
+
+    const slider = toggle.querySelector('.p-toggleswitch-slider');
+    expect(slider?.getAttribute('style')).toContain('--p-text-muted-color');
 
     toggle.click();
     fixture.detectChanges();
@@ -449,6 +453,27 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(fixture.nativeElement.querySelector('[data-toggle-category="c-1"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[data-toggle-category="c-2"]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-delete-category="c-2"]')).toBeNull();
+  });
+
+  it('BO-G07: the phone row hides the drag grip and keeps switch before pencil and trash', () => {
+    const row = fixture.nativeElement.querySelector(
+      '[data-category-tree] > ul > li > div',
+    ) as HTMLElement;
+    const grip = row.querySelector('button[aria-label^="جابه‌جایی"]') as HTMLElement;
+
+    expect(grip.classList.contains('max-sm:hidden')).toBe(true);
+
+    const actions = Array.from(
+      row.querySelectorAll('[data-toggle-category], [data-edit-category], [data-delete-category]'),
+    ).map((element) =>
+      element.hasAttribute('data-toggle-category')
+        ? 'switch'
+        : element.hasAttribute('data-edit-category')
+          ? 'edit'
+          : 'delete',
+    );
+
+    expect(actions).toEqual(['switch', 'edit', 'delete']);
   });
 
   it('BO-G07 tc 9: without products.view the toggle and the other row actions are hidden', () => {

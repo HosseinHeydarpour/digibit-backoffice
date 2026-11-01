@@ -190,7 +190,7 @@
     <button
       type="button"
       cdkDragHandle
-      class="inline-flex size-8 shrink-0 cursor-grab items-center justify-center rounded text-gray-300 transition hover:bg-gray-100 hover:text-gray-500 max-sm:size-11 dark:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+      class="inline-flex size-8 shrink-0 cursor-grab items-center justify-center rounded text-gray-300 transition hover:bg-gray-100 hover:text-gray-500 max-sm:hidden dark:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
       [attr.aria-label]="'جابه‌جایی ' + node.name"
     >
       <i class="pi pi-bars text-xs" aria-hidden="true"></i>
@@ -242,7 +242,9 @@
 
     <!--
       The count and the status pill collapse on a phone so the name keeps a
-      readable width next to the four controls (grip, chevron, pencil, trash).
+      readable width next to the switch, pencil and trash. The drag grip is
+      hidden below `sm`: dragging a row on a 320px screen is not a real
+      affordance, and it was the difference between a readable name and none.
     -->
     <span
       class="hidden shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 sm:inline-flex dark:bg-gray-700 dark:text-gray-300"
@@ -263,6 +265,19 @@
       {{ node.isActive ? 'فعال' : 'غیرفعال' }}
     </span>
 
+    @if (canManage() && !node.isDefault) {
+      <p-toggleswitch
+        #toggle
+        class="max-sm:box-content max-sm:px-0.5 max-sm:py-2.5"
+        [inputId]="'category-status-' + node.id"
+        [ngModel]="node.isActive"
+        (onChange)="toggleStatus(node, toggle)"
+        [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
+        [ariaLabel]="'وضعیت دستهٔ ' + node.name"
+        [attr.data-toggle-category]="node.id"
+      />
+    }
+
     @if (canManage()) {
       <button
         type="button"
@@ -273,18 +288,6 @@
       >
         <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
       </button>
-
-      @if (!node.isDefault) {
-        <p-toggleswitch
-          #toggle
-          class="max-sm:min-h-11 max-sm:min-w-11"
-          [inputId]="'category-status-' + node.id"
-          [ngModel]="node.isActive"
-          (onChange)="toggleStatus(node, toggle)"
-          [ariaLabel]="(node.isActive ? 'غیرفعال کردن دستهٔ ' : 'فعال کردن دستهٔ ') + node.name"
-          [attr.data-toggle-category]="node.id"
-        />
-      }
 
       @if (!node.isDefault) {
         <button
