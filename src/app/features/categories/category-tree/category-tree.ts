@@ -37,10 +37,12 @@ import { LoadingBlock } from '@shared/components/loading-block/loading-block';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { isOnline, OFFLINE_MESSAGE } from '@shared/utils/connectivity';
+import type { MenuItem } from 'primeng/api';
 import { Dialog } from 'primeng/dialog';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
+import { Menu } from 'primeng/menu';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 import { catchError, of, take } from 'rxjs';
 
@@ -65,6 +67,7 @@ import { filterTree } from './category-filter';
     InputIcon,
     InputText,
     LoadingBlock,
+    Menu,
     NgTemplateOutlet,
     PageHeader,
     PersianDigitsPipe,
@@ -255,6 +258,34 @@ export class CategoryTree {
    */
   openDelete(node: CategoryNode): void {
     this.deletingNode.set(node);
+  }
+
+  /**
+   * The mobile kebab's items — the same two commands as the desktop buttons.
+   *
+   * One menu per row, appended to `<body>`: a popup inside the scrolling tree
+   * would be clipped. The default bucket keeps edit and loses delete, exactly
+   * like its desktop controls.
+   */
+  rowActions(node: CategoryNode): MenuItem[] {
+    const items: MenuItem[] = [
+      {
+        label: 'ویرایش',
+        icon: 'pi pi-pencil',
+        command: () => this.openEdit(node),
+      },
+    ];
+
+    if (!node.isDefault) {
+      items.push({
+        label: 'حذف',
+        icon: 'pi pi-trash',
+        styleClass: 'text-red-600',
+        command: () => this.openDelete(node),
+      });
+    }
+
+    return items;
   }
 
   closeDelete(): void {

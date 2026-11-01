@@ -6,6 +6,7 @@ import type { ComponentFixture } from '@angular/core/testing';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ToastService } from '@core/services/toast';
 import { OFFLINE_MESSAGE } from '@shared/utils/connectivity';
+import type { MenuItemCommandEvent } from 'primeng/api';
 import type { ToggleSwitch } from 'primeng/toggleswitch';
 import { Subject, of, throwError } from 'rxjs';
 import type { Observable } from 'rxjs';
@@ -387,17 +388,18 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
       '[data-toggle-category="c-1"]',
     ) as HTMLElement;
     const input = toggle.querySelector('input') as HTMLInputElement;
+    const wrapper = toggle.parentElement as HTMLElement;
 
     expect(input.getAttribute('aria-label')).toBe('وضعیت دستهٔ لوازم تحریر');
-    expect(toggle.classList.contains('max-sm:box-content')).toBe(true);
-    expect(toggle.classList.contains('max-sm:px-0.5')).toBe(true);
-    expect(toggle.classList.contains('max-sm:py-2.5')).toBe(true);
+    expect(wrapper.classList.contains('max-sm:size-11')).toBe(true);
+    expect(toggle.classList.contains('max-sm:box-content')).toBe(false);
     expect(toggle.getAttribute('data-p-checked')).toBe('true');
 
     const slider = toggle.querySelector('.p-toggleswitch-slider');
     expect(slider?.getAttribute('style')).toContain('--p-text-muted-color');
 
-    toggle.click();
+    // A click on the padded label activates the nested input once.
+    wrapper.click();
     fixture.detectChanges();
 
     // The server has not answered yet; the tree already shows the new state.
@@ -455,13 +457,20 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(fixture.nativeElement.querySelector('[data-delete-category="c-2"]')).toBeNull();
   });
 
-  it('BO-G07: the phone row hides the drag grip and keeps switch before pencil and trash', () => {
+  it('BO-G07: the phone row hides the drag grip and desktop actions, leaving switch and kebab', () => {
     const row = fixture.nativeElement.querySelector(
       '[data-category-tree] > ul > li > div',
     ) as HTMLElement;
     const grip = row.querySelector('button[aria-label^="جابه‌جایی"]') as HTMLElement;
+    const edit = row.querySelector('[data-edit-category]') as HTMLElement;
+    const remove = row.querySelector('[data-delete-category]') as HTMLElement;
+    const kebab = row.querySelector('[data-category-actions="c-1"]') as HTMLElement;
 
     expect(grip.classList.contains('max-sm:hidden')).toBe(true);
+    expect(edit.className).toContain('max-sm:hidden');
+    expect(remove.className).toContain('max-sm:hidden');
+    expect(kebab.className).toContain('sm:hidden');
+    expect(kebab.className).toContain('size-11');
 
     const actions = Array.from(
       row.querySelectorAll('[data-toggle-category], [data-edit-category], [data-delete-category]'),
@@ -476,6 +485,37 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(actions).toEqual(['switch', 'edit', 'delete']);
   });
 
+  it('BO-G07: the mobile kebab builds edit/delete and routes them to the page handlers', async () => {
+    const kebab = fixture.nativeElement.querySelector(
+      '[data-category-actions="c-1"]',
+    ) as HTMLElement;
+
+    expect(kebab.getAttribute('aria-label')).toBe('عملیات دستهٔ لوازم تحریر');
+
+    kebab.click();
+    await fixture.whenStable();
+
+    const items = component().rowActions(TREE[0]!);
+    const event = { originalEvent: new MouseEvent('click') } as MenuItemCommandEvent;
+
+    expect(items.map((item) => item.label)).toEqual(['ویرایش', 'حذف']);
+
+    items[0].command?.(event);
+    expect(component().editing()?.id).toBe('c-1');
+    component().closeDialog();
+
+    items[1].command?.(event);
+    expect(component().deletingNode()?.id).toBe('c-1');
+    component().closeDelete();
+
+    // The default bucket keeps edit and loses delete, same as its desktop actions.
+    expect(
+      component()
+        .rowActions(TREE[1]!)
+        .map((item) => item.label),
+    ).toEqual(['ویرایش']);
+  });
+
   it('BO-G07 tc 9: without products.view the toggle and the other row actions are hidden', () => {
     permissions.set([]);
     fixture.detectChanges();
@@ -483,6 +523,7 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(fixture.nativeElement.querySelector('[data-toggle-category]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-edit-category]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-delete-category]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-category-actions]')).toBeNull();
 
     component().toggleStatus(TREE[0]!, {} as ToggleSwitch);
 

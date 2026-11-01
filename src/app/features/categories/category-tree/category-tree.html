@@ -266,16 +266,27 @@
     </span>
 
     @if (canManage() && !node.isDefault) {
-      <p-toggleswitch
-        #toggle
-        class="max-sm:box-content max-sm:px-0.5 max-sm:py-2.5"
-        [inputId]="'category-status-' + node.id"
-        [ngModel]="node.isActive"
-        (onChange)="toggleStatus(node, toggle)"
-        [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
-        [ariaLabel]="'وضعیت دستهٔ ' + node.name"
-        [attr.data-toggle-category]="node.id"
-      />
+      <!--
+        The label is the 44px phone hit box; the switch keeps its 40×24 track.
+        A click on the padding activates the nested input. The switch prevents
+        the label's default action, so a click on the switch is not forwarded
+        twice (PrimeNG already handles that click).
+      -->
+      <label
+        [for]="'category-status-' + node.id"
+        class="inline-flex shrink-0 items-center justify-center max-sm:size-11"
+      >
+        <p-toggleswitch
+          #toggle
+          [inputId]="'category-status-' + node.id"
+          [ngModel]="node.isActive"
+          (click)="$event.preventDefault()"
+          (onChange)="toggleStatus(node, toggle)"
+          [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
+          [ariaLabel]="'وضعیت دستهٔ ' + node.name"
+          [attr.data-toggle-category]="node.id"
+        />
+      </label>
     }
 
     @if (canManage()) {
@@ -284,7 +295,7 @@
         (click)="openEdit(node)"
         data-edit-category
         [attr.aria-label]="'ویرایش دستهٔ ' + node.name"
-        class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
+        class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:hidden dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
       >
         <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
       </button>
@@ -295,13 +306,26 @@
           (click)="openDelete(node)"
           data-delete-category
           [attr.aria-label]="'حذف دستهٔ ' + node.name"
-          class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 max-sm:size-11 dark:text-gray-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+          class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 max-sm:hidden dark:text-gray-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
         >
           <i class="pi pi-trash text-sm" aria-hidden="true"></i>
         </button>
       }
+
+      <button
+        type="button"
+        (click)="actionsMenu.toggle($event)"
+        [attr.aria-label]="'عملیات دستهٔ ' + node.name"
+        aria-haspopup="menu"
+        [attr.data-category-actions]="node.id"
+        class="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary sm:hidden dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
+      >
+        <i class="pi pi-ellipsis-v text-sm" aria-hidden="true"></i>
+      </button>
     }
   </div>
+
+  <p-menu #actionsMenu [popup]="true" appendTo="body" [model]="rowActions(node)" />
 </ng-template>
 
 <!--
