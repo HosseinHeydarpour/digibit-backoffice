@@ -819,6 +819,31 @@ because it has no CDN and stores no file, so it disappears on refresh; the real 
 absolute URL (`contract.md §2`). Limits are 1 MB and PNG/SVG/WebP in `brand-logo.ts`; the server is
 the final validator, and SVG is sanitised server-side and only ever shown in an `<img>`.
 
+### Category and brand status toggle (BO-G07)
+
+- **One pattern, two screens.** Both toggles flip the row _before_ the request, call
+  `PATCH /{categories|brands}/:id/status` with `{ isActive }`, reconcile with the answer, and on
+  error reload the list — the reload is the rollback. The category tree patches its nested signal
+  through `patchNode`; the brand list keeps `patchRow`. Neither rewrites the other's optimistic
+  logic, and the HTTP response stays the source of truth.
+- **The error toast belongs to the interceptor; success is component-owned.** A failed toggle only
+  rolls back, because the error interceptor already printed the reason. Success prints
+  «دسته غیرفعال شد.» / «برند فعال شد.» once the server agreed.
+- **The default «بدون دسته‌بندی» has no toggle.** It is the fallback bucket for products of a
+  deleted category; deactivating it would remove it from the product form's lookup
+  (`ProductsService.categories()` drops `isActive === false`). The row therefore renders no power
+  button, and `PATCH …/status` answers **409** even if a stale row asks — the UI rule is a mirror,
+  the server is the authority.
+- **Offline is refused before the flip.** `isOnline()` in `@shared/utils/connectivity` is the one
+  guard both screens call; it shows `OFFLINE_MESSAGE` as a warning and sends nothing. It is a hint,
+  not proof (`navigator.onLine` describes an interface, not the API), so the server error path stays.
+- **Row actions need `products.view`.** The category tree gates the toggle, pencil and trash on the
+  same grant brands use; the handlers also return early, so a hidden button cannot be driven from a
+  test or a stale template. This is still UI gating — the backend validates writes.
+- **tc 5 is already pinned elsewhere.** `ProductsService.brands()` drops an inactive brand, and
+  `products.service.spec.ts` asserts it; the toggle does not duplicate that test. It is the same
+  lookup rule a deactivated brand relies on to leave the product form.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`
