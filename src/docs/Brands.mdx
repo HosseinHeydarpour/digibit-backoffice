@@ -50,6 +50,33 @@ thousand rows would only need virtual scrolling on top.
   «ذخیره» sends `POST /media` first and then the brand with the returned URL. «انصراف» sends
   nothing. PNG/SVG/WebP up to 1 MB; «حذف لوگو» saves `logo: null` (tc 1–10).
 
+## منطق آپلود / Upload logic (BO-G06)
+
+1. **آپلود در لحظهٔ ذخیره، نه انتخاب فایل.** دیالوگ یک تراکنش است: انتخاب فایل فقط پیش‌نمایش
+   `blob:` و اعتبارسنجی است، و «انصراف» نباید فایل یتیم روی سرور بگذارد. اگر آپلود موفق شود و
+   ذخیرهٔ برند شکست بخورد، فایل یتیم می‌ماند و پاک‌سازی‌اش با سرور است (`contract.md §۱.۴`).
+2. **مالکیت blob.** فرم فقط blobی را revoke می‌کند که خودش با `URL.createObjectURL` ساخته است.
+   URL برگشتی سرور — که در mock هم یک `blob:` است — دست‌نخورده می‌ماند؛ وگرنه ردیف لیست بعد از
+   ذخیرهٔ موفق می‌شکند.
+3. **چرا mock یک blob برمی‌گرداند.** mock نه CDN دارد نه فایل را ذخیره می‌کند؛ URL با رفرش
+   می‌رود. بک‌اند واقعی URL مطلق می‌دهد (`contract.md §۲`).
+4. **محدودیت‌ها.** حداکثر ۱ مگابایت و فقط PNG/SVG/WebP؛ اعتبارسنجی نهایی سمت سرور است. SVG
+   باید سمت سرور sanitize شود و کلاینت آن را فقط در `<img>` نشان می‌دهد.
+
+**English**
+
+1. **Upload on save, not on pick.** The dialog is a transaction: picking a file only produces a
+   `blob:` preview and a local validation, and «انصراف» must not leave an orphan on the server.
+   If the upload succeeds and the brand write then fails, the file is orphaned and cleanup belongs
+   to the server (`contract.md §1.4`).
+2. **Blob ownership.** The form revokes only the blob it created with `URL.createObjectURL`. The
+   URL returned by the server — also a `blob:` in the mock — is left untouched, or the saved row
+   in the list would break.
+3. **Why the mock returns a blob.** It has no CDN and stores no file, so the URL disappears on
+   refresh. The real backend returns an absolute URL (`contract.md §2`).
+4. **Limits.** At most 1 MB and only PNG/SVG/WebP; the server is the final validator. SVG must be
+   sanitised server-side, and the client only ever shows it in an `<img>`.
+
 ## پیش‌نمایش / Preview
 
 <Canvas of={BrandListStories.Default} />

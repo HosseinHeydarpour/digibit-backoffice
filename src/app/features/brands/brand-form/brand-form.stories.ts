@@ -27,7 +27,7 @@ const LOGO_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#2563eb"/><text x="24" y="31" font-size="20" text-anchor="middle" fill="#fff">D</text></svg>',
   );
 
-/** The form only posts; the story never leaves the page. */
+/** The form only writes; the story never leaves the page. */
 class StaticBrandsService implements Pick<BrandsService, 'create' | 'update' | 'uploadLogo'> {
   create(dto: BrandInput): Observable<Brand> {
     return of({ ...SAMSUNG, ...dto, id: 'brand-new-9' });

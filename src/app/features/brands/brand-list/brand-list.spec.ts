@@ -255,8 +255,10 @@ describe('BrandList (BO-G05)', () => {
     expect(fixture.componentInstance.formSaving()).toBe(true);
     expect(service.uploads).toHaveLength(1);
 
-    // PrimeNG bound its escape/mask listeners when the dialog opened; neither
-    // may reach closeDialog while the upload owns the transaction.
+    // `closeOnEscape` and `dismissableMask` are always false, so PrimeNG binds
+    // no escape/mask listener at all. The page's own keydown guard is what
+    // refuses Escape while the upload owns the transaction, and the mask has
+    // no handler to dismiss it.
     pressEscape();
     expect(fixture.componentInstance.dialogOpen()).toBe(true);
     expect(service.created).toBeNull();

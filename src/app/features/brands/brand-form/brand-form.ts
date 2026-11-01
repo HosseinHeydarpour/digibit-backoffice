@@ -117,6 +117,10 @@ export class BrandForm {
   /** The file picked this session; uploaded only when «ذخیره» is pressed. */
   readonly logoFile = signal<File | null>(null);
 
+  /**
+   * Inline slot for a rejected file or a failed upload; a valid pick or
+   * «حذف لوگو» clears it.
+   */
   readonly logoError = signal<string | null>(null);
 
   /**
@@ -245,8 +249,10 @@ export class BrandForm {
    * TRACE — a fresh PNG and a valid form:
    *
    *   1. `uploadLogo(file)` posts the bytes and answers with the server URL.
-   *   2. The URL replaces the local preview, the blob is revoked, and the
-   *      `logo` control holds the URL — never the `blob:` the browser made.
+   *   2. The URL replaces the local preview, `localPreviewUrl` is revoked, and
+   *      the `logo` control holds the server URL — never the form's local
+   *      preview blob. The server URL (also a `blob:` in the mock) is left
+   *      untouched; see `localPreviewUrl` and `BrandsService.uploadLogo`.
    *   3. `saveBrand(url)` builds the same `BrandInput` BO-G05 sent and calls
    *      create/update; a 422 still lands under its field.
    *
