@@ -771,7 +771,9 @@ function resolveCategory(
 
     found.isActive = isActive;
 
-    return ok(found, isActive ? 'دسته فعال شد.' : 'دسته غیرفعال شد.');
+    // Only the flag is part of this endpoint's contract; the tree shape is a
+    // different read, so the mock answers the flat status row too (BO-G07).
+    return ok({ id: found.id, isActive }, isActive ? 'دسته فعال شد.' : 'دسته غیرفعال شد.');
   }
 
   if (

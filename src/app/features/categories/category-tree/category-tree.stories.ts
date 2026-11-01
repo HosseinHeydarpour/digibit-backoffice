@@ -5,7 +5,7 @@ import { applicationConfig } from '@storybook/angular';
 import type { Observable } from 'rxjs';
 import { of, throwError } from 'rxjs';
 
-import type { CategoryNode } from '../models/category.model';
+import type { CategoryNode, CategoryStatus } from '../models/category.model';
 import { CategoriesService } from '../services/categories.service';
 
 import { CategoryTree } from './category-tree';
@@ -95,24 +95,8 @@ class StaticCategoriesService implements Pick<CategoriesService, 'tree' | 'setAc
     return of(TREE);
   }
 
-  setActive(id: string, isActive: boolean): Observable<CategoryNode> {
-    const find = (nodes: readonly CategoryNode[]): CategoryNode | undefined => {
-      for (const node of nodes) {
-        if (node.id === id) {
-          return node;
-        }
-
-        const found = find(node.children);
-
-        if (found) {
-          return found;
-        }
-      }
-
-      return undefined;
-    };
-
-    return of({ ...(find(TREE) ?? TREE[0]!), id, isActive });
+  setActive(id: string, isActive: boolean): Observable<CategoryStatus> {
+    return of({ id, isActive });
   }
 }
 

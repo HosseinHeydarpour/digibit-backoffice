@@ -612,14 +612,15 @@ describe('mockInterceptor', () => {
 
   it('toggles a category through its status endpoint and the tree reflects it (BO-G07)', async () => {
     const toggled = await firstValueFrom(
-      http.patch<ApiResponse<{ isActive: boolean }>>(
+      http.patch<ApiResponse<{ id: string; isActive: boolean }>>(
         '/api/v1/categories/pcat-stationery/status',
         { isActive: false },
         { headers: { [MOCK_HEADER]: '1' } },
       ),
     );
 
-    expect(toggled.data.isActive).toBe(false);
+    // The status endpoint answers the flat row, not the tree node.
+    expect(toggled.data).toEqual({ id: 'pcat-stationery', isActive: false });
 
     const tree = await firstValueFrom(
       http.get<ApiResponse<{ id: string; isActive: boolean }[]>>('/api/v1/categories', {

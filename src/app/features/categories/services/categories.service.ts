@@ -5,7 +5,12 @@ import type { EntityId } from '@shared/models';
 import { map } from 'rxjs';
 import type { Observable } from 'rxjs';
 
-import type { CategoryDeleteStrategy, CategoryInput, CategoryNode } from '../models/category.model';
+import type {
+  CategoryDeleteStrategy,
+  CategoryInput,
+  CategoryNode,
+  CategoryStatus,
+} from '../models/category.model';
 
 /**
  * The categories screen's data source (BO-G01/G02).
@@ -41,8 +46,8 @@ export class CategoriesService {
    * server refuses to deactivate the default bucket, which the UI mirrors by
    * not rendering the toggle on that row.
    */
-  setActive(id: EntityId, isActive: boolean): Observable<CategoryNode> {
-    return this.api.patch<CategoryNode>(`/categories/${encodeURIComponent(id)}/status`, {
+  setActive(id: EntityId, isActive: boolean): Observable<CategoryStatus> {
+    return this.api.patch<CategoryStatus>(`/categories/${encodeURIComponent(id)}/status`, {
       isActive,
     });
   }

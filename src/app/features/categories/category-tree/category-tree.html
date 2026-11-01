@@ -275,18 +275,14 @@
       </button>
 
       @if (!node.isDefault) {
-        <button
-          type="button"
-          (click)="toggleStatus(node)"
+        <p-toggleswitch
+          class="max-sm:min-h-11 max-sm:min-w-11"
+          [inputId]="'category-status-' + node.id"
+          [ngModel]="node.isActive"
+          (onChange)="toggleStatus(node)"
+          [ariaLabel]="(node.isActive ? 'غیرفعال کردن دستهٔ ' : 'فعال کردن دستهٔ ') + node.name"
           [attr.data-toggle-category]="node.id"
-          [attr.aria-pressed]="node.isActive"
-          [attr.aria-label]="
-            (node.isActive ? 'غیرفعال کردن دستهٔ ' : 'فعال کردن دستهٔ ') + node.name
-          "
-          class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-primary"
-        >
-          <i class="pi pi-power-off text-sm" aria-hidden="true"></i>
-        </button>
+        />
       }
 
       @if (!node.isDefault) {

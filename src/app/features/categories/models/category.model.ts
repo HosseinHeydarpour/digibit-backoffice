@@ -34,6 +34,17 @@ export interface CategoryNode {
   readonly children: readonly CategoryNode[];
 }
 
+/**
+ * The answer to `PATCH /categories/:id/status` (BO-G07).
+ *
+ * Only the flag changes, so the server does not resend the tree node — the tree
+ * shape carries `children` and `productCount` the status endpoint never computes.
+ */
+export interface CategoryStatus {
+  readonly id: EntityId;
+  readonly isActive: boolean;
+}
+
 /** The body a create/update sends (BO-G02). Parent selection is BO-G03. */
 export interface CategoryInput {
   readonly name: string;

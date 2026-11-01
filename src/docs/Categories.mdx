@@ -35,7 +35,8 @@ paging, which is out of scope here.
 - **خطا با «تلاش دوباره».** `catchError` مقدار `null` برمی‌گرداند و صفحه بلوک خطا را با دکمهٔ
   بازخوانی نشان می‌دهد، نه یک صفحهٔ خالی.
 - **در موبایل.** ناحیهٔ درخت داخل کارت اسکرول عمودی دارد (`max-h-[70vh]`)، و بج تعداد/وضعیت زیر
-  `sm` پنهان می‌شوند تا نام کنار چهار دکمهٔ ردیف (دستهٔ درگ، وضعیت، مداد، سطل) جا شود (tc 9).
+  `sm` پنهان می‌شوند تا نام کنار چهار کنترل ردیف (دستهٔ درگ، سوییچ وضعیت، مداد، سطل) جا شود (tc 9).
+  سوییچ وضعیت خودش در همهٔ عرض‌ها دیده می‌شود، پس تغییر خوش‌بینانه در ۳۷۵px هم بلافاصله دیده می‌شود.
 - **هر شاخه در بار اول باز است** تا هر دو سطح بدون کلیک دیده شوند (tc 1/2).
 
 - **Filter in the browser, hierarchy intact.** `filterTree` is pure: a node stays when it or a
@@ -102,17 +103,17 @@ label opens it — not only the chevron. The pencil, the trash and the drag grip
 
 ## وضعیت سریع / Quick status (BO-G07)
 
-دکمهٔ برق هر ردیف وضعیت را بدون باز کردن فرم عوض می‌کند. ردیف **اول** عوض می‌شود و بعد درخواست
+سوییچ وضعیت هر ردیف وضعیت را بدون باز کردن فرم عوض می‌کند. ردیف **اول** عوض می‌شود و بعد درخواست
 `PATCH /categories/:id/status` می‌رود؛ اگر سرور رد کند درخت دوباره گرفته می‌شود و ردیف به حالت قبل
 برمی‌گردد. پیام خطا مال اینترسپتور است و اینجا تکرار نمی‌شود، ولی موفقیت toast خودش را دارد. وقتی
 مرورگر آفلاین است هیچ تغییری و هیچ درخواستی نمی‌فرستد و یک هشدار نشان می‌دهد. «بدون دسته‌بندی»
-دکمهٔ وضعیت ندارد، چون غیرفعال‌شدنش آن را از لیست دسته‌های فرم محصول حذف می‌کند؛ سرور هم همین را
+سوییچ وضعیت ندارد، چون غیرفعال‌شدنش آن را از لیست دسته‌های فرم محصول حذف می‌کند؛ سرور هم همین را
 با ۴۰۹ رد می‌کند.
 
-Each row's power button changes the status without opening the form. The row flips **first** and
+Each row's status switch changes the status without opening the form. The row flips **first** and
 `PATCH /categories/:id/status` follows; a refusal reloads the tree and puts the row back. The error
 toast belongs to the interceptor and is not repeated here, while success gets its own. Offline, the
-toggle changes nothing, sends nothing and shows a warning. «بدون دسته‌بندی» has no toggle because
+toggle changes nothing, sends nothing and shows a warning. «بدون دسته‌بندی» has no switch because
 deactivating it would drop the fallback from the product form's lookup — the server refuses with 409.
 
 ## حذف دسته / Deleting (BO-G04)

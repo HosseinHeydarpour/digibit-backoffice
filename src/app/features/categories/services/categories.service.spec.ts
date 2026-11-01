@@ -3,22 +3,11 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { environment } from '@env/environment';
 
-import type { CategoryNode } from '../models/category.model';
+import type { CategoryStatus } from '../models/category.model';
 
 import { CategoriesService } from './categories.service';
 
-const NODE: CategoryNode = {
-  id: 'pcat-stationery',
-  parentId: null,
-  name: 'لوازم تحریر',
-  slug: 'stationery',
-  icon: 'pi pi-pen-to-square',
-  order: 1,
-  isActive: true,
-  description: '',
-  productCount: 12,
-  children: [],
-};
+const ID = 'pcat-stationery';
 
 describe('CategoriesService status toggle (BO-G07)', () => {
   let service: CategoriesService;
@@ -35,18 +24,18 @@ describe('CategoriesService status toggle (BO-G07)', () => {
 
   afterEach(() => httpMock.verify());
 
-  it('PATCHes /categories/:id/status with the new flag and returns the node', () => {
-    let answer: CategoryNode | undefined;
+  it('PATCHes /categories/:id/status with the new flag and returns the flat row', () => {
+    let answer: CategoryStatus | undefined;
 
-    service.setActive(NODE.id, false).subscribe((node) => (answer = node));
+    service.setActive(ID, false).subscribe((row) => (answer = row));
 
-    const request = httpMock.expectOne(`${environment.API_BASE_URL}/categories/${NODE.id}/status`);
+    const request = httpMock.expectOne(`${environment.API_BASE_URL}/categories/${ID}/status`);
 
     expect(request.request.method).toBe('PATCH');
     expect(request.request.body).toEqual({ isActive: false });
 
-    request.flush({ data: { ...NODE, isActive: false }, message: 'دسته غیرفعال شد.' });
+    request.flush({ data: { id: ID, isActive: false }, message: 'دسته غیرفعال شد.' });
 
-    expect(answer?.isActive).toBe(false);
+    expect(answer).toEqual({ id: ID, isActive: false });
   });
 });

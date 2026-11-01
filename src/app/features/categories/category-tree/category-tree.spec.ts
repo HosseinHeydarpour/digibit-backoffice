@@ -9,7 +9,7 @@ import { OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { Subject, of, throwError } from 'rxjs';
 import type { Observable } from 'rxjs';
 
-import type { CategoryNode } from '../models/category.model';
+import type { CategoryNode, CategoryStatus } from '../models/category.model';
 import { CategoriesService } from '../services/categories.service';
 
 import { CategoryTree } from './category-tree';
@@ -79,7 +79,7 @@ class CategoriesServiceStub {
   toggleError = false;
 
   /** Holds the answer open so a spec can see the optimistic state first. */
-  toggleHold: Subject<CategoryNode> | null = null;
+  toggleHold: Subject<CategoryStatus> | null = null;
 
   tree(): Observable<readonly CategoryNode[]> {
     this.calls += 1;
@@ -93,14 +93,14 @@ class CategoriesServiceStub {
     return of(TREE[0]!);
   }
 
-  setActive(id: string, isActive: boolean): Observable<CategoryNode> {
+  setActive(id: string, isActive: boolean): Observable<CategoryStatus> {
     this.toggled.push({ id, isActive });
 
     if (this.toggleError) {
       return throwError(() => new Error('offline'));
     }
 
-    return this.toggleHold ? this.toggleHold.asObservable() : of({ ...TREE[0]!, id, isActive });
+    return this.toggleHold ? this.toggleHold.asObservable() : of({ id, isActive });
   }
 }
 
@@ -143,6 +143,12 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
 
   function text(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
+  }
+
+  /** NgModel writes to the switch in a microtask; flush it before reading the DOM. */
+  async function flush(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
   }
 
   it('tc 1/2: renders the roots and the expansion children in one nested list', () => {
@@ -371,15 +377,20 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
   });
 
   it('BO-G07 tc 1/2/8: flips the row before the answer, keeps it, and toasts', async () => {
-    const hold = new Subject<CategoryNode>();
+    const hold = new Subject<CategoryStatus>();
     service.toggleHold = hold;
+
+    await flush();
 
     const toggle = fixture.nativeElement.querySelector(
       '[data-toggle-category="c-1"]',
-    ) as HTMLButtonElement;
+    ) as HTMLElement;
+    const input = toggle.querySelector('input') as HTMLInputElement;
 
-    expect(toggle.getAttribute('aria-label')).toBe('غیرفعال کردن دستهٔ لوازم تحریر');
-    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(input.getAttribute('aria-label')).toBe('غیرفعال کردن دستهٔ لوازم تحریر');
+    expect(toggle.classList.contains('max-sm:min-h-11')).toBe(true);
+    expect(toggle.classList.contains('max-sm:min-w-11')).toBe(true);
+    expect(toggle.getAttribute('data-p-checked')).toBe('true');
 
     toggle.click();
     fixture.detectChanges();
@@ -387,9 +398,12 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     // The server has not answered yet; the tree already shows the new state.
     expect(component().tree()?.[0].isActive).toBe(false);
     expect(service.toggled).toEqual([{ id: 'c-1', isActive: false }]);
-    expect(toggle.getAttribute('aria-pressed')).toBe('false');
 
-    hold.next({ ...TREE[0]!, isActive: false });
+    await flush();
+
+    expect(toggle.getAttribute('data-p-checked')).toBe('false');
+
+    hold.next({ id: 'c-1', isActive: false });
     hold.complete();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -402,9 +416,7 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     service.toggleError = true;
     const before = service.calls;
 
-    (
-      fixture.nativeElement.querySelector('[data-toggle-category="c-1"]') as HTMLButtonElement
-    ).click();
+    (fixture.nativeElement.querySelector('[data-toggle-category="c-1"]') as HTMLElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -417,9 +429,7 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
   it('BO-G07 tc 7: offline changes nothing and warns instead', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
 
-    (
-      fixture.nativeElement.querySelector('[data-toggle-category="c-1"]') as HTMLButtonElement
-    ).click();
+    (fixture.nativeElement.querySelector('[data-toggle-category="c-1"]') as HTMLElement).click();
     fixture.detectChanges();
 
     expect(component().tree()?.[0].isActive).toBe(true);

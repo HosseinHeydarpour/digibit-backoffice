@@ -28,6 +28,7 @@
 import { CdkDrag, CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
@@ -40,6 +41,7 @@ import { Dialog } from 'primeng/dialog';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
+import { ToggleSwitch } from 'primeng/toggleswitch';
 import { catchError, of, take } from 'rxjs';
 
 import { CategoryDelete } from '../category-delete/category-delete';
@@ -58,6 +60,7 @@ import { filterTree } from './category-filter';
     DragDropModule,
     EmptyState,
     ErrorState,
+    FormsModule,
     IconField,
     InputIcon,
     InputText,
@@ -65,6 +68,7 @@ import { filterTree } from './category-filter';
     NgTemplateOutlet,
     PageHeader,
     PersianDigitsPipe,
+    ToggleSwitch,
   ],
   templateUrl: './category-tree.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
