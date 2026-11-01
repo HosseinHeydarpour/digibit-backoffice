@@ -27,6 +27,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ConfirmService } from '@core/services/confirm';
 import { ToastService } from '@core/services/toast';
@@ -40,6 +41,7 @@ import { Dialog } from 'primeng/dialog';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
+import { ToggleSwitch } from 'primeng/toggleswitch';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 
 import { BrandForm } from '../brand-form/brand-form';
@@ -55,12 +57,14 @@ const PAGE_SIZE = 10;
     Dialog,
     EmptyState,
     ErrorState,
+    FormsModule,
     IconField,
     InputIcon,
     InputText,
     LoadingBlock,
     PageHeader,
     PersianDigitsPipe,
+    ToggleSwitch,
   ],
   templateUrl: './brand-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

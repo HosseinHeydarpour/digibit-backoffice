@@ -158,18 +158,14 @@
               @if (canManage()) {
                 <td class="px-6 py-4 text-start">
                   <div class="flex items-center gap-1">
-                    <button
-                      type="button"
-                      (click)="toggleStatus(item)"
+                    <p-toggleswitch
+                      class="max-sm:min-h-11 max-sm:min-w-11"
+                      [inputId]="'brand-status-' + item.id"
+                      [ngModel]="item.isActive"
+                      (onChange)="toggleStatus(item)"
+                      [ariaLabel]="(item.isActive ? 'غیرفعال کردن ' : 'فعال کردن ') + item.name"
                       [attr.data-toggle-brand]="item.id"
-                      [attr.aria-pressed]="item.isActive"
-                      [attr.aria-label]="
-                        (item.isActive ? 'غیرفعال کردن ' : 'فعال کردن ') + item.name
-                      "
-                      class="inline-flex size-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-primary max-sm:size-11 dark:text-gray-400 dark:hover:bg-gray-700"
-                    >
-                      <i class="pi pi-power-off text-sm" aria-hidden="true"></i>
-                    </button>
+                    />
 
                     <button
                       type="button"

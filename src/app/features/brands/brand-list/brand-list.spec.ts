@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import type { WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { PERMISSIONS } from '@core/auth/permissions.token';
@@ -6,7 +7,7 @@ import { ConfirmService } from '@core/services/confirm';
 import { ToastService } from '@core/services/toast';
 import { OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { MessageService } from 'primeng/api';
-import { Subject, of } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import type { Observable } from 'rxjs';
 
 import type { Brand, BrandInput, BrandListItem, BrandQuery } from '../models/brand.model';
@@ -46,6 +47,11 @@ class BrandsServiceStub {
   /** Holds the logo upload open so a spec can close the dialog mid-save. */
   uploadHold: Subject<string> | null = null;
 
+  /** Holds the status answer open so a spec can see the optimistic row first. */
+  toggleHold: Subject<Brand> | null = null;
+
+  toggleError = false;
+
   failList = false;
 
   list(
@@ -79,7 +85,13 @@ class BrandsServiceStub {
   setActive(id: string, isActive: boolean): Observable<Brand> {
     this.toggled.push({ id, isActive });
 
-    return of({ ...SAMSUNG, id, isActive, description: '', createdAt: 1 });
+    if (this.toggleError) {
+      return throwError(() => new Error('offline'));
+    }
+
+    return this.toggleHold
+      ? this.toggleHold.asObservable()
+      : of({ ...SAMSUNG, id, isActive, description: '', createdAt: 1 });
   }
 
   remove(id: string): Observable<number> {
@@ -112,11 +124,13 @@ describe('BrandList (BO-G05)', () => {
   let service: BrandsServiceStub;
   let confirm: ConfirmStub;
   let toast: ToastStub;
+  let permissions: WritableSignal<readonly string[]>;
 
   beforeEach(async () => {
     service = new BrandsServiceStub();
     confirm = new ConfirmStub();
     toast = new ToastStub();
+    permissions = signal<readonly string[]>(['products.view']);
 
     await TestBed.configureTestingModule({
       imports: [BrandList],
@@ -125,7 +139,7 @@ describe('BrandList (BO-G05)', () => {
         { provide: ConfirmService, useValue: confirm },
         { provide: ToastService, useValue: toast },
         MessageService,
-        { provide: PERMISSIONS, useValue: signal<readonly string[]>(['products.view']) },
+        { provide: PERMISSIONS, useValue: permissions },
       ],
     }).compileComponents();
 
@@ -138,6 +152,12 @@ describe('BrandList (BO-G05)', () => {
 
   function element(): HTMLElement {
     return fixture.nativeElement as HTMLElement;
+  }
+
+  /** NgModel writes to the switch in a microtask; flush it before reading the DOM. */
+  async function flush(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
   }
 
   async function openCreate(): Promise<void> {
@@ -194,18 +214,46 @@ describe('BrandList (BO-G05)', () => {
   });
 
   it('tc 6: the toggle flips the row before the answer and calls the endpoint', async () => {
-    const toggle = element().querySelector('[data-toggle-brand="6"]') as HTMLButtonElement;
+    const hold = new Subject<Brand>();
+    service.toggleHold = hold;
+
+    await flush();
+
+    const toggle = element().querySelector('[data-toggle-brand="6"]') as HTMLElement;
+
     toggle.click();
     fixture.detectChanges();
 
-    // The first row is optimistically off; the server stub echoes it back.
+    // The server has not answered yet; the row already shows the new state.
     expect(fixture.componentInstance.rows()?.[0].isActive).toBe(false);
     expect(service.toggled).toEqual([{ id: '6', isActive: false }]);
+
+    await flush();
+
+    expect(toggle.getAttribute('data-p-checked')).toBe('false');
+
+    hold.next({ ...SAMSUNG, id: '6', isActive: false, description: '', createdAt: 1 });
+    hold.complete();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.rows()?.[0].isActive).toBe(false);
+  });
+
+  it('BO-G07 tc 3: a failed toggle reloads the row and does not toast success', async () => {
+    service.toggleError = true;
+    const before = service.queries.length;
+
+    (element().querySelector('[data-toggle-brand="6"]') as HTMLElement).click();
     await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(service.queries.length).toBe(before + 1);
+    expect(fixture.componentInstance.rows()?.[0].isActive).toBe(true);
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it('BO-G07 tc 4: a successful toggle reports the new state', async () => {
-    (element().querySelector('[data-toggle-brand="6"]') as HTMLButtonElement).click();
+    (element().querySelector('[data-toggle-brand="6"]') as HTMLElement).click();
     await fixture.whenStable();
 
     expect(toast.success).toHaveBeenCalledWith('برند غیرفعال شد.');
@@ -214,12 +262,23 @@ describe('BrandList (BO-G05)', () => {
   it('BO-G07 tc 7: offline does not flip the row, sends nothing, and warns', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
 
-    (element().querySelector('[data-toggle-brand="6"]') as HTMLButtonElement).click();
+    (element().querySelector('[data-toggle-brand="6"]') as HTMLElement).click();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.rows()?.[0].isActive).toBe(true);
     expect(service.toggled).toEqual([]);
     expect(toast.warning).toHaveBeenCalledWith(OFFLINE_MESSAGE);
+  });
+
+  it('BO-G07 tc 9: without products.view the toggle is hidden and the handler is a no-op', () => {
+    permissions.set([]);
+    fixture.detectChanges();
+
+    expect(element().querySelector('[data-toggle-brand]')).toBeNull();
+
+    fixture.componentInstance.toggleStatus(SAMSUNG);
+
+    expect(service.toggled).toEqual([]);
   });
 
   it('tc 7: delete asks first, and cancelling sends nothing', async () => {
