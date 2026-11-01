@@ -828,9 +828,22 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   logic, and the HTTP response stays the source of truth.
 - **`p-toggleswitch`, visible at every width.** The row control is PrimeNG's switch, not a power
   icon: the knob and track change on the optimistic flip, so the state is visible at 375px where the
-  text pill is `sm+` only. The switch host carries `max-sm:min-h-11 max-sm:min-w-11`, which keeps the
-  phone hit area at 44px; `[ngModel]` is one-way and `(onChange)` calls the same handler, so the
-  switch can never write a row the service has not accepted.
+  text pill is `sm+` only. The host keeps the native 40×24 track; below `sm` it is `box-content` with
+  `px-0.5 py-2.5`, so the padding makes a 44×44 hit box without stretching the track. `[ngModel]` is
+  one-way and `(onChange)` calls the same handler, so the switch can never write a row the service
+  has not accepted.
+- **A stable name, not an action.** The accessible name is «وضعیت دستهٔ …» / «وضعیت برند …» and the
+  state comes from `aria-checked`; there is no `aria-pressed`. An action name («غیرفعال کردن …») would
+  contradict `aria-checked="true"` and would change after every click.
+- **The off track clears contrast against the card.** The slider's PT border is
+  `--p-text-muted-color` — surface-500 in light, surface-400 in dark — so the off state is visible
+  instead of Aura's ~1.4:1 transparent-border track.
+- **Phone layout keeps the state reachable.** The category row hides the drag grip below `sm`
+  (dragging on a 320px screen is not a real affordance), leaving switch, pencil and trash and roughly
+  112px for the name at 320px. The brand row puts its one switch in the status cell at every width
+  and hides the text pill below `sm` when the switch is present, so the status cell ends around
+  256px from the start edge at 320px and only the actions need horizontal scroll. Row order is count,
+  pill, switch, pencil, trash; delete stays last.
 - **The error toast belongs to the interceptor; success is component-owned.** A failed toggle only
   rolls back, because the error interceptor already printed the reason. Success prints
   «دسته غیرفعال شد.» / «برند فعال شد.» once the server agreed.

@@ -34,9 +34,9 @@ paging, which is out of scope here.
   فروشگاه دسته‌ای ندارد؛ همان قاعدهٔ داشبورد و لیست محصولات.
 - **خطا با «تلاش دوباره».** `catchError` مقدار `null` برمی‌گرداند و صفحه بلوک خطا را با دکمهٔ
   بازخوانی نشان می‌دهد، نه یک صفحهٔ خالی.
-- **در موبایل.** ناحیهٔ درخت داخل کارت اسکرول عمودی دارد (`max-h-[70vh]`)، و بج تعداد/وضعیت زیر
-  `sm` پنهان می‌شوند تا نام کنار چهار کنترل ردیف (دستهٔ درگ، سوییچ وضعیت، مداد، سطل) جا شود (tc 9).
-  سوییچ وضعیت خودش در همهٔ عرض‌ها دیده می‌شود، پس تغییر خوش‌بینانه در ۳۷۵px هم بلافاصله دیده می‌شود.
+- **در موبایل.** ناحیهٔ درخت داخل کارت اسکرول عمودی دارد (`max-h-[70vh]`)، دستهٔ درگ زیر `sm`
+  پنهان می‌شود (کشیدن ردیف روی صفحهٔ ۳۲۰px اسباب‌بازی واقعی نیست) و فقط سوییچ، مداد و سطل می‌مانند؛
+  بج تعداد/وضعیت هم پنهان می‌شوند تا حدود ۱۱۲px برای نام بماند (tc 9).
 - **هر شاخه در بار اول باز است** تا هر دو سطح بدون کلیک دیده شوند (tc 1/2).
 
 - **Filter in the browser, hierarchy intact.** `filterTree` is pure: a node stays when it or a
@@ -46,8 +46,9 @@ paging, which is out of scope here.
 - **`null` vs `[]`.** `null` is "no answer yet" (skeleton), `[]` is "no categories": the same rule
   the dashboard and the products list follow.
 - **Failure has a retry.** `catchError` yields `null` and the page renders the shared error block.
-- **On a phone** the tree scrolls inside the card, and the count/status pills hide below `sm` so the
-  name fits next to the row's four controls (grip, status, pencil, trash).
+- **On a phone** the tree scrolls inside the card, the drag grip is hidden below `sm` (dragging a row
+  at 320px is not a real affordance), and only the switch, pencil and trash remain; the count/status
+  pills hide too, leaving roughly 112px for the name (tc 9).
 - **Every branch starts open**, so both levels show without a click.
 
 ## پیش‌نمایش / Preview
@@ -107,7 +108,9 @@ label opens it — not only the chevron. The pencil, the trash and the drag grip
 `PATCH /categories/:id/status` می‌رود؛ اگر سرور رد کند درخت دوباره گرفته می‌شود و ردیف به حالت قبل
 برمی‌گردد. پیام خطا مال اینترسپتور است و اینجا تکرار نمی‌شود، ولی موفقیت toast خودش را دارد. وقتی
 مرورگر آفلاین است سوییچ با `writeValue` به وضعیت واقعی ردیف برگردانده می‌شود (چون PrimeNG قبل از
-`onChange` خودش را flip می‌کند)، هیچ درخواستی فرستاده نمی‌شود و یک هشدار نشان داده می‌شود. «بدون دسته‌بندی»
+`onChange` خودش را flip می‌کند)، هیچ درخواستی فرستاده نمی‌شود و یک هشدار نشان داده می‌شود. نام
+دسترس‌پذیر سوییچ ثابت است («وضعیت دستهٔ …») و وضعیت از `aria-checked` می‌آید؛ ترتیب ردیف هم تعداد،
+پیل، سوییچ، مداد و سطل است و حذف آخر می‌ماند. «بدون دسته‌بندی»
 سوییچ وضعیت ندارد، چون غیرفعال‌شدنش آن را از لیست دسته‌های فرم محصول حذف می‌کند؛ سرور هم همین را
 با ۴۰۹ رد می‌کند.
 
@@ -115,8 +118,10 @@ Each row's status switch changes the status without opening the form. The row fl
 `PATCH /categories/:id/status` follows; a refusal reloads the tree and puts the row back. The error
 toast belongs to the interceptor and is not repeated here, while success gets its own. Offline, the
 switch is reset to the row's real value before the warning (PrimeNG flips itself before `onChange`),
-and nothing is sent. «بدون دسته‌بندی» has no switch because deactivating it would drop the fallback
-from the product form's lookup — the server refuses with 409.
+and nothing is sent. The accessible name is stable («وضعیت دستهٔ …») and the state comes from
+`aria-checked`; row order is count, pill, switch, pencil, trash, with delete last. «بدون دسته‌بندی»
+has no switch because deactivating it would drop the fallback from the product form's lookup — the
+server refuses with 409.
 
 ## حذف دسته / Deleting (BO-G04)
 
