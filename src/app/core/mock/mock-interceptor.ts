@@ -292,6 +292,36 @@ const NOT_FOUND: MockResolution = {
   body: { error: { code: 'NOT_FOUND', message: 'موردی با این شناسه یافت نشد.' } },
 };
 
+/**
+ * `POST /media` — the brand logo upload (BO-G06).
+ *
+ * TRACE — the form sends `FormData` with one PNG:
+ *
+ *   1. The field is `file`; anything else is a 400 with the architecture's
+ *      error envelope.
+ *   2. The mock does NOT re-check type or size. The client refuses those before
+ *      a request (tc 4/5); the real server is the authority.
+ *   3. The answer is a `blob:` URL made from the uploaded File, standing in for
+ *      the CDN. It is not stored: a refresh loses it exactly like every other
+ *      mock write, and the brand only keeps the URL string.
+ */
+function resolveMedia(method: string, body: unknown): MockResolution {
+  if (method !== 'POST') {
+    return NOT_FOUND;
+  }
+
+  const file = body instanceof FormData ? body.get('file') : null;
+
+  if (!(file instanceof File)) {
+    return {
+      status: 400,
+      body: { error: { code: 'BAD_REQUEST', message: 'فایلی ارسال نشد.' } },
+    };
+  }
+
+  return created({ url: URL.createObjectURL(file) }, 'فایل بارگذاری شد.');
+}
+
 function resolve(
   method: string,
   url: string,
@@ -313,6 +343,10 @@ function resolve(
   }
 
   switch (module) {
+    // A multipart upload is not JSON; it is answered before any list route.
+    case 'media':
+      return resolveMedia(method, body);
+
     case 'dashboard':
       if (id === 'summary') return ok(fixtures.MOCK_DASHBOARD_SUMMARY);
       if (id === 'sales-chart') {

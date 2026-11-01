@@ -12,9 +12,20 @@ import { catchError, firstValueFrom, of } from 'rxjs';
 
 import { MOCK_HEADER, mockInterceptor, resetMockState } from './mock-interceptor';
 
+const createObjectURL = URL.createObjectURL;
+
 describe('mockInterceptor', () => {
   let http: HttpClient;
   let httpMock: HttpTestingController;
+
+  beforeAll(() => {
+    // jsdom implements neither; the media endpoint's contract needs the first.
+    URL.createObjectURL = vi.fn(() => 'blob:mock-media') as typeof URL.createObjectURL;
+  });
+
+  afterAll(() => {
+    URL.createObjectURL = createObjectURL;
+  });
 
   beforeEach(() => {
     // The soft-delete set is module state: one spec must not hide a product
@@ -892,6 +903,34 @@ describe('mockInterceptor', () => {
     );
 
     expect(moved.data.map((item) => item.id)).toContain(created.data.id);
+  });
+
+  // ─── POST /media (BO-G06) ─────────────────────────────────────────────────
+
+  it('uploads a logo file and answers with a server-owned URL (BO-G06 tc 1)', async () => {
+    const body = new FormData();
+    body.append('file', new File([new Uint8Array(3)], 'logo.png', { type: 'image/png' }));
+
+    const answer = await firstValueFrom(
+      http.post<ApiResponse<{ url: string }>>('/api/v1/media', body, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(answer.data.url).toBe('blob:mock-media');
+  });
+
+  it('refuses a media request without a file (BO-G06)', async () => {
+    const error = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>('/api/v1/media', new FormData(), {
+          headers: { [MOCK_HEADER]: '1' },
+        })
+        .pipe(catchError((response: HttpErrorResponse) => of(response))),
+    );
+
+    expect(error.status).toBe(400);
+    expect(error.error.error.code).toBe('BAD_REQUEST');
   });
 
   it('pages and searches the brand list (BO-G05 tc 1)', async () => {
