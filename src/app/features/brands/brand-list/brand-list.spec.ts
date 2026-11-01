@@ -7,6 +7,7 @@ import { ConfirmService } from '@core/services/confirm';
 import { ToastService } from '@core/services/toast';
 import { OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { MessageService } from 'primeng/api';
+import type { ToggleSwitch } from 'primeng/toggleswitch';
 import { Subject, of, throwError } from 'rxjs';
 import type { Observable } from 'rxjs';
 
@@ -259,13 +260,18 @@ describe('BrandList (BO-G05)', () => {
     expect(toast.success).toHaveBeenCalledWith('برند غیرفعال شد.');
   });
 
-  it('BO-G07 tc 7: offline does not flip the row, sends nothing, and warns', () => {
+  it('BO-G07 tc 7: offline resets the switch, sends nothing, and warns', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
 
-    (element().querySelector('[data-toggle-brand="6"]') as HTMLElement).click();
+    const toggle = element().querySelector('[data-toggle-brand="6"]') as HTMLElement;
+
+    toggle.click();
     fixture.detectChanges();
+    await flush();
 
     expect(fixture.componentInstance.rows()?.[0].isActive).toBe(true);
+    // PrimeNG flips before emitting; the guard must put the switch back.
+    expect(toggle.getAttribute('data-p-checked')).toBe('true');
     expect(service.toggled).toEqual([]);
     expect(toast.warning).toHaveBeenCalledWith(OFFLINE_MESSAGE);
   });
@@ -276,7 +282,7 @@ describe('BrandList (BO-G05)', () => {
 
     expect(element().querySelector('[data-toggle-brand]')).toBeNull();
 
-    fixture.componentInstance.toggleStatus(SAMSUNG);
+    fixture.componentInstance.toggleStatus(SAMSUNG, {} as ToggleSwitch);
 
     expect(service.toggled).toEqual([]);
   });

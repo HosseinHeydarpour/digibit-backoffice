@@ -248,12 +248,15 @@ export class BrandList implements OnInit, OnDestroy {
    * back teaches the user nothing. The guard is a hint, not proof — the server
    * error path still exists for a request that fails anyway.
    */
-  toggleStatus(item: BrandListItem): void {
+  toggleStatus(item: BrandListItem, toggle: ToggleSwitch): void {
     if (!this.canManage()) {
       return;
     }
 
     if (!isOnline()) {
+      // PrimeNG flips its own model before emitting; one-way [ngModel] has no
+      // change to write back, so the switch has to be reset here.
+      toggle.writeValue(item.isActive);
       this.toast.warning(OFFLINE_MESSAGE);
       return;
     }

@@ -159,10 +159,11 @@
                 <td class="px-6 py-4 text-start">
                   <div class="flex items-center gap-1">
                     <p-toggleswitch
+                      #toggle
                       class="max-sm:min-h-11 max-sm:min-w-11"
                       [inputId]="'brand-status-' + item.id"
                       [ngModel]="item.isActive"
-                      (onChange)="toggleStatus(item)"
+                      (onChange)="toggleStatus(item, toggle)"
                       [ariaLabel]="(item.isActive ? 'غیرفعال کردن ' : 'فعال کردن ') + item.name"
                       [attr.data-toggle-brand]="item.id"
                     />
