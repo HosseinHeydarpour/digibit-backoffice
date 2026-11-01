@@ -35,9 +35,10 @@ paging, which is out of scope here.
 - **خطا با «تلاش دوباره».** `catchError` مقدار `null` برمی‌گرداند و صفحه بلوک خطا را با دکمهٔ
   بازخوانی نشان می‌دهد، نه یک صفحهٔ خالی.
 - **در موبایل.** ناحیهٔ درخت داخل کارت اسکرول عمودی دارد (`max-h-[70vh]`)، دستهٔ درگ و مداد/سطل
-  دسکتاپ زیر `sm` پنهان می‌شوند (کشیدن ردیف روی صفحهٔ ۳۲۰px اسباب‌بازی واقعی نیست) و فقط سوییچ و
-  یک کباب ۴۴px می‌مانند؛ منوی کباب «ویرایش» و (برای ردیف غیرپیش‌فرض) «حذف» را باز می‌کند. بج
-  تعداد/وضعیت هم پنهان می‌شوند تا حدود ۱۶۴px برای نام بماند (tc 9).
+  دسکتاپ زیر `sm` پنهان می‌شوند (کشیدن ردیف روی صفحهٔ ۳۲۰px تعامل واقعی نیست) و فقط سوییچ و یک
+  منوی سه‌نقطهٔ ۴۴px می‌مانند؛ منوی سه‌نقطه «ویرایش» و (برای ردیف غیرپیش‌فرض) «حذف» را باز می‌کند.
+  بج تعداد و — وقتی سوییچ هست — بج وضعیت پنهان می‌شوند تا حدود ۱۶۴px برای نام بماند؛ کاربر بدون
+  `products.view` و ردیف پیش‌فرض بج وضعیت را نگه می‌دارند (tc 9).
 - **هر شاخه در بار اول باز است** تا هر دو سطح بدون کلیک دیده شوند (tc 1/2).
 
 - **Filter in the browser, hierarchy intact.** `filterTree` is pure: a node stays when it or a
@@ -49,8 +50,9 @@ paging, which is out of scope here.
 - **Failure has a retry.** `catchError` yields `null` and the page renders the shared error block.
 - **On a phone** the tree scrolls inside the card; the drag grip and the desktop pencil/trash hide
   below `sm` (dragging a row at 320px is not a real affordance), leaving the switch and one 44px
-  kebab menu with «ویرایش» and, for non-default rows, «حذف». The count/status pills hide too, leaving
-  roughly 164px for the name (tc 9).
+  three-dot menu with «ویرایش» and, for non-default rows, «حذف». The count badge and, when the
+  switch is present, the status badge hide too, leaving roughly 164px for the name; a read-only user
+  and the default row keep the status badge because they have no switch (tc 9).
 - **Every branch starts open**, so both levels show without a click.
 
 ## پیش‌نمایش / Preview
@@ -108,24 +110,27 @@ label opens it — not only the chevron. The pencil, the trash and the drag grip
 
 سوییچ وضعیت هر ردیف وضعیت را بدون باز کردن فرم عوض می‌کند. ردیف **اول** عوض می‌شود و بعد درخواست
 `PATCH /categories/:id/status` می‌رود؛ اگر سرور رد کند درخت دوباره گرفته می‌شود و ردیف به حالت قبل
-برمی‌گردد. پیام خطا مال اینترسپتور است و اینجا تکرار نمی‌شود، ولی موفقیت toast خودش را دارد. وقتی
-مرورگر آفلاین است سوییچ با `writeValue` به وضعیت واقعی ردیف برگردانده می‌شود (چون PrimeNG قبل از
-`onChange` خودش را flip می‌کند)، هیچ درخواستی فرستاده نمی‌شود و یک هشدار نشان داده می‌شود. نام
-دسترس‌پذیر سوییچ ثابت است («وضعیت دستهٔ …») و وضعیت از `aria-checked` می‌آید؛ در دسکتاپ ترتیب ردیف
-تعداد، پیل، سوییچ، مداد و سطل است و حذف آخر می‌ماند؛ در موبایل مداد/سطل با یک کباب ۴۴px جایگزین
-می‌شوند که همان «ویرایش» و «حذف» را از یک `p-menu` چسبیده به `<body>` باز می‌کند. «بدون دسته‌بندی»
-سوییچ وضعیت ندارد، چون غیرفعال‌شدنش آن را از لیست دسته‌های فرم محصول حذف می‌کند؛ سرور هم همین را
-با ۴۰۹ رد می‌کند.
+برمی‌گردد. خطا را اینترسپتور نشان می‌دهد و اینجا تکرار نمی‌شود؛ پیام موفقیت را همین صفحه می‌دهد. وقتی
+مرورگر آفلاین است سوییچ با `writeValue` به وضعیت واقعی ردیف برگردانده می‌شود (چون PrimeNG پیش از
+`onChange` مقدار خود را عوض می‌کند)، هیچ درخواستی فرستاده نمی‌شود و یک هشدار نشان داده می‌شود. نام
+قابل‌دسترس سوییچ ثابت است («وضعیت دستهٔ …») و وضعیت از `aria-checked` می‌آید؛ در دسکتاپ ترتیب ردیف
+تعداد، بج، سوییچ، مداد و سطل است و حذف آخر می‌ماند؛ در موبایل مداد/سطل با یک منوی سه‌نقطهٔ ۴۴px
+جایگزین می‌شوند که همان «ویرایش» و «حذف» را از یک `p-menu` چسبیده به `<body>` باز می‌کند. اگر کاربر
+مجوز `products.view` نداشته باشد یا ردیف پیش‌فرض باشد، سوییچی نیست و بج وضعیت در موبایل هم دیده
+می‌شود. «بدون دسته‌بندی» سوییچ وضعیت ندارد، چون غیرفعال‌شدنش آن را از لیست دسته‌های فرم محصول حذف
+می‌کند؛ سرور هم همین را با ۴۰۹ رد می‌کند.
 
 Each row's status switch changes the status without opening the form. The row flips **first** and
 `PATCH /categories/:id/status` follows; a refusal reloads the tree and puts the row back. The error
-toast belongs to the interceptor and is not repeated here, while success gets its own. Offline, the
-switch is reset to the row's real value before the warning (PrimeNG flips itself before `onChange`),
-and nothing is sent. The accessible name is stable («وضعیت دستهٔ …») and the state comes from
-`aria-checked`; desktop row order is count, pill, switch, pencil, trash, with delete last, while a
-phone replaces pencil/trash with one 44px kebab that opens the same «ویرایش»/«حذف» commands from a
-`p-menu` appended to `<body>`. «بدون دسته‌بندی» has no switch because deactivating it would drop the
-fallback from the product form's lookup — the server refuses with 409.
+interceptor shows the failure and it is not repeated here; this page shows the success message.
+Offline, the switch is reset to the row's real value before the warning (PrimeNG changes its own
+value before `onChange`), and nothing is sent. The accessible name is stable («وضعیت دستهٔ …») and
+the state comes from `aria-checked`; desktop row order is count, badge, switch, pencil, trash, with
+delete last, while a phone replaces pencil/trash with one 44px three-dot menu that opens the same
+«ویرایش»/«حذف» commands from a `p-menu` appended to `<body>`. Without `products.view`, or on the
+default row, there is no switch and the status badge stays visible on a phone too. «بدون دسته‌بندی»
+has no switch because deactivating it would drop the fallback from the product form's lookup — the
+server refuses with 409.
 
 ## حذف دسته / Deleting (BO-G04)
 

@@ -712,8 +712,10 @@ order) + 1`; the form defaults to the page's `nextOrder()` and the validator rej
 - **`p-tree` is gone from this page.** Its toggler is `tabindex="-1"`, its empty state prints English
   text, its chevron points right in RTL, and its node template fought the phone layout. The lists are
   ordinary markup: one row line - icon level with the title, the name owns the flexible column, and
-  the count, the status pill, the pencil and the trash sit together at the end; 44px controls on a
-  phone, and the count/status pills collapse below `sm` so the name still fits.
+  the count, status pill, switch and desktop pencil/trash sit together at the end. Below `sm` the
+  grip and pencil/trash hide, the count and (when the switch is present) the status pill collapse,
+  and the row is the switch plus one 44px menu; a read-only user and the default row keep the status
+  pill because they have no switch.
 - **A branch row is ONE button.** Icon, name, chevron and the empty tail of the row are a single
   `<button aria-expanded>` with the toggle on it, so a click anywhere in that region opens the
   branch — the earlier version reacted only on the chevron or the four letters of the name, and read
@@ -764,8 +766,10 @@ order) + 1`; the form defaults to the page's `nextOrder()` and the validator rej
 - **A dialog that is bound with `[visible]` must handle `visibleChange`.** Binding only `onHide` left
   Escape and the mask looking dead: PrimeNG hid itself, the one-way input never changed, and the signal
   feeding it still said "open". `onDeleteVisibility(false)` clears the node.
-- **The row grew a trash button, and the phone lost the count badge.** Grip + pencil + trash is three
-  44px controls below `sm`, so the count and status pills collapse there; the name keeps the rest.
+- **The phone row is the switch plus one menu.** Grip, pencil and trash hide below `sm`; the switch
+  and a 44px kebab stay, and the count badge collapses. The kebab opens the per-row edit/delete
+  `<p-menu>` appended to `<body>`. A read-only user and the default row keep the status pill instead
+  of the switch.
 - **A search renders the children too.** The filter keeps a matching child under its parent, so hiding
   the child list during a search (the first version) made every match under a parent unreachable — the
   parent looked empty. Dragging stays off while the box has text, so no drop is possible on a filtered
@@ -826,14 +830,17 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   error reload the list — the reload is the rollback. The category tree patches its nested signal
   through `patchNode`; the brand list keeps `patchRow`. Neither rewrites the other's optimistic
   logic, and the HTTP response stays the source of truth.
-- **`p-toggleswitch`, visible at every width.** The row control is PrimeNG's switch, not a power
-  icon: the knob and track change on the optimistic flip, so the state is visible at 375px where the
-  text pill is `sm+` only. The switch keeps its native 40×24 track at every width; a
-  `<label class="inline-flex items-center justify-center max-sm:size-11">` wrapper is the 44px phone
-  hit box. The switch calls `$event.preventDefault()` on its own click, so the label does not forward
-  a switch click twice — a click on the label's padding still activates the nested input exactly
-  once. `[ngModel]` is one-way and `(onChange)` calls the same handler, so the switch can never write
-  a row the service has not accepted.
+- **`p-toggleswitch` is the status control when the row may be managed.** The control is PrimeNG's
+  switch, not a power icon: the knob and track change on the optimistic flip, so when it is rendered
+  the switch itself is visible at 375px while the text pill is `sm+` only. The switch keeps its native 40×24
+  track at every width; a `<label class="inline-flex items-center justify-center max-sm:size-11">`
+  wrapper is the 44px phone hit box. The switch calls `$event.preventDefault()` on its own click, so
+  the label does not forward a switch click twice — a click on the label's padding still activates
+  the nested input exactly once. `[ngModel]` is one-way and `(onChange)` calls the same handler, so
+  the switch can never write a row the service has not accepted.
+- **The status is never invisible on a phone.** The pill hides below `sm` only when the switch is
+  actually there (`canManage()` on a non-default category, or `canManage()` on a brand); a read-only
+  user, and the default category for anyone, keeps the text pill at every width.
 - **A stable name, not an action.** The accessible name is «وضعیت دستهٔ …» / «وضعیت برند …» and the
   state comes from `aria-checked`; there is no `aria-pressed`. An action name («غیرفعال کردن …») would
   contradict `aria-checked="true"` and would change after every click.
@@ -841,10 +848,11 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   `--p-text-muted-color` — surface-500 in light, surface-400 in dark — so the off state is visible
   instead of Aura's ~1.4:1 transparent-border track.
 - **Phone layout keeps the state reachable.** The category row hides the drag grip and the desktop
-  pencil/trash below `sm`, leaving the switch and one 44px kebab; the name keeps roughly 164px at
-  320px. The kebab opens a per-row `<p-menu popup appendTo="body">` with «ویرایش» and, for every
-  non-default row, «حذف» — the same handlers as the desktop buttons, and appending to body keeps the
-  scrolling tree from clipping it. The brand row puts its one switch in the status cell at every
+  pencil/trash below `sm`, leaving the switch and one 44px kebab (or the text pill instead of the
+  switch for a read-only user / the default row); the name keeps roughly 164px at 320px. The kebab
+  opens a per-row `<p-menu popup appendTo="body">` with «ویرایش» and, for every non-default row,
+  «حذف» — the same handlers as the desktop buttons, and appending to body keeps the scrolling tree
+  from clipping it. The brand row puts its one switch in the status cell at every
   width and hides the text pill below `sm` when the switch is present, so the status cell ends around
   256px from the start edge at 320px and only the actions need horizontal scroll. Desktop row order
   is count, pill, switch, pencil, trash; delete stays last.
@@ -862,9 +870,10 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   change and the switch stays flipped. `isOnline()` in `@shared/utils/connectivity` is the one guard
   both screens call; it sends nothing. It is a hint, not proof (`navigator.onLine` describes an
   interface, not the API), so the server error path stays.
-- **Row actions need `products.view`.** The category tree gates the toggle, pencil and trash on the
-  same grant brands use; the handlers also return early, so a hidden button cannot be driven from a
-  test or a stale template. This is still UI gating — the backend validates writes.
+- **Row actions need `products.view`.** The category tree gates the toggle, pencil, trash and kebab
+  menu on the same grant brands use; `openEdit`, `openDelete`, `rowActions` and `toggleStatus` all
+  return early, so a hidden button cannot be driven from a test or a stale template. This is still UI
+  gating — the backend validates writes.
 - **tc 5 is already pinned elsewhere.** `ProductsService.brands()` drops an inactive brand, and
   `products.service.spec.ts` asserts it; the toggle does not duplicate that test. It is the same
   lookup rule a deactivated brand relies on to leave the product form.

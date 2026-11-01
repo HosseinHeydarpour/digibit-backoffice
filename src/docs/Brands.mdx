@@ -50,6 +50,29 @@ thousand rows would only need virtual scrolling on top.
   «ذخیره» sends `POST /media` first and then the brand with the returned URL. «انصراف» sends
   nothing. PNG/SVG/WebP up to 1 MB; «حذف لوگو» saves `logo: null` (tc 1–10).
 
+## وضعیت سریع / Quick status (BO-G07)
+
+- **سوییچ در ستون وضعیت است، نه ستون عملیات.** یک سوییچ برای هر ردیف، در همهٔ عرض‌ها؛ در موبایل
+  پیل متن پنهان می‌شود و همان سوییچ وضعیت را نشان می‌دهد، پس بدون اسکرول افقی در دسترس است.
+- **تغییر خوش‌بینانه است.** سوییچ و پیل پیش از پاسخ عوض می‌شوند؛ خطا صفحه را دوباره می‌گیرد
+  (rollback) و پیام موفقیت را همین صفحه می‌دهد. خطا را اینترسپتور نشان می‌دهد و اینجا تکرار نمی‌شود.
+- **آفلاین با `writeValue` برمی‌گردد.** PrimeNG پیش از `onChange` مقدار خود را عوض می‌کند، پس handler
+  پیش از هشدار سوییچ را به وضعیت واقعی ردیف برمی‌گرداند و هیچ درخواستی نمی‌فرستد.
+- **۴۴px در موبایل، بدون تغییر اندازهٔ track.** سوییچ track طبیعی ۴۰×۲۴ دارد و یک `<label>` با
+  `max-sm:size-11` جعبهٔ لمس ۴۴×۴۴ می‌سازد؛ نام قابل‌دسترس ثابت است («وضعیت برند …»).
+- **دسترسی با `products.view`.** بدون این مجوز سوییچ و عملیات ردیف رندر نمی‌شوند و
+  `toggleStatus` مستقیم هم کاری نمی‌کند.
+
+The switch sits in the status cell, not the actions cell: one switch per row at every width, and on a
+phone the text pill hides so the switch itself carries the state without horizontal scrolling. The
+flip is optimistic — switch and pill change before the answer; a failure reloads the page as the
+rollback and the page shows the success toast, while the interceptor owns the error message. Offline,
+PrimeNG has already changed its own value before `onChange`, so the handler calls `writeValue` with
+the row's real flag before the warning and sends nothing. The natural 40×24 track keeps its size; a
+`<label class="max-sm:size-11">` wrapper supplies the 44px phone hit box, and the accessible name is
+stable («وضعیت برند …»). `products.view` gates the switch and row actions, and `toggleStatus` returns
+early even if called directly.
+
 ## منطق آپلود / Upload logic (BO-G06)
 
 1. **آپلود در لحظهٔ ذخیره، نه انتخاب فایل.** دیالوگ یک تراکنش است: انتخاب فایل فقط پیش‌نمایش
