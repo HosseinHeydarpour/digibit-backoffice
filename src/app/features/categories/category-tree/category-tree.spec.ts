@@ -166,11 +166,13 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(text()).toContain('۱۲');
     expect(text()).toContain('فعال');
     expect(text()).toContain('غیرفعال');
-    expect(fixture.nativeElement.querySelector('.pi-pen-to-square')).toBeTruthy();
-    // The icon is a desktop affordance; the name gets its width on a phone.
-    expect(
-      fixture.nativeElement.querySelector('.pi-pen-to-square')?.classList.contains('max-sm:hidden'),
-    ).toBe(true);
+    const icon = fixture.nativeElement.querySelector('.pi-pen-to-square') as HTMLElement;
+    const iconWrapper = icon.parentElement as HTMLElement;
+
+    expect(icon).toBeTruthy();
+    // The wrapper is not a .pi element, so Tailwind's hidden wins over `.pi { display }`.
+    expect(iconWrapper.classList.contains('max-sm:hidden')).toBe(true);
+    expect(icon.classList.contains('max-sm:hidden')).toBe(false);
   });
 
   it('tc 10: orders every level by `order`, whatever the API answered', async () => {

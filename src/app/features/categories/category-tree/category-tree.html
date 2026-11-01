@@ -214,11 +214,9 @@
         [attr.aria-expanded]="isExpanded(node)"
         class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded text-start"
       >
-        <i
-          [class]="node.icon ?? 'pi pi-folder'"
-          class="max-sm:hidden shrink-0 text-gray-400 dark:text-gray-500"
-          aria-hidden="true"
-        ></i>
+        <span class="max-sm:hidden shrink-0" aria-hidden="true">
+          <i [class]="node.icon ?? 'pi pi-folder'" class="text-gray-400 dark:text-gray-500"></i>
+        </span>
 
         <span class="min-w-0 truncate text-sm font-medium text-gray-900 dark:text-white">
           {{ node.name }}
@@ -231,11 +229,9 @@
         ></i>
       </button>
     } @else {
-      <i
-        [class]="node.icon ?? 'pi pi-folder'"
-        class="max-sm:hidden shrink-0 text-gray-400 dark:text-gray-500"
-        aria-hidden="true"
-      ></i>
+      <span class="max-sm:hidden shrink-0" aria-hidden="true">
+        <i [class]="node.icon ?? 'pi pi-folder'" class="text-gray-400 dark:text-gray-500"></i>
+      </span>
 
       <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-white">
         {{ node.name }}
