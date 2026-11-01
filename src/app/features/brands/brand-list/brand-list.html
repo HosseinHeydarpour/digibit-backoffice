@@ -157,16 +157,27 @@
                   </span>
 
                   @if (canManage()) {
-                    <p-toggleswitch
-                      #toggle
-                      class="max-sm:box-content max-sm:px-0.5 max-sm:py-2.5"
-                      [inputId]="'brand-status-' + item.id"
-                      [ngModel]="item.isActive"
-                      (onChange)="toggleStatus(item, toggle)"
-                      [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
-                      [ariaLabel]="'وضعیت برند ' + item.name"
-                      [attr.data-toggle-brand]="item.id"
-                    />
+                    <!--
+                      The label is the 44px phone hit box; the switch keeps its
+                      40×24 track. A padding click activates the nested input, and
+                      the switch prevents the label default so a switch click is
+                      not forwarded twice.
+                    -->
+                    <label
+                      [for]="'brand-status-' + item.id"
+                      class="inline-flex shrink-0 items-center justify-center max-sm:size-11"
+                    >
+                      <p-toggleswitch
+                        #toggle
+                        [inputId]="'brand-status-' + item.id"
+                        [ngModel]="item.isActive"
+                        (click)="$event.preventDefault()"
+                        (onChange)="toggleStatus(item, toggle)"
+                        [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
+                        [ariaLabel]="'وضعیت برند ' + item.name"
+                        [attr.data-toggle-brand]="item.id"
+                      />
+                    </label>
                   }
                 </div>
               </td>

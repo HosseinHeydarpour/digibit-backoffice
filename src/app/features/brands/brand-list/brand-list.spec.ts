@@ -223,9 +223,10 @@ describe('BrandList (BO-G05)', () => {
     expect(toggle).not.toBeNull();
     expect(actions.querySelector('[data-toggle-brand]')).toBeNull();
     expect(status.querySelector('div > span')?.className).toContain('max-sm:hidden');
-    expect(toggle.classList.contains('max-sm:box-content')).toBe(true);
-    expect(toggle.classList.contains('max-sm:px-0.5')).toBe(true);
-    expect(toggle.classList.contains('max-sm:py-2.5')).toBe(true);
+
+    const wrapper = toggle.parentElement as HTMLElement;
+    expect(wrapper.classList.contains('max-sm:size-11')).toBe(true);
+    expect(toggle.classList.contains('max-sm:box-content')).toBe(false);
 
     const slider = toggle.querySelector('.p-toggleswitch-slider');
     expect(slider?.getAttribute('style')).toContain('--p-text-muted-color');
@@ -239,10 +240,13 @@ describe('BrandList (BO-G05)', () => {
 
     const toggle = element().querySelector('[data-toggle-brand="6"]') as HTMLElement;
     const input = toggle.querySelector('input') as HTMLInputElement;
+    const wrapper = toggle.parentElement as HTMLElement;
 
     expect(input.getAttribute('aria-label')).toBe('وضعیت برند سامسونگ');
+    expect(wrapper.classList.contains('max-sm:size-11')).toBe(true);
 
-    toggle.click();
+    // A click on the padded label activates the nested input once.
+    wrapper.click();
     fixture.detectChanges();
 
     // The server has not answered yet; the row already shows the new state.
