@@ -54,7 +54,7 @@
 
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
         <span
-          class="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-2xl font-bold text-gray-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300"
+          class="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-300 bg-gray-50 text-2xl font-bold text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
           data-logo-preview
         >
           @if (logoPreview()) {
@@ -73,24 +73,26 @@
           <div class="flex flex-wrap items-center gap-2">
             <label
               for="brand-logo-file"
-              class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary has-[:focus-visible]:ring-offset-2 max-sm:min-h-11 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+              class="relative inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary has-[:focus-visible]:ring-offset-2 max-sm:min-h-11 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+              [class.opacity-50]="saving()"
+              [attr.aria-disabled]="saving() ? 'true' : null"
             >
               <i class="pi pi-upload text-xs" aria-hidden="true"></i>
               انتخاب فایل
+              <input
+                id="brand-logo-file"
+                type="file"
+                class="sr-only"
+                [accept]="logoAccept"
+                [disabled]="saving()"
+                [attr.aria-describedby]="
+                  logoError() ? 'brand-logo-hint brand-logo-error' : 'brand-logo-hint'
+                "
+                [attr.aria-invalid]="logoError() ? 'true' : null"
+                (change)="onLogoSelected($event)"
+                data-logo-input
+              />
             </label>
-            <input
-              id="brand-logo-file"
-              type="file"
-              class="sr-only"
-              [accept]="logoAccept"
-              [disabled]="saving()"
-              [attr.aria-describedby]="
-                logoError() ? 'brand-logo-hint brand-logo-error' : 'brand-logo-hint'
-              "
-              [attr.aria-invalid]="logoError() ? 'true' : null"
-              (change)="onLogoSelected($event)"
-              data-logo-input
-            />
 
             @if (logoPreview()) {
               <button

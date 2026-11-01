@@ -267,6 +267,20 @@ describe('BrandForm (BO-G05 + BO-G06)', () => {
     expect(service.uploads.map((file) => file.name)).toEqual(['second.png']);
   });
 
+  it('tc 10: the file input lives inside its label and the preview keeps its edge', () => {
+    const label = element().querySelector('label[for="brand-logo-file"]') as HTMLLabelElement;
+    const input = element().querySelector('[data-logo-input]') as HTMLInputElement;
+
+    // A sibling input cannot drive `has-[:focus-visible]` on the label.
+    expect(label.contains(input)).toBe(true);
+    expect(label.className).toContain('has-[:focus-visible]:ring-2');
+    expect(label.className).toContain('cursor-pointer');
+
+    const preview = element().querySelector('[data-logo-preview]');
+    expect(preview?.className).toContain('border-gray-300');
+    expect(preview?.className).toContain('dark:border-gray-600');
+  });
+
   it('tc 10: the image alt carries the brand name and the input has a real label', async () => {
     const label = element().querySelector('label[for="brand-logo-file"]');
     expect(label).not.toBeNull();
@@ -328,6 +342,10 @@ describe('BrandForm (BO-G05 + BO-G06)', () => {
     expect((element().querySelector('[data-cancel-brand]') as HTMLButtonElement).disabled).toBe(
       true,
     );
+
+    const label = element().querySelector('label[for="brand-logo-file"]') as HTMLLabelElement;
+    expect(label.className).toContain('opacity-50');
+    expect(label.getAttribute('aria-disabled')).toBe('true');
 
     // A programmatic cancel cannot cut a save either; destroying the dialog can.
     fixture.componentInstance.cancel();

@@ -5,7 +5,7 @@ import { applicationConfig } from '@storybook/angular';
 import { of } from 'rxjs';
 import type { Observable } from 'rxjs';
 
-import type { Brand, BrandListItem, BrandQuery } from '../models/brand.model';
+import type { Brand, BrandInput, BrandListItem, BrandQuery } from '../models/brand.model';
 import { BrandsService } from '../services/brands.service';
 
 import { BrandList } from './brand-list';
@@ -16,7 +16,10 @@ const ROWS: BrandListItem[] = [
   { id: '3', name: 'گلکس‌بیت', slug: 'brand-3', logo: null, isActive: false, productCount: 2 },
 ];
 
-class StaticBrandsService implements Pick<BrandsService, 'list' | 'get' | 'setActive' | 'remove'> {
+class StaticBrandsService implements Pick<
+  BrandsService,
+  'list' | 'get' | 'setActive' | 'remove' | 'create' | 'update' | 'uploadLogo'
+> {
   list(query: BrandQuery = {}): Observable<{
     items: BrandListItem[];
     total: number;
@@ -36,6 +39,18 @@ class StaticBrandsService implements Pick<BrandsService, 'list' | 'get' | 'setAc
 
   remove(): Observable<number> {
     return of(0);
+  }
+
+  create(dto: BrandInput): Observable<Brand> {
+    return of({ ...ROWS[0]!, ...dto, id: 'brand-new-9', description: '', createdAt: Date.now() });
+  }
+
+  update(id: string, dto: BrandInput): Observable<Brand> {
+    return of({ ...ROWS[0]!, ...dto, id, description: '', createdAt: Date.now() });
+  }
+
+  uploadLogo(file: File): Observable<string> {
+    return of(`https://cdn.example.com/media/brands/${encodeURIComponent(file.name)}`);
   }
 }
 

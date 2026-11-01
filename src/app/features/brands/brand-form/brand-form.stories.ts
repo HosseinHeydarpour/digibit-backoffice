@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/angular';
 import { applicationConfig } from '@storybook/angular';
 import { of } from 'rxjs';
 import type { Observable } from 'rxjs';
+import { expect, fireEvent, waitFor } from 'storybook/test';
 
 import type { Brand, BrandInput } from '../models/brand.model';
 import { BrandsService } from '../services/brands.service';
@@ -89,4 +90,31 @@ export const Edit: Story = {
 /** Editing a brand that already has a logo: the 1:1 frame shows the image, not the initial. */
 export const WithLogo: Story = {
   args: { brand: { ...SAMSUNG, logo: LOGO_SVG } },
+};
+
+/**
+ * A rejected file: a PDF is validated locally and the inline error appears.
+ *
+ * The `play` function picks the file and asserts the error. If the play panel is
+ * disabled, choose any PDF from «انتخاب فایل» to see the same state.
+ */
+export const RejectedFile: Story = {
+  args: { brand: null },
+  play: async ({ canvasElement }) => {
+    const input = canvasElement.querySelector('#brand-logo-file');
+
+    if (!input) {
+      throw new Error('The logo file input is not rendered.');
+    }
+
+    const pdf = new File(['%PDF-1.4'], 'brand.pdf', { type: 'application/pdf' });
+
+    await fireEvent.change(input, { target: { files: [pdf] } });
+
+    await waitFor(() => {
+      const error = canvasElement.querySelector('[data-logo-error]');
+      expect(error).not.toBeNull();
+      expect(error?.textContent ?? '').toContain('PNG');
+    });
+  },
 };
