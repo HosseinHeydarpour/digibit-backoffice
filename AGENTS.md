@@ -826,13 +826,18 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   error reload the list — the reload is the rollback. The category tree patches its nested signal
   through `patchNode`; the brand list keeps `patchRow`. Neither rewrites the other's optimistic
   logic, and the HTTP response stays the source of truth.
+- **`p-toggleswitch`, visible at every width.** The row control is PrimeNG's switch, not a power
+  icon: the knob and track change on the optimistic flip, so the state is visible at 375px where the
+  text pill is `sm+` only. The switch host carries `max-sm:min-h-11 max-sm:min-w-11`, which keeps the
+  phone hit area at 44px; `[ngModel]` is one-way and `(onChange)` calls the same handler, so the
+  switch can never write a row the service has not accepted.
 - **The error toast belongs to the interceptor; success is component-owned.** A failed toggle only
   rolls back, because the error interceptor already printed the reason. Success prints
   «دسته غیرفعال شد.» / «برند فعال شد.» once the server agreed.
 - **The default «بدون دسته‌بندی» has no toggle.** It is the fallback bucket for products of a
   deleted category; deactivating it would remove it from the product form's lookup
-  (`ProductsService.categories()` drops `isActive === false`). The row therefore renders no power
-  button, and `PATCH …/status` answers **409** even if a stale row asks — the UI rule is a mirror,
+  (`ProductsService.categories()` drops `isActive === false`). The row therefore renders no status
+  switch, and `PATCH …/status` answers **409** even if a stale row asks — the UI rule is a mirror,
   the server is the authority.
 - **Offline is refused before the flip.** `isOnline()` in `@shared/utils/connectivity` is the one
   guard both screens call; it shows `OFFLINE_MESSAGE` as a warning and sends nothing. It is a hint,
