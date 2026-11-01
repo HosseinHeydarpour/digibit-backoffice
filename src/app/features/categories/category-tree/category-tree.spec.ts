@@ -167,6 +167,10 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(text()).toContain('فعال');
     expect(text()).toContain('غیرفعال');
     expect(fixture.nativeElement.querySelector('.pi-pen-to-square')).toBeTruthy();
+    // The icon is a desktop affordance; the name gets its width on a phone.
+    expect(
+      fixture.nativeElement.querySelector('.pi-pen-to-square')?.classList.contains('max-sm:hidden'),
+    ).toBe(true);
   });
 
   it('tc 10: orders every level by `order`, whatever the API answered', async () => {
@@ -487,6 +491,8 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(remove.className).toContain('max-sm:hidden');
     expect(kebab.className).toContain('sm:hidden');
     expect(kebab.className).toContain('size-11');
+    expect(row.className).toContain('gap-1');
+    expect(row.className).toContain('sm:gap-2');
 
     const actions = Array.from(
       row.querySelectorAll('[data-toggle-category], [data-edit-category], [data-delete-category]'),
