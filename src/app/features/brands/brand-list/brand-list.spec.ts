@@ -214,6 +214,23 @@ describe('BrandList (BO-G05)', () => {
     expect(image?.getAttribute('alt')).toBe('نوکیا — لوگو');
   });
 
+  it('BO-G07: the switch lives in the status cell, with only edit/delete in actions', () => {
+    const row = element().querySelector('tbody tr') as HTMLElement;
+    const status = row.querySelectorAll('td')[2] as HTMLElement;
+    const actions = row.querySelectorAll('td')[3] as HTMLElement;
+    const toggle = status.querySelector('[data-toggle-brand="6"]') as HTMLElement;
+
+    expect(toggle).not.toBeNull();
+    expect(actions.querySelector('[data-toggle-brand]')).toBeNull();
+    expect(status.querySelector('div > span')?.className).toContain('max-sm:hidden');
+    expect(toggle.classList.contains('max-sm:box-content')).toBe(true);
+    expect(toggle.classList.contains('max-sm:px-0.5')).toBe(true);
+    expect(toggle.classList.contains('max-sm:py-2.5')).toBe(true);
+
+    const slider = toggle.querySelector('.p-toggleswitch-slider');
+    expect(slider?.getAttribute('style')).toContain('--p-text-muted-color');
+  });
+
   it('tc 6: the toggle flips the row before the answer and calls the endpoint', async () => {
     const hold = new Subject<Brand>();
     service.toggleHold = hold;
@@ -221,6 +238,9 @@ describe('BrandList (BO-G05)', () => {
     await flush();
 
     const toggle = element().querySelector('[data-toggle-brand="6"]') as HTMLElement;
+    const input = toggle.querySelector('input') as HTMLInputElement;
+
+    expect(input.getAttribute('aria-label')).toBe('وضعیت برند سامسونگ');
 
     toggle.click();
     fixture.detectChanges();
