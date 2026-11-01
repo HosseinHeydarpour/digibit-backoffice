@@ -164,7 +164,9 @@
     <button
       type="button"
       (click)="cancel()"
-      class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 max-sm:min-h-11 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+      [disabled]="saving()"
+      data-cancel-brand
+      class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 max-sm:min-h-11 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
     >
       انصراف
     </button>

@@ -244,15 +244,22 @@
 -->
 <p-dialog
   [visible]="dialogOpen()"
-  (visibleChange)="dialogOpen.set($event)"
+  (visibleChange)="onDialogVisibility($event)"
   [modal]="true"
   [draggable]="false"
-  [dismissableMask]="true"
+  [closable]="!formSaving()"
+  [closeOnEscape]="!formSaving()"
+  [dismissableMask]="!formSaving()"
   [style]="{ width: '34rem' }"
   [breakpoints]="{ '640px': '95vw' }"
   [header]="editing() ? 'ویرایش برند' : 'افزودن برند'"
 >
   @if (dialogOpen()) {
-    <app-brand-form [brand]="editing()" (saved)="onSaved($event)" (cancelled)="closeDialog()" />
+    <app-brand-form
+      [brand]="editing()"
+      (saved)="onSaved($event)"
+      (cancelled)="closeDialog()"
+      (savingChange)="onFormSaving($event)"
+    />
   }
 </p-dialog>

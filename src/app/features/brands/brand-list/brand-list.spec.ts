@@ -1,9 +1,11 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ConfirmService } from '@core/services/confirm';
 import { MessageService } from 'primeng/api';
+import { Dialog } from 'primeng/dialog';
 import { of } from 'rxjs';
 import type { Observable } from 'rxjs';
 
@@ -186,5 +188,27 @@ describe('BrandList (BO-G05)', () => {
     await fixture.whenStable();
 
     expect(fixture.componentInstance.editing()).toMatchObject({ id: '6', description: 'توضیح' });
+  });
+
+  it('locks every close path while the form is saving', () => {
+    const dialog = fixture.debugElement.query(By.directive(Dialog)).componentInstance as Dialog;
+
+    expect(dialog.closable).toBe(true);
+    expect(dialog.closeOnEscape).toBe(true);
+    expect(dialog.dismissableMask).toBe(true);
+
+    fixture.componentInstance.formSaving.set(true);
+    fixture.detectChanges();
+
+    expect(dialog.closable).toBe(false);
+    expect(dialog.closeOnEscape).toBe(false);
+    expect(dialog.dismissableMask).toBe(false);
+
+    fixture.componentInstance.formSaving.set(false);
+    fixture.detectChanges();
+
+    expect(dialog.closable).toBe(true);
+    expect(dialog.closeOnEscape).toBe(true);
+    expect(dialog.dismissableMask).toBe(true);
   });
 });

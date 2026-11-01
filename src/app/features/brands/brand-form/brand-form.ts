@@ -28,6 +28,8 @@
 //      under the logo. A failed brand save keeps the server URL, so «تلاش
 //      دوباره» does not upload the same file twice.
 //   5. «انصراف» revokes the blob and sends nothing; the server owns no orphan.
+//   6. Closing the dialog destroys the form, and `takeUntilDestroyed` drops the
+//      upload chain — no brand request starts after the dialog is gone.
 
 import {
   ChangeDetectionStrategy,
@@ -40,6 +42,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import type { ValidatorFn } from '@angular/forms';
 import { LoadingDirective } from '@shared/directives/loading.directive';
@@ -87,6 +90,9 @@ export class BrandForm {
 
   readonly saved = output<Brand>();
   readonly cancelled = output<void>();
+
+  /** Drives the dialog's close controls: a transaction in flight cannot be dismissed. */
+  readonly savingChange = output<boolean>();
 
   readonly saving = signal(false);
   readonly saveError = signal<string | null>(null);
@@ -262,7 +268,7 @@ export class BrandForm {
       return;
     }
 
-    this.saving.set(true);
+    this.setSaving(true);
 
     const file = this.logoFile();
 
@@ -273,7 +279,7 @@ export class BrandForm {
 
     this.brands
       .uploadLogo(file)
-      .pipe(take(1))
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (url) => {
           this.form.controls.logo.setValue(url);
@@ -283,13 +289,19 @@ export class BrandForm {
           this.saveBrand(url);
         },
         error: (error: unknown) => {
-          this.saving.set(false);
+          this.setSaving(false);
           this.logoError.set(this.logoUploadMessage(error));
         },
       });
   }
 
   cancel(): void {
+    // The button is disabled while saving; this guard keeps a programmatic
+    // caller from cutting a transaction the dialog has already locked.
+    if (this.saving()) {
+      return;
+    }
+
     this.revokeLocalPreview();
     this.cancelled.emit();
   }
@@ -308,13 +320,13 @@ export class BrandForm {
     const editing = this.brand();
     const request = editing ? this.brands.update(editing.id, dto) : this.brands.create(dto);
 
-    request.pipe(take(1)).subscribe({
+    request.pipe(take(1), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (brand) => {
-        this.saving.set(false);
+        this.setSaving(false);
         this.saved.emit(brand);
       },
       error: (error: unknown) => {
-        this.saving.set(false);
+        this.setSaving(false);
 
         if (error instanceof ApiError && error.isValidation) {
           this.applyServerErrors(error.fields);
@@ -325,6 +337,11 @@ export class BrandForm {
         this.saveError.set('ذخیرهٔ برند ناموفق بود. دوباره تلاش کنید.');
       },
     });
+  }
+
+  private setSaving(value: boolean): void {
+    this.saving.set(value);
+    this.savingChange.emit(value);
   }
 
   private logoUploadMessage(error: unknown): string {

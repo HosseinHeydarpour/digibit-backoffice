@@ -90,6 +90,9 @@ export class BrandList implements OnInit, OnDestroy {
 
   readonly dialogOpen = signal(false);
 
+  /** The form's upload/save is in flight; the dialog must not be dismissible then. */
+  readonly formSaving = signal(false);
+
   /** The brand being edited; `null` while the full record is not loaded yet. */
   readonly editing = signal<Brand | null>(null);
 
@@ -159,6 +162,7 @@ export class BrandList implements OnInit, OnDestroy {
   }
 
   openCreate(): void {
+    this.formSaving.set(false);
     this.editing.set(null);
     this.dialogOpen.set(true);
   }
@@ -171,6 +175,7 @@ export class BrandList implements OnInit, OnDestroy {
   openEdit(item: BrandListItem): void {
     this.brands.get(item.id).subscribe({
       next: (brand) => {
+        this.formSaving.set(false);
         this.editing.set(brand);
         this.dialogOpen.set(true);
       },
@@ -181,6 +186,7 @@ export class BrandList implements OnInit, OnDestroy {
   }
 
   onSaved(brand: Brand): void {
+    this.formSaving.set(false);
     this.dialogOpen.set(false);
     this.editing.set(null);
     this.toast.success(`برند «${brand.name}» ذخیره شد.`);
@@ -188,8 +194,27 @@ export class BrandList implements OnInit, OnDestroy {
   }
 
   closeDialog(): void {
+    this.formSaving.set(false);
     this.dialogOpen.set(false);
     this.editing.set(null);
+  }
+
+  /** `BrandForm.savingChange`; a save in flight locks every close affordance. */
+  onFormSaving(saving: boolean): void {
+    this.formSaving.set(saving);
+  }
+
+  /**
+   * `visibleChange` also fires for a mask click or Escape. Those are disabled
+   * while `formSaving()`, but a hidden dialog must never leave the busy flag on
+   * for the next open.
+   */
+  onDialogVisibility(visible: boolean): void {
+    this.dialogOpen.set(visible);
+
+    if (!visible) {
+      this.formSaving.set(false);
+    }
   }
 
   /**

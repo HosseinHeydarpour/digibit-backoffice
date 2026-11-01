@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { ApiError } from '@shared/models';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import type { Observable } from 'rxjs';
 
 import type { Brand, BrandInput } from '../models/brand.model';
@@ -36,6 +36,9 @@ class BrandsServiceStub {
 
   uploadFail: ApiError | null = null;
 
+  /** When set, the upload stays in flight until the spec emits on it. */
+  uploadHold: Subject<string> | null = null;
+
   create(dto: BrandInput): Observable<Brand> {
     this.created = dto;
 
@@ -50,6 +53,10 @@ class BrandsServiceStub {
 
   uploadLogo(file: File): Observable<string> {
     this.uploads.push(file);
+
+    if (this.uploadHold) {
+      return this.uploadHold.asObservable();
+    }
 
     return this.uploadFail ? throwError(() => this.uploadFail) : of(this.uploadUrl);
   }
@@ -181,26 +188,47 @@ describe('BrandForm (BO-G05 + BO-G06)', () => {
     expect(revoked).not.toContain(SAMSUNG_LOGO);
   });
 
-  it('tc 4: a PDF is refused inline and sends nothing', async () => {
+  it('tc 4: a PDF is refused inline, then save runs without uploading it', async () => {
     const pdf = new File([new Uint8Array(10)], 'brand.pdf', { type: 'application/pdf' });
 
     await selectLogo(pdf);
 
     expect(service.uploads).toEqual([]);
-    expect(service.created).toBeNull();
     expect(element().querySelector('[data-logo-error]')?.getAttribute('role')).toBe('alert');
     expect(element().textContent).toContain('فقط فایل PNG، SVG یا WebP مجاز است.');
     expect(previewImage()).toBeNull();
+
+    // The save path must really run: an armed invalid file would upload here.
+    await type('#brand-name', 'Samsung');
+    (element().querySelector('[data-save-brand]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(service.uploads).toEqual([]);
+    expect(service.updated).toBeNull();
+    expect(service.created).toEqual({
+      name: 'Samsung',
+      slug: 'samsung',
+      logo: null,
+      isActive: true,
+      description: '',
+    });
   });
 
-  it('tc 5: a file over 1 MB is refused inline and sends nothing', async () => {
-    const big = png('big.png', MAX_LOGO_SIZE + 1);
+  it('tc 5: a file over 1 MB is refused and a save keeps the existing logo', async () => {
+    await mountEdit({ ...SAMSUNG, logo: SAMSUNG_LOGO });
 
+    const big = png('big.png', MAX_LOGO_SIZE + 1);
     await selectLogo(big);
 
     expect(service.uploads).toEqual([]);
-    expect(service.created).toBeNull();
     expect(element().textContent).toContain('حجم فایل بیشتر از ۱ مگابایت است.');
+
+    (element().querySelector('[data-save-brand]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(service.uploads).toEqual([]);
+    expect(service.created).toBeNull();
+    expect(service.updated?.dto.logo).toBe(SAMSUNG_LOGO);
   });
 
   it('tc 6: an SVG is accepted and uploaded byte-for-byte', async () => {
@@ -274,6 +302,47 @@ describe('BrandForm (BO-G05 + BO-G06)', () => {
     fixture.destroy();
 
     expect(revoked).toContain('blob:logo-1');
+  });
+
+  it('destroying while the upload is in flight cancels the whole chain', async () => {
+    const upload = new Subject<string>();
+    service.uploadHold = upload;
+
+    await type('#brand-name', 'Samsung');
+    await selectLogo(png());
+
+    let saved: Brand | null = null;
+    let cancelled = false;
+    const savingEvents: boolean[] = [];
+
+    fixture.componentInstance.saved.subscribe((brand) => (saved = brand));
+    fixture.componentInstance.cancelled.subscribe(() => (cancelled = true));
+    fixture.componentInstance.savingChange.subscribe((value) => savingEvents.push(value));
+
+    (element().querySelector('[data-save-brand]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.saving()).toBe(true);
+    expect(service.uploads).toHaveLength(1);
+    expect((element().querySelector('[data-cancel-brand]') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+
+    // A programmatic cancel cannot cut a save either; destroying the dialog can.
+    fixture.componentInstance.cancel();
+    expect(cancelled).toBe(false);
+
+    fixture.destroy();
+    upload.next(service.uploadUrl);
+    upload.complete();
+
+    expect(service.uploads).toHaveLength(1);
+    expect(service.created).toBeNull();
+    expect(service.updated).toBeNull();
+    expect(saved).toBeNull();
+    expect(fixture.componentInstance.saveError()).toBeNull();
+    expect(savingEvents).toEqual([true]);
   });
 
   it('a failed upload leaves the brand unsaved and shows the message under the logo', async () => {
