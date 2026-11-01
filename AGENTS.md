@@ -839,9 +839,12 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   (`ProductsService.categories()` drops `isActive === false`). The row therefore renders no status
   switch, and `PATCH …/status` answers **409** even if a stale row asks — the UI rule is a mirror,
   the server is the authority.
-- **Offline is refused before the flip.** `isOnline()` in `@shared/utils/connectivity` is the one
-  guard both screens call; it shows `OFFLINE_MESSAGE` as a warning and sends nothing. It is a hint,
-  not proof (`navigator.onLine` describes an interface, not the API), so the server error path stays.
+- **Offline resets the switch it cannot prevent.** PrimeNG's switch writes its own model before it
+  emits `onChange`, so the guard uses the template ref (`#toggle`) and calls
+  `toggle.writeValue(current)` before the warning. Without that call the one-way `[ngModel]` sees no
+  change and the switch stays flipped. `isOnline()` in `@shared/utils/connectivity` is the one guard
+  both screens call; it sends nothing. It is a hint, not proof (`navigator.onLine` describes an
+  interface, not the API), so the server error path stays.
 - **Row actions need `products.view`.** The category tree gates the toggle, pencil and trash on the
   same grant brands use; the handlers also return early, so a hidden button cannot be driven from a
   test or a stale template. This is still UI gating — the backend validates writes.
