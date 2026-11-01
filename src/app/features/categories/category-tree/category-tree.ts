@@ -229,6 +229,10 @@ export class CategoryTree {
   }
 
   openEdit(node: CategoryNode): void {
+    if (!this.canManage()) {
+      return;
+    }
+
     this.editing.set(node);
     this.dialogOpen.set(true);
   }
@@ -257,6 +261,10 @@ export class CategoryTree {
    *      and refetches the tree, so the row leaves the screen without a page reload.
    */
   openDelete(node: CategoryNode): void {
+    if (!this.canManage()) {
+      return;
+    }
+
     this.deletingNode.set(node);
   }
 
@@ -268,6 +276,10 @@ export class CategoryTree {
    * like its desktop controls.
    */
   rowActions(node: CategoryNode): MenuItem[] {
+    if (!this.canManage()) {
+      return [];
+    }
+
     const items: MenuItem[] = [
       {
         label: 'ویرایش',

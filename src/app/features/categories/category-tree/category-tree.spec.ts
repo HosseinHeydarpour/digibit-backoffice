@@ -457,6 +457,22 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(fixture.nativeElement.querySelector('[data-delete-category="c-2"]')).toBeNull();
   });
 
+  it('BO-G07: the status badge stays on phones when there is no switch', () => {
+    const badge = (id: string): HTMLElement =>
+      fixture.nativeElement.querySelector(`[data-category-status="${id}"]`) as HTMLElement;
+
+    // With a switch, the badge is the sm+ copy; without one, it must stay visible.
+    expect(badge('c-1').className).toContain('hidden');
+    expect(badge('c-1').className).toContain('sm:inline-flex');
+    expect(badge('c-2').className).not.toContain('hidden');
+
+    permissions.set([]);
+    fixture.detectChanges();
+
+    expect(badge('c-1').className).toContain('inline-flex');
+    expect(badge('c-1').className).not.toContain('hidden');
+  });
+
   it('BO-G07: the phone row hides the drag grip and desktop actions, leaving switch and kebab', () => {
     const row = fixture.nativeElement.querySelector(
       '[data-category-tree] > ul > li > div',
@@ -526,8 +542,14 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(fixture.nativeElement.querySelector('[data-category-actions]')).toBeNull();
 
     component().toggleStatus(TREE[0]!, {} as ToggleSwitch);
+    component().openEdit(TREE[0]!);
+    component().openDelete(TREE[0]!);
 
     expect(service.toggled).toEqual([]);
+    expect(component().dialogOpen()).toBe(false);
+    expect(component().editing()).toBeNull();
+    expect(component().deletingNode()).toBeNull();
+    expect(component().rowActions(TREE[0]!)).toEqual([]);
   });
 });
 

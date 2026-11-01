@@ -178,10 +178,12 @@
 </div>
 
 <!--
-  One row, used by the roots and by every child list. On a phone the slug, the
-  product count and the status pill are hidden and the name gets the whole line —
-  the old `p-tree` template wrapped three badges around the name and made the
-  list unreadable at 375px.
+  One row, used by the roots and by every child list. On a phone the drag grip,
+  the desktop pencil/trash and (when the switch is present) the count/status
+  pills are hidden; the switch and the 44px kebab stay, and the name truncates
+  instead of wrapping. A read-only user or the default row keeps the text pill,
+  because there is no switch to carry the state. The old `p-tree` template
+  wrapped three badges around the name and made the list unreadable at 375px.
 -->
 <ng-template #row let-node>
   <div
@@ -241,10 +243,10 @@
     }
 
     <!--
-      The count and the status pill collapse on a phone so the name keeps a
-      readable width next to the switch, pencil and trash. The drag grip is
-      hidden below `sm`: dragging a row on a 320px screen is not a real
-      affordance, and it was the difference between a readable name and none.
+      The count and (when the switch is present) the status pill collapse on a
+      phone so the name keeps a readable width next to the switch and the 44px
+      menu. The drag grip and the desktop pencil/trash are hidden below `sm`:
+      dragging a row on a 320px screen is not a real affordance.
     -->
     <span
       class="hidden shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 sm:inline-flex dark:bg-gray-700 dark:text-gray-300"
@@ -255,12 +257,14 @@
     </span>
 
     <span
-      class="hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
       [class]="
-        node.isActive
+        (canManage() && !node.isDefault ? 'hidden sm:inline-flex ' : 'inline-flex ') +
+        'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ' +
+        (node.isActive
           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300')
       "
+      [attr.data-category-status]="node.id"
     >
       {{ node.isActive ? 'فعال' : 'غیرفعال' }}
     </span>
