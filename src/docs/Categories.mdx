@@ -106,15 +106,17 @@ label opens it — not only the chevron. The pencil, the trash and the drag grip
 سوییچ وضعیت هر ردیف وضعیت را بدون باز کردن فرم عوض می‌کند. ردیف **اول** عوض می‌شود و بعد درخواست
 `PATCH /categories/:id/status` می‌رود؛ اگر سرور رد کند درخت دوباره گرفته می‌شود و ردیف به حالت قبل
 برمی‌گردد. پیام خطا مال اینترسپتور است و اینجا تکرار نمی‌شود، ولی موفقیت toast خودش را دارد. وقتی
-مرورگر آفلاین است هیچ تغییری و هیچ درخواستی نمی‌فرستد و یک هشدار نشان می‌دهد. «بدون دسته‌بندی»
+مرورگر آفلاین است سوییچ با `writeValue` به وضعیت واقعی ردیف برگردانده می‌شود (چون PrimeNG قبل از
+`onChange` خودش را flip می‌کند)، هیچ درخواستی فرستاده نمی‌شود و یک هشدار نشان داده می‌شود. «بدون دسته‌بندی»
 سوییچ وضعیت ندارد، چون غیرفعال‌شدنش آن را از لیست دسته‌های فرم محصول حذف می‌کند؛ سرور هم همین را
 با ۴۰۹ رد می‌کند.
 
 Each row's status switch changes the status without opening the form. The row flips **first** and
 `PATCH /categories/:id/status` follows; a refusal reloads the tree and puts the row back. The error
 toast belongs to the interceptor and is not repeated here, while success gets its own. Offline, the
-toggle changes nothing, sends nothing and shows a warning. «بدون دسته‌بندی» has no switch because
-deactivating it would drop the fallback from the product form's lookup — the server refuses with 409.
+switch is reset to the row's real value before the warning (PrimeNG flips itself before `onChange`),
+and nothing is sent. «بدون دسته‌بندی» has no switch because deactivating it would drop the fallback
+from the product form's lookup — the server refuses with 409.
 
 ## حذف دسته / Deleting (BO-G04)
 

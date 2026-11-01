@@ -6,6 +6,7 @@ import type { ComponentFixture } from '@angular/core/testing';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ToastService } from '@core/services/toast';
 import { OFFLINE_MESSAGE } from '@shared/utils/connectivity';
+import type { ToggleSwitch } from 'primeng/toggleswitch';
 import { Subject, of, throwError } from 'rxjs';
 import type { Observable } from 'rxjs';
 
@@ -426,13 +427,20 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it('BO-G07 tc 7: offline changes nothing and warns instead', () => {
+  it('BO-G07 tc 7: offline resets the switch, changes nothing, and warns', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
 
-    (fixture.nativeElement.querySelector('[data-toggle-category="c-1"]') as HTMLElement).click();
+    const toggle = fixture.nativeElement.querySelector(
+      '[data-toggle-category="c-1"]',
+    ) as HTMLElement;
+
+    toggle.click();
     fixture.detectChanges();
+    await flush();
 
     expect(component().tree()?.[0].isActive).toBe(true);
+    // PrimeNG flips before emitting; the guard must put the switch back.
+    expect(toggle.getAttribute('data-p-checked')).toBe('true');
     expect(service.toggled).toEqual([]);
     expect(toast.warning).toHaveBeenCalledWith(OFFLINE_MESSAGE);
   });
@@ -451,7 +459,7 @@ describe('CategoryTree (BO-G01/G02/G03)', () => {
     expect(fixture.nativeElement.querySelector('[data-edit-category]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-delete-category]')).toBeNull();
 
-    component().toggleStatus(TREE[0]!);
+    component().toggleStatus(TREE[0]!, {} as ToggleSwitch);
 
     expect(service.toggled).toEqual([]);
   });

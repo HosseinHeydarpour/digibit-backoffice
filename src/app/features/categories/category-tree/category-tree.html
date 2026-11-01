@@ -276,10 +276,11 @@
 
       @if (!node.isDefault) {
         <p-toggleswitch
+          #toggle
           class="max-sm:min-h-11 max-sm:min-w-11"
           [inputId]="'category-status-' + node.id"
           [ngModel]="node.isActive"
-          (onChange)="toggleStatus(node)"
+          (onChange)="toggleStatus(node, toggle)"
           [ariaLabel]="(node.isActive ? 'غیرفعال کردن دستهٔ ' : 'فعال کردن دستهٔ ') + node.name"
           [attr.data-toggle-category]="node.id"
         />

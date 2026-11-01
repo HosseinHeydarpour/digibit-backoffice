@@ -179,12 +179,15 @@ export class CategoryTree {
    * The default bucket has no toggle: deactivating it would drop the fallback
    * from the product form's category lookup. The server enforces the same rule.
    */
-  toggleStatus(node: CategoryNode): void {
+  toggleStatus(node: CategoryNode, toggle: ToggleSwitch): void {
     if (!this.canManage() || node.isDefault) {
       return;
     }
 
     if (!isOnline()) {
+      // PrimeNG flips its own model before emitting; one-way [ngModel] has no
+      // change to write back, so the switch has to be reset here.
+      toggle.writeValue(node.isActive);
       this.toast.warning(OFFLINE_MESSAGE);
       return;
     }
