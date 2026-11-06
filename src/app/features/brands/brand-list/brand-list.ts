@@ -35,7 +35,7 @@ import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { LoadingBlock } from '@shared/components/loading-block/loading-block';
 import { PageHeader } from '@shared/components/page-header/page-header';
-import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
+import { formatDigits, PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { isOnline, OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { Dialog } from 'primeng/dialog';
 import { IconField } from 'primeng/iconfield';
@@ -290,7 +290,7 @@ export class BrandList implements OnInit, OnDestroy {
   async removeBrand(item: BrandListItem): Promise<void> {
     const products =
       item.productCount > 0
-        ? ` ${item.productCount} محصول با این برند وجود دارد؛ بدون برند می‌شوند.`
+        ? ` ${formatDigits(item.productCount)} محصول با این برند وجود دارد؛ بدون برند می‌شوند.`
         : '';
 
     const confirmed = await this.confirm.confirm({

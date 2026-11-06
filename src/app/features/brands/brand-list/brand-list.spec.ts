@@ -107,8 +107,11 @@ class ConfirmStub {
 
   calls = 0;
 
-  confirm(): Promise<boolean> {
+  messages: string[] = [];
+
+  confirm(options: { message: string }): Promise<boolean> {
     this.calls += 1;
+    this.messages.push(options.message);
 
     return Promise.resolve(this.answer);
   }
@@ -309,6 +312,14 @@ describe('BrandList (BO-G05)', () => {
     fixture.componentInstance.toggleStatus(SAMSUNG, {} as ToggleSwitch);
 
     expect(service.toggled).toEqual([]);
+  });
+
+  it('G08-01: the delete prompt prints the product count in Persian digits', async () => {
+    await fixture.componentInstance.removeBrand({ ...SAMSUNG, productCount: 2 });
+    fixture.detectChanges();
+
+    expect(confirm.messages[0]).toContain('۲ محصول');
+    expect(confirm.messages[0]).not.toContain('2 محصول');
   });
 
   it('tc 7: delete asks first, and cancelling sends nothing', async () => {
