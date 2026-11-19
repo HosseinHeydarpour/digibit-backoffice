@@ -1,0 +1,63 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as CouponListStories from '../app/features/coupons/coupon-list/coupon-list.stories';
+
+<Meta title="Features/Coupons" />
+
+# کوپن تخفیف / Coupons
+
+فهرست کدهای تخفیف (BO-J01): کد با دکمهٔ کپی، نوع (درصدی/مبلغی)، مقدار، بازهٔ اعتبار شمسی،
+نسبت استفاده و وضعیت مشتق‌شده. ساخت و ویرایش کوپن در BO-J02/BO-J03 و کلید فعال/غیرفعال در
+BO-J04 به همین ماژول اضافه می‌شود.
+
+The coupon list (BO-J01): code with a copy button, type (percent/amount), value, Solar validity
+window, usage ratio and a derived status. Create/edit arrives in BO-J02/J03 and the enable switch
+in BO-J04.
+
+## کاربرد / Use case
+
+وقتی بازاریابی یک کد تخفیف می‌سازد و پشتیبانی باید بفهمد چرا کد کار نمی‌کند: منقضی شده، سقفش
+پر شده، یا دستی خاموش شده است. سه عدد پشت هر ردیف (بازه، استفاده، وضعیت) دقیقاً همین را می‌گویند.
+
+Use it when marketing adds a code and support needs to know why it stopped working: expired, out
+of redemptions, or switched off. The three facts on each row (window, usage, status) answer exactly
+that.
+
+## رفتارها / Behaviour
+
+- **وضعیت ذخیره نمی‌شود.** `couponStatus()` هر بار از `to`، `usedCount` و `isActive` مشتق
+  می‌شود، با اولویت منقضی > تمام‌شده > غیرفعال > فعال. فیلتر، بج و کلید (BO-J04) از همین یک
+  تابع می‌خوانند.
+- **کپی بی‌سروصدا شکست می‌خورد.** اگر `navigator.clipboard` نبود یا مسدود شد، آیکون به تیک
+  نمی‌رود و پیام خطا هم نمی‌آید؛ این یک اکشن راحتی است، نه یک عملیات داده.
+- **یک `viewState()` با چهار پایان:** `error > loading > empty > data`. `null` اسکلتون است،
+  نه فهرست خالی.
+- **فیلتر و صفحه‌بندی در state کامپوننت‌اند، نه URL.** یک سلکت و یک شمارهٔ صفحه است و لینک
+  اشتراکی فیلتر کوپن نیاز نیست؛ اگر شد، `coupon-paging.ts` شکل URL را آماده دارد.
+- **موبایل:** نوع زیر `sm` و بازه زیر `md` پنهان می‌شوند؛ کد، مقدار، استفاده و وضعیت می‌مانند.
+
+**English**
+
+- **The status is derived, never stored.** `couponStatus()` reads `to`, `usedCount` and
+  `isActive` with expired > exhausted > inactive > active precedence; the filter, the badge and
+  the BO-J04 switch all call it.
+- **Copy fails quietly.** A missing or blocked `navigator.clipboard` leaves the icon alone and
+  shows no error toast; it is a convenience action, not a data operation.
+- **One `viewState()` with four outcomes:** error > loading > empty > data. `null` is the
+  skeleton, not an empty list.
+- **The filter and paging are component state, not URL.** There is one select and one page
+  number, and a shareable coupon filter is not a requirement; `coupon-paging.ts` already has the
+  URL shape if that changes.
+- **Mobile:** type below `sm` and the window below `md` hide; code, value, usage and status stay.
+
+## پیش‌نمایش / Preview
+
+<Canvas of={CouponListStories.Default} />
+
+## حالت‌ها / States
+
+<Canvas of={CouponListStories.Loading} />
+
+<Canvas of={CouponListStories.Empty} />
+
+<Canvas of={CouponListStories.RequestFailed} />

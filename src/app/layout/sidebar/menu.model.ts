@@ -11,6 +11,8 @@ export type Permission =
   | 'orders.view'
   | 'customers.view'
   | 'customers.block'
+  | 'coupons.view'
+  | 'coupons.manage'
   | 'content.view'
   | 'comments.view'
   | 'tickets.view'

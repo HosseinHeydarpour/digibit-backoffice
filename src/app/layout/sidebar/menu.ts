@@ -56,7 +56,7 @@ export const MENU: readonly MenuGroup[] = [
         label: 'کوپن تخفیف',
         icon: 'pi pi-ticket',
         routerLink: '/coupons',
-        permission: 'orders.view',
+        permission: 'coupons.view',
       },
       {
         label: 'روش‌های ارسال',
@@ -119,4 +119,8 @@ export const MENU_PERMISSIONS: readonly Permission[] = Array.from(
  * added by hand. Without this line the mock admin would see the customers page
  * and no status switch at all.
  */
-export const MOCK_PERMISSIONS: readonly Permission[] = [...MENU_PERMISSIONS, 'customers.block'];
+export const MOCK_PERMISSIONS: readonly Permission[] = [
+  ...MENU_PERMISSIONS,
+  'customers.block',
+  'coupons.manage',
+];

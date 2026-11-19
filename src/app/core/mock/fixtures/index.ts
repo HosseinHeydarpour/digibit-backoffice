@@ -10,6 +10,8 @@ export { MOCK_ORDERS, MOCK_ORDER_DETAILS } from './orders.fixture';
 export type { MockOrder } from './orders.fixture';
 export { MOCK_CUSTOMERS, MOCK_CUSTOMER_DETAILS, toCustomerListItem } from './customers.fixture';
 export type { MockCustomer, MockCustomerAddress, MockCustomerDetail } from './customers.fixture';
+export { MOCK_COUPONS } from './coupons.fixture';
+export type { MockCoupon, MockCouponType } from './coupons.fixture';
 export type { SessionUser } from '@shared/models/session.model';
 
 /** 12 modules, matching the 12 feature folders. */
@@ -161,19 +163,6 @@ export const MOCK_CATEGORIES = [
     isActive: true,
   },
 ];
-
-export const MOCK_COUPONS = makeList(7, (i) => ({
-  id: pad(i + 1),
-  code: `OFF${(i + 1) * 10}`,
-  type: i % 2 === 0 ? 'percent' : 'amount',
-  value: i % 2 === 0 ? (i + 1) * 5 : (i + 1) * 50_000,
-  minCart: 500_000,
-  maxUses: 100,
-  usedCount: i * 7,
-  from: now - 10 * DAY,
-  to: now + 20 * DAY,
-  isActive: i % 3 !== 0,
-}));
 
 export const MOCK_SHIPPING_METHODS = makeList(6, (i) => ({
   id: pad(i + 1),

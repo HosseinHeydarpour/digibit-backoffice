@@ -379,7 +379,7 @@ function resolve(
     case 'brands':
       return resolveBrands(method, id, sub, params, body, page, pageSize);
     case 'coupons':
-      return paged(fixtures.MOCK_COUPONS, page, pageSize);
+      return resolveCoupons(method, id, sub, params, body, page, pageSize);
     case 'shipping-methods':
       return paged(fixtures.MOCK_SHIPPING_METHODS, page, pageSize);
     case 'banners':
@@ -692,6 +692,223 @@ function resolveCustomers(
   }
 
   return ok(found);
+}
+
+/** The coupon store: seeded from the fixture, rebuilt by `resetMockState()`. */
+let COUPONS: fixtures.MockCoupon[] = fixtures.MOCK_COUPONS.map((coupon) => ({ ...coupon }));
+
+const COUPON_CODE = /^[A-Z0-9-]{3,20}$/;
+
+/**
+ * The server's own status derivation, duplicating the feature's rule on
+ * purpose: this side simulates the API, and a mock that imported the UI's
+ * helper would agree with the client by construction instead of by contract.
+ */
+function couponState(coupon: fixtures.MockCoupon, now: number): string {
+  if (coupon.to < now) {
+    return 'expired';
+  }
+
+  if (coupon.usedCount >= coupon.maxUses) {
+    return 'exhausted';
+  }
+
+  return coupon.isActive ? 'active' : 'inactive';
+}
+
+interface CouponBody {
+  code: string;
+  type: 'percent' | 'amount';
+  value: number;
+  minCart: number;
+  maxUses: number;
+  maxUsesPerUser: number | null;
+  from: number;
+  to: number;
+  description: string;
+}
+
+/** Normalise the body before validating, so `' oFF-20 '` is checked as `OFF-20`. */
+function toCouponBody(body: unknown): CouponBody {
+  const data = asRecord(body);
+  const perUser = data['maxUsesPerUser'];
+
+  return {
+    code: String(data['code'] ?? '')
+      .trim()
+      .toUpperCase(),
+    type: data['type'] === 'amount' ? 'amount' : 'percent',
+    value: Number(data['value'] ?? 0),
+    minCart: Number(data['minCart'] ?? 0),
+    maxUses: Number(data['maxUses'] ?? 0),
+    maxUsesPerUser: perUser === null || perUser === undefined ? null : Number(perUser),
+    from: Number(data['from'] ?? 0),
+    to: Number(data['to'] ?? 0),
+    description: String(data['description'] ?? '').trim(),
+  };
+}
+
+/** The 422 body the form maps under each field. */
+function couponValidationError(fields: Record<string, string[]>): MockResolution {
+  return {
+    status: 422,
+    body: { error: { code: 'VALIDATION', message: 'اطلاعات کوپن معتبر نیست.', fields } },
+  };
+}
+
+/** BO-J03's rules, on the server side of the wire. */
+function validateCoupon(
+  input: CouponBody,
+  excludeId: string | null,
+): Record<string, string[]> | null {
+  const fields: Record<string, string[]> = {};
+
+  if (input.code === '') {
+    fields['code'] = ['کد کوپن الزامی است.'];
+  } else if (!COUPON_CODE.test(input.code)) {
+    fields['code'] = ['کد باید ۳ تا ۲۰ کاراکتر انگلیسی، رقم یا خط تیره باشد.'];
+  } else if (COUPONS.some((coupon) => coupon.code === input.code && coupon.id !== excludeId)) {
+    fields['code'] = ['این کد قبلاً ثبت شده است.'];
+  }
+
+  if (input.type === 'percent' && (input.value < 1 || input.value > 100)) {
+    fields['value'] = ['درصد باید بین ۱ و ۱۰۰ باشد.'];
+  }
+
+  if (input.type === 'amount' && input.value <= 0) {
+    fields['value'] = ['مبلغ تخفیف باید بزرگ‌تر از صفر باشد.'];
+  }
+
+  if (!Number.isFinite(input.from) || !Number.isFinite(input.to) || input.to <= input.from) {
+    fields['to'] = ['پایان بازه باید بعد از شروع باشد.'];
+  }
+
+  if (!Number.isFinite(input.maxUses) || input.maxUses <= 0) {
+    fields['maxUses'] = ['سقف استفاده باید بزرگ‌تر از صفر باشد.'];
+  }
+
+  if (
+    input.maxUsesPerUser !== null &&
+    (!Number.isFinite(input.maxUsesPerUser) || input.maxUsesPerUser <= 0)
+  ) {
+    fields['maxUsesPerUser'] = ['سقف هر کاربر باید بزرگ‌تر از صفر باشد یا خالی بماند.'];
+  }
+
+  if (!Number.isFinite(input.minCart) || input.minCart < 0) {
+    fields['minCart'] = ['حداقل سبد نباید منفی باشد.'];
+  }
+
+  return Object.keys(fields).length > 0 ? fields : null;
+}
+
+function nextCouponId(): string {
+  return String(COUPONS.reduce((max, coupon) => Math.max(max, Number(coupon.id) || 0), 0) + 1);
+}
+
+/**
+ * `/coupons`, `/coupons/:id` and `PATCH /coupons/:id/status` (BO-J01..J04).
+ *
+ * TRACE — saving the form with `code: ' off-20 '` while OFF20 exists:
+ *   1. `toCouponBody` trims and uppercases to `OFF-20`.
+ *   2. `validateCoupon` finds the other row and answers 422 with
+ *      `fields.code`; the form prints it under the input and stays open.
+ *   3. With a free code the body is stored, `usedCount`/`createdAt` are set by
+ *      the server, and the list's next read answers 201's row on page 1.
+ */
+function resolveCoupons(
+  method: string,
+  id: string | undefined,
+  sub: string | undefined,
+  params: ParamReader,
+  body: unknown,
+  page: number,
+  pageSize: number,
+): MockResolution {
+  if (!id) {
+    if (method === 'POST') {
+      const input = toCouponBody(body);
+      const fields = validateCoupon(input, null);
+
+      if (fields) {
+        return couponValidationError(fields);
+      }
+
+      const next: fixtures.MockCoupon = {
+        id: nextCouponId(),
+        ...input,
+        usedCount: 0,
+        isActive: true,
+        createdAt: Date.now(),
+      };
+
+      COUPONS = [next, ...COUPONS];
+
+      return created(next, 'کوپن ایجاد شد.');
+    }
+
+    if (method !== 'GET') {
+      return NOT_FOUND;
+    }
+
+    const text = (params.get('query') ?? '').trim().toLowerCase();
+    const status = params.get('status');
+    const now = Date.now();
+    const rows = COUPONS.filter((coupon) => {
+      const haystack = `${coupon.code} ${coupon.description}`.toLowerCase();
+
+      return (
+        (text === '' || haystack.includes(text)) &&
+        (status === null || couponState(coupon, now) === status)
+      );
+    });
+
+    return paged(rows, page, pageSize);
+  }
+
+  const found = COUPONS.find((coupon) => coupon.id === id);
+
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  if (method === 'PATCH' && sub === 'status') {
+    const isActive = asRecord(body)['isActive'] === true;
+    const state = couponState(found, Date.now());
+
+    // A dead window or an exhausted allowance cannot be switched back on.
+    if (isActive && (state === 'expired' || state === 'exhausted')) {
+      return {
+        status: 409,
+        body: {
+          error: {
+            code: 'COUPON_CLOSED',
+            message: 'کوپن منقضی یا تمام‌شده را نمی‌توان فعال کرد.',
+          },
+        },
+      };
+    }
+
+    const next: fixtures.MockCoupon = { ...found, isActive };
+    COUPONS = COUPONS.map((coupon) => (coupon.id === id ? next : coupon));
+
+    return ok(next, isActive ? 'کوپن فعال شد.' : 'کوپن غیرفعال شد.');
+  }
+
+  if (method === 'PUT') {
+    const input = toCouponBody(body);
+    const fields = validateCoupon(input, id);
+
+    if (fields) {
+      return couponValidationError(fields);
+    }
+
+    const next: fixtures.MockCoupon = { ...found, ...input };
+    COUPONS = COUPONS.map((coupon) => (coupon.id === id ? next : coupon));
+
+    return ok(next, 'کوپن ذخیره شد.');
+  }
+
+  return method === 'GET' ? ok(found) : NOT_FOUND;
 }
 
 function categoryName(id: string): string {
@@ -1423,6 +1640,7 @@ export function resetMockState(): void {
   CATEGORIES.splice(0, CATEGORIES.length, ...seedCategories());
   BRANDS.splice(0, BRANDS.length, ...seedBrands());
   CUSTOMERS = fixtures.MOCK_CUSTOMER_DETAILS;
+  COUPONS = fixtures.MOCK_COUPONS.map((coupon) => ({ ...coupon }));
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */

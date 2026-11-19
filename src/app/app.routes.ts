@@ -92,11 +92,12 @@ export const routes: Routes = [
         loadChildren: () =>
           import('@features/customers/customers.routes').then((m) => m.CUSTOMERS_ROUTES),
       },
+      // Coupons owns its routes the same way (BO-J01): the list, and later the
+      // create/edit dialog, arrive as their own lazy chunk.
       {
         path: 'coupons',
-        data: { title: 'کوپن تخفیف', breadcrumb: 'کوپن تخفیف' },
-        title: 'کوپن تخفیف',
-        children: [],
+        loadChildren: () =>
+          import('@features/coupons/coupons.routes').then((m) => m.COUPONS_ROUTES),
       },
       {
         path: 'shipping',

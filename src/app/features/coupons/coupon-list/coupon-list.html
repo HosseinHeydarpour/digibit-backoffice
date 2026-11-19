@@ -1,0 +1,314 @@
+<app-page-header title="کوپن تخفیف" description="کدهای تخفیف، بازهٔ اعتبار و سقف استفاده" />
+
+<div
+  class="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <div>
+      <label
+        for="coupon-status-filter"
+        class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        وضعیت
+      </label>
+      <p-select
+        inputId="coupon-status-filter"
+        [ngModel]="listState().status"
+        (onChange)="onStatusChange($event.value)"
+        [options]="statusSelectOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </div>
+  </div>
+</div>
+
+<div
+  class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  @if (isFetching() && pageResult() !== null) {
+    <div
+      class="h-1 w-full overflow-hidden bg-primary/10"
+      role="progressbar"
+      aria-label="در حال به‌روزرسانی کوپن‌ها"
+    >
+      <div class="h-full w-1/3 animate-pulse rounded-full bg-primary"></div>
+    </div>
+  }
+
+  @switch (viewState()) {
+    @case ('loading') {
+      <div
+        class="overflow-x-auto"
+        role="status"
+        aria-busy="true"
+        aria-label="در حال بارگذاری کوپن‌ها"
+      >
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <tr>
+              @for (
+                header of ['کد کوپن', 'نوع', 'مقدار', 'بازهٔ اعتبار', 'استفاده', 'وضعیت'];
+                track header
+              ) {
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                >
+                  {{ header }}
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+            @for (i of [1, 2, 3, 4]; track i) {
+              <tr class="animate-pulse">
+                @for (header of ['کد', 'نوع', 'مقدار', 'بازه', 'استفاده', 'وضعیت']; track header) {
+                  <td class="px-6 py-4 text-start">
+                    <div class="h-4 max-w-24 rounded bg-gray-200 dark:bg-gray-700"></div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('error') {
+      <div class="p-6">
+        <app-error-state [title]="listError()!" (retry)="retry()" />
+      </div>
+    }
+
+    @case ('empty') {
+      @if (listState().page > 1) {
+        <app-empty-state
+          icon="pi pi-inbox"
+          title="کوپنی در این صفحه نیست"
+          description="به صفحهٔ اول برگردید."
+          actionLabel="بازگشت به صفحهٔ اول"
+          (action)="goToFirstPage()"
+        />
+      } @else {
+        <app-empty-state
+          icon="pi pi-ticket"
+          title="هنوز کوپنی ساخته نشده"
+          description="اولین کد تخفیف را از دکمهٔ «ایجاد کوپن» بسازید."
+        />
+      }
+    }
+
+    @default {
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <tr>
+              <th
+                scope="col"
+                class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+              >
+                کد کوپن
+              </th>
+              <th
+                scope="col"
+                class="hidden px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 sm:table-cell dark:text-gray-400"
+              >
+                نوع
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+              >
+                مقدار
+              </th>
+              <th
+                scope="col"
+                class="hidden px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 md:table-cell dark:text-gray-400"
+              >
+                بازهٔ اعتبار
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+              >
+                استفاده
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+              >
+                وضعیت
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+            @for (coupon of items(); track coupon.id) {
+              <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <!-- کد — mono, LTR inside the RTL cell, with the copy button. -->
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  <div class="flex items-center gap-2">
+                    <bdi class="font-mono text-sm font-medium text-gray-900 dark:text-white">
+                      {{ coupon.code }}
+                    </bdi>
+                    <button
+                      type="button"
+                      (click)="copyCode(coupon)"
+                      [attr.aria-label]="'کپی کد ' + coupon.code"
+                      [attr.data-copy-coupon]="coupon.id"
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary max-sm:h-11 max-sm:w-11 dark:text-gray-400 dark:hover:bg-gray-700"
+                    >
+                      <i
+                        [class]="
+                          copied() === coupon.id ? 'pi pi-check text-green-600' : 'pi pi-copy'
+                        "
+                        class="text-xs"
+                        aria-hidden="true"
+                      ></i>
+                    </button>
+                  </div>
+                </td>
+
+                <!-- نوع — hidden below `sm`. -->
+                <td class="hidden whitespace-nowrap px-6 py-4 text-start sm:table-cell">
+                  <p-tag
+                    [value]="typeLabel(coupon)"
+                    [severity]="coupon.type === 'percent' ? 'info' : 'secondary'"
+                  />
+                </td>
+
+                <!-- مقدار — percent or Toman, both right-aligned numbers. -->
+                <td
+                  class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium tabular-nums text-gray-900 dark:text-white"
+                >
+                  @if (coupon.type === 'percent') {
+                    {{ coupon.value | persianDigits }}٪
+                  } @else {
+                    {{ coupon.value | toman }}
+                  }
+                </td>
+
+                <!-- بازهٔ اعتبار — day+month in Jalali, exact dates on hover. -->
+                <td
+                  class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 md:table-cell dark:text-gray-400"
+                  [title]="(coupon.from | persianDate) + ' تا ' + (coupon.to | persianDate)"
+                >
+                  {{ coupon.from | persianDate: 'dayMonth' }} تا
+                  {{ coupon.to | persianDate: 'dayMonth' }}
+                </td>
+
+                <!-- استفاده — a real progress element, so a screen reader can read it. -->
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  <div class="flex items-center gap-2">
+                    <progress
+                      class="h-2 w-16 accent-primary"
+                      [value]="coupon.usedCount"
+                      [max]="coupon.maxUses"
+                      [attr.aria-label]="'استفاده از کوپن ' + coupon.code"
+                    ></progress>
+                    <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                      {{ coupon.usedCount | persianDigits }} از
+                      {{ coupon.maxUses | persianDigits }}
+                    </span>
+                  </div>
+                </td>
+
+                <!-- وضعیت — derived: expired > exhausted > inactive > active. -->
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  <span
+                    class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+                    [class]="statusBadgeClass(coupon)"
+                  >
+                    {{ statusLabel(coupon) }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div
+        class="flex flex-col gap-4 border-t border-gray-200 px-6 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <p class="text-xs sm:text-sm" aria-live="polite">
+          <span class="font-medium text-gray-900 dark:text-white">
+            {{ total() | persianDigits }}
+          </span>
+          کوپن
+        </p>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2">
+            <label for="coupons-page-size" class="text-xs text-gray-500 dark:text-gray-400">
+              تعداد در صفحه
+            </label>
+            <p-select
+              inputId="coupons-page-size"
+              [ngModel]="listState().pageSize"
+              (onChange)="onPageSizeChange($event.value)"
+              [options]="pageSizeSelectOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              class="w-28 sm:w-auto"
+              styleClass="w-28 sm:w-auto"
+            />
+          </div>
+
+          <nav class="flex items-center gap-1" aria-label="صفحه‌بندی کوپن‌ها">
+            <button
+              type="button"
+              (click)="onPageChange(listState().page - 1)"
+              [disabled]="listState().page === 1"
+              aria-label="صفحهٔ قبل"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              <i class="pi pi-chevron-right text-xs" aria-hidden="true"></i>
+            </button>
+
+            <div id="coupons-page-numbers" class="hidden items-center gap-1 sm:flex">
+              @for (item of pageWindow(); track $index) {
+                @if (item === null) {
+                  <span class="px-1 text-xs text-gray-400" aria-hidden="true">…</span>
+                } @else {
+                  <button
+                    type="button"
+                    (click)="onPageChange(item)"
+                    [attr.data-page]="item"
+                    [attr.aria-current]="item === listState().page ? 'page' : null"
+                    [class]="
+                      item === listState().page
+                        ? 'bg-primary text-white'
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                    "
+                    class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    {{ item | persianDigits }}
+                  </button>
+                }
+              }
+            </div>
+
+            <span class="px-2 text-xs text-gray-500 dark:text-gray-400 sm:hidden">
+              صفحه {{ listState().page | persianDigits }} از {{ totalPages() | persianDigits }}
+            </span>
+
+            <button
+              type="button"
+              (click)="onPageChange(listState().page + 1)"
+              [disabled]="listState().page >= totalPages()"
+              aria-label="صفحهٔ بعد"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              <i class="pi pi-chevron-left text-xs" aria-hidden="true"></i>
+            </button>
+          </nav>
+        </div>
+      </div>
+    }
+  }
+</div>

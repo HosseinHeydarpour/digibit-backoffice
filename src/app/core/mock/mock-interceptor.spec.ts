@@ -1325,6 +1325,107 @@ describe('mockInterceptor', () => {
     expect(body.data.every((row) => row.customerId === '3')).toBe(true);
   });
 
+  // --- BO-J01..J04: coupons ---------------------------------------------------
+
+  it('coupons: the list derives expired and filters on it', async () => {
+    const all = await firstValueFrom(
+      http.get<ApiResponse<{ code: string; to: number }[]>>('/api/v1/coupons', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 100 },
+      }),
+    );
+    const expired = await firstValueFrom(
+      http.get<ApiResponse<{ code: string }[]>>('/api/v1/coupons', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { status: 'expired', pageSize: 100 },
+      }),
+    );
+
+    const now = Date.now();
+    expect(all.data.some((row) => row.to < now)).toBe(true);
+    expect(expired.data.length).toBeGreaterThan(0);
+    expect(expired.data.every((row) => all.data.find((c) => c.code === row.code)!.to < now)).toBe(
+      true,
+    );
+  });
+
+  it('coupons: a duplicate code is a 422 with fields.code', async () => {
+    const error = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>(
+          '/api/v1/coupons',
+          {
+            code: 'welcome10',
+            type: 'percent',
+            value: 10,
+            minCart: 0,
+            maxUses: 10,
+            maxUsesPerUser: 1,
+            from: Date.now(),
+            to: Date.now() + 86_400_000,
+            description: '',
+          },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(error.status).toBe(422);
+    expect(error.error.error.fields.code[0]).toContain('ثبت شده');
+  });
+
+  it('coupons: a valid create answers 201 and lands on page 1', async () => {
+    const created = await firstValueFrom(
+      http.post<ApiResponse<{ id: string; code: string }>>(
+        '/api/v1/coupons',
+        {
+          code: ' spring25 ',
+          type: 'percent',
+          value: 25,
+          minCart: 0,
+          maxUses: 10,
+          maxUsesPerUser: null,
+          from: Date.now(),
+          to: Date.now() + 86_400_000,
+          description: 'کمپین تازه',
+        },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(created.data.code).toBe('SPRING25');
+
+    const list = await firstValueFrom(
+      http.get<ApiResponse<{ code: string }[]>>('/api/v1/coupons', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 10 },
+      }),
+    );
+
+    expect(list.data[0].code).toBe('SPRING25');
+  });
+
+  it('coupons: switching an expired coupon on is a 409', async () => {
+    const expired = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/coupons', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { status: 'expired', pageSize: 1 },
+      }),
+    );
+
+    const error = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          `/api/v1/coupons/${expired.data[0].id}/status`,
+          { isActive: true },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(error.status).toBe(409);
+  });
+
   /** `POST /categories` with only the fields the mock needs. */
   async function createCategory(name: string, slug: string, parentId?: string): Promise<string> {
     const created = await firstValueFrom(
