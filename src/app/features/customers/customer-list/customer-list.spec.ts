@@ -446,10 +446,32 @@ describe('CustomerList status toggle (BO-I03)', () => {
   it('rolls the row back when the request fails', async () => {
     service.statusResult = 'fail';
     const row = component.items()![0];
+    const control = fakeToggle();
 
-    await component.toggleStatus(row, fakeToggle());
+    await component.toggleStatus(row, control);
 
     expect(component.items()![0].status).toBe('active');
+    expect(control.writeValue).toHaveBeenCalledWith(true);
     expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('drops the override once the server returns the new status', async () => {
+    const row = component.items()![0];
+    await component.toggleStatus(row, fakeToggle());
+
+    service.rows = service.rows.map((item, index) =>
+      index === 0 ? { ...item, status: 'blocked' } : item,
+    );
+    component.onPageSizeChange(10);
+    await settle(fixture);
+
+    const overrides = (
+      component as unknown as {
+        statusOverrides: () => ReadonlyMap<string, string>;
+      }
+    ).statusOverrides();
+
+    expect(overrides.size).toBe(0);
+    expect(component.items()![0].status).toBe('blocked');
   });
 });

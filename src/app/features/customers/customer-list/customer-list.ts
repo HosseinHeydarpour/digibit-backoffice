@@ -195,10 +195,10 @@ export class CustomerList {
       switchMap(([, state]) =>
         this.customers.list(stateToQuery(state)).pipe(
           tap({
-            next: () => {
+            next: (page) => {
               this.listError.set(null);
               this.isFetching.set(false);
-              this.reconcileOverrides();
+              this.reconcileOverrides(page);
             },
             error: () => {
               this.listError.set('دریافت مشتریان ناموفق بود');
@@ -480,7 +480,12 @@ export class CustomerList {
       next: () => {
         this.toast.success(blocked ? 'حساب مشتری مسدود شد.' : 'حساب مشتری فعال شد.');
       },
-      error: () => this.clearOverride(item.id),
+      error: () => {
+        // The pill follows the override; the switch was flipped by hand and
+        // needs the old value written back explicitly.
+        this.clearOverride(item.id);
+        toggle.writeValue(isActive);
+      },
     });
   }
 
@@ -497,8 +502,13 @@ export class CustomerList {
     });
   }
 
-  /** Drop an override once the server's own row carries that status. */
-  private reconcileOverrides(): void {
+  /**
+   * Drop an override once the server's own row carries that status.
+   *
+   * The page is passed in because `this.page()` still holds the previous
+   * response when this runs inside the fetch tap.
+   */
+  private reconcileOverrides(page: Page<CustomerListItem>): void {
     const current = this.statusOverrides();
 
     if (current.size === 0) {
@@ -507,7 +517,7 @@ export class CustomerList {
 
     const next = new Map(current);
 
-    for (const row of this.page()?.items ?? []) {
+    for (const row of page.items) {
       if (next.get(row.id) === row.status) {
         next.delete(row.id);
       }
