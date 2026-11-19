@@ -1,0 +1,338 @@
+<app-page-header title="مشتریان" description="مشتریان فروشگاه، وضعیت حساب و سفارش‌هایشان" />
+
+<!--
+  FILTER BAR (BO-I01 tc 2, tc 3, tc 4, tc 5, tc 7).
+  The text waits 300 ms; the status select applies at once. Both write the URL,
+  so a refresh or a shared link restores the same view.
+-->
+<div
+  class="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <div class="sm:col-span-2">
+      <label
+        for="customer-search"
+        class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        جستجو
+      </label>
+      <p-iconfield class="w-full">
+        <p-inputicon class="pi pi-search" />
+        <input
+          pInputText
+          id="customer-search"
+          type="search"
+          class="w-full"
+          placeholder="نام، موبایل یا ایمیل"
+          [ngModel]="search()"
+          (ngModelChange)="onSearchInput($event)"
+        />
+      </p-iconfield>
+    </div>
+
+    <div>
+      <label
+        for="customer-status"
+        class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        وضعیت حساب
+      </label>
+      <p-select
+        inputId="customer-status"
+        [ngModel]="listState().status"
+        (onChange)="onStatusChange($event.value)"
+        [options]="statusSelectOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </div>
+
+    <button
+      type="button"
+      (click)="clearFilters()"
+      class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+    >
+      <i class="pi pi-times text-xs" aria-hidden="true"></i>
+      پاک کردن فیلترها
+    </button>
+  </div>
+</div>
+
+<div
+  class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  @if (isFetching() && page() !== null) {
+    <div
+      class="h-1 w-full overflow-hidden bg-primary/10"
+      role="progressbar"
+      aria-label="در حال به‌روزرسانی مشتریان"
+    >
+      <div class="h-full w-1/3 animate-pulse rounded-full bg-primary"></div>
+    </div>
+  }
+
+  @switch (viewState()) {
+    @case ('loading') {
+      <div
+        class="overflow-x-auto"
+        role="status"
+        aria-busy="true"
+        aria-label="در حال بارگذاری مشتریان"
+      >
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <tr>
+              @for (col of cols; track col.field) {
+                <th
+                  scope="col"
+                  [class]="
+                    'px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 ' +
+                    (col.class ?? '')
+                  "
+                >
+                  {{ col.header }}
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+            @for (i of [1, 2, 3, 4]; track i) {
+              <tr class="animate-pulse">
+                @for (col of cols; track col.field) {
+                  <td
+                    class="px-6 py-4 text-start"
+                    [class]="'whitespace-nowrap ' + (col.class ?? '')"
+                  >
+                    @if (col.field === 'status') {
+                      <div class="h-6 w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                    } @else {
+                      <div class="h-4 max-w-24 rounded bg-gray-200 dark:bg-gray-700"></div>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('error') {
+      <div class="p-6">
+        <app-error-state [title]="listError()!" (retry)="retry()" />
+      </div>
+    }
+
+    @case ('empty') {
+      @if (listState().page > 1) {
+        <app-empty-state
+          icon="pi pi-inbox"
+          title="مشتری‌ای در این صفحه نیست"
+          description="به صفحهٔ اول برگردید."
+          actionLabel="بازگشت به صفحهٔ اول"
+          (action)="goToFirstPage()"
+        />
+      } @else {
+        <app-empty-state
+          icon="pi pi-users"
+          title="هنوز مشتری‌ای ثبت نشده"
+          description="مشتریان با اولین خرید یا ثبت‌نام در فروشگاه اینجا نمایش داده می‌شوند."
+        />
+      }
+    }
+
+    @default {
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <tr>
+              @for (col of cols; track col.field) {
+                <th
+                  scope="col"
+                  [attr.aria-sort]="col.sortable ? ariaSort(col.field) : null"
+                  [class]="
+                    'px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 ' +
+                    (col.class ?? '')
+                  "
+                >
+                  @if (col.sortable) {
+                    <button
+                      type="button"
+                      (click)="sortBy(col.field)"
+                      [attr.data-sort]="col.field"
+                      class="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-gray-500 transition hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      {{ col.header }}
+                      <i
+                        [class]="sortIconClass(col.field)"
+                        class="text-[10px]"
+                        aria-hidden="true"
+                      ></i>
+                    </button>
+                  } @else {
+                    {{ col.header }}
+                  }
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+            @for (item of items(); track item.id) {
+              <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <!-- مشتری — initials stand in for a photo the API does not send. -->
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  <div class="flex items-center gap-3">
+                    <span
+                      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary dark:bg-primary/20"
+                      aria-hidden="true"
+                    >
+                      {{ initials(item.fullName) }}
+                    </span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ item.fullName }}
+                    </span>
+                  </div>
+                </td>
+
+                <!-- موبایل — LTR inside the RTL cell, hidden below `md`. -->
+                <td
+                  class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 md:table-cell dark:text-gray-400"
+                >
+                  <bdi class="font-mono" dir="ltr">{{ item.phone }}</bdi>
+                </td>
+
+                <!-- ایمیل — hidden below `lg`, truncates before it pushes the row. -->
+                <td
+                  class="hidden max-w-56 truncate whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 lg:table-cell dark:text-gray-400"
+                  [title]="item.email"
+                >
+                  <bdi dir="ltr">{{ item.email }}</bdi>
+                </td>
+
+                <!-- تعداد سفارش — hidden below `sm`. -->
+                <td
+                  class="hidden whitespace-nowrap px-6 py-4 text-start text-sm tabular-nums text-gray-500 sm:table-cell dark:text-gray-400"
+                >
+                  {{ item.orderCount | persianDigits }}
+                </td>
+
+                <!-- وضعیت — the same green/red pair as the profile. -->
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  <span
+                    class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+                    [class]="statusBadgeClass(item.status)"
+                  >
+                    {{ statusLabel(item.status) }}
+                  </span>
+                </td>
+
+                <!-- تاریخ عضویت — Jalali, hidden below `md`. -->
+                <td
+                  class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 md:table-cell dark:text-gray-400"
+                >
+                  {{ item.createdAt | persianDate }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FOOTER: the range uses the server total, not the rows on screen. -->
+      <div
+        class="flex flex-col gap-4 border-t border-gray-200 px-6 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <p class="text-xs sm:text-sm" aria-live="polite">
+          نمایش
+          <span class="font-medium text-gray-900 dark:text-white">
+            {{ rangeStart() | persianDigits }}
+          </span>
+          تا
+          <span class="font-medium text-gray-900 dark:text-white">
+            {{ rangeEnd() | persianDigits }}
+          </span>
+          از
+          <span class="font-medium text-gray-900 dark:text-white">
+            {{ total() | persianDigits }}
+          </span>
+          مشتری
+        </p>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2">
+            <label for="customers-page-size" class="text-xs text-gray-500 dark:text-gray-400">
+              تعداد در صفحه
+            </label>
+            <p-select
+              inputId="customers-page-size"
+              [ngModel]="listState().pageSize"
+              (onChange)="onPageSizeChange($event.value)"
+              [options]="pageSizeSelectOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              class="w-28 sm:w-auto"
+              styleClass="w-28 sm:w-auto"
+            />
+          </div>
+
+          <nav class="flex items-center gap-1" aria-label="صفحه‌بندی مشتریان">
+            <button
+              type="button"
+              (click)="onPageChange(listState().page - 1)"
+              [disabled]="listState().page === 1"
+              aria-label="صفحهٔ قبل"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              <i class="pi pi-chevron-right text-xs" aria-hidden="true"></i>
+            </button>
+
+            <div id="customers-page-numbers" class="hidden items-center gap-1 sm:flex">
+              @for (item of pageWindow(); track $index) {
+                @if (item === null) {
+                  <span class="px-1 text-xs text-gray-400" aria-hidden="true">…</span>
+                } @else {
+                  <button
+                    type="button"
+                    (click)="onPageChange(item)"
+                    [attr.data-page]="item"
+                    [attr.aria-current]="item === listState().page ? 'page' : null"
+                    [class]="
+                      item === listState().page
+                        ? 'bg-primary text-white'
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                    "
+                    class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    {{ item | persianDigits }}
+                  </button>
+                }
+              }
+            </div>
+
+            <span
+              id="customers-page-summary"
+              class="px-2 text-xs text-gray-500 dark:text-gray-400 sm:hidden"
+            >
+              صفحه {{ listState().page | persianDigits }} از
+              {{ totalPages() | persianDigits }}
+            </span>
+
+            <button
+              type="button"
+              (click)="onPageChange(listState().page + 1)"
+              [disabled]="listState().page >= totalPages()"
+              aria-label="صفحهٔ بعد"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              <i class="pi pi-chevron-left text-xs" aria-hidden="true"></i>
+            </button>
+          </nav>
+        </div>
+      </div>
+    }
+  }
+</div>

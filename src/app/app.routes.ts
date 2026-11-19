@@ -85,11 +85,12 @@ export const routes: Routes = [
         path: 'orders',
         loadChildren: () => import('@features/orders/orders.routes').then((m) => m.ORDERS_ROUTES),
       },
+      // Customers owns its routes the same way (BO-I01): the list arrives as
+      // its own lazy chunk, and BO-I02 adds the profile under `:id`.
       {
         path: 'customers',
-        data: { title: 'مشتریان', breadcrumb: 'مشتریان' },
-        title: 'مشتریان',
-        children: [],
+        loadChildren: () =>
+          import('@features/customers/customers.routes').then((m) => m.CUSTOMERS_ROUTES),
       },
       {
         path: 'coupons',

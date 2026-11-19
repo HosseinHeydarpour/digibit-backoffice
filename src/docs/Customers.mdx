@@ -1,0 +1,69 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as CustomerListStories from '../app/features/customers/customer-list/customer-list.stories';
+
+<Meta title="Features/Customers" />
+
+# مشتریان / Customers
+
+صفحهٔ مشتریان (BO-I01): فهرست صفحه‌بندی‌شده با جستجوی نام/موبایل/ایمیل، فیلتر وضعیت حساب و
+تاریخ عضویت شمسی. پروفایل مشتری در BO-I02 به همین ماژول اضافه می‌شود.
+
+The customers screen (BO-I01): a paged list with free-text search over name, mobile and email, an
+account-status filter and a Solar signup date. The customer profile arrives in BO-I02.
+
+## کاربرد / Use case
+
+وقتی پشتیبانی باید یک خریدار را پیدا کند، وضعیت حسابش را ببیند یا بفهمد چند سفارش دارد. فهرست
+برای صدها مشتری ساخته شده: جستجو و صفحه‌بندی سمت سرور است و ردیف‌ها فقط ستون‌های سبک را
+دانلود می‌کنند، نه آدرس‌ها و تاریخچهٔ سفارش‌ها.
+
+Use it when support needs to find a shopper, read their account state, or see how many orders they
+have placed. The list is built for hundreds of customers: search and paging happen on the server,
+and each row downloads light columns only, not addresses and order history.
+
+## رفتارها / Behaviour
+
+- **همه‌چیز در URL است.** `?query=&status=&page=&size=&sort=&dir=`؛ رفرش یا لینک اشتراکی همان
+  نما را برمی‌گرداند و Back/Forward کار می‌کند.
+- **جستجو ۳۰۰ میلی‌ثانیه صبر می‌کند، سلکت فوری است.** هر تغییر فیلتر به صفحهٔ ۱ برمی‌گردد؛
+  `switchMap` درخواست قبلی را لغو می‌کند.
+- **جستجوی موبایل ارقام فارسی را می‌فهمد.** «۰۹۱۲…» به `0912…` تبدیل می‌شود؛ ایمیل فقط با
+  متن کامل تطبیق می‌یابد تا رقم‌های داخلش با شمارهٔ موبایل اشتباه گرفته نشود.
+- **یک `viewState()` با چهار پایان:** `error > loading > empty > data`. `null` یعنی «هنوز
+  پاسخ نیامده» و اسکلتون می‌شود، نه فروشگاه خالی.
+- **موبایل ستون‌های کم‌اهمیت را پنهان می‌کند:** ایمیل زیر `lg`، موبایل و تاریخ عضویت زیر `md`،
+  تعداد سفارش زیر `sm`؛ نام و وضعیت در هر عرضی می‌مانند.
+
+**English**
+
+- **Everything lives in the URL**: `?query=&status=&page=&size=&sort=&dir=`; a refresh or a shared
+  link restores the same view, and Back/Forward work.
+- **Search waits 300 ms; the select applies at once.** Every filter change returns to page 1, and
+  `switchMap` cancels the previous request.
+- **Mobile search understands Persian digits**: «۰۹۱۲…» becomes `0912…`. Email matches on the full
+  text only, so the digits inside an address cannot match a mobile by accident.
+- **One `viewState()` with four outcomes:** error > loading > empty > data. `null` means "not
+  answered yet" and renders the skeleton, never an empty shop.
+- **Mobile hides the light columns**: email below `lg`, mobile and signup date below `md`, order
+  count below `sm`; name and status stay at every width.
+
+## پیش‌نمایش / Preview
+
+<Canvas of={CustomerListStories.Default} />
+
+<Canvas of={CustomerListStories.Paginated} />
+
+## حالت‌ها / States
+
+بارگذاری، فهرست خالی، خطای درخواست و بوک‌مارک کهنه.
+
+Loading, an empty list, a failed request and a stale bookmark.
+
+<Canvas of={CustomerListStories.Loading} />
+
+<Canvas of={CustomerListStories.Empty} />
+
+<Canvas of={CustomerListStories.RequestFailed} />
+
+<Canvas of={CustomerListStories.StalePage} />
