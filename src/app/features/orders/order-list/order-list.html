@@ -87,6 +87,22 @@
       </button>
     </div>
 
+    @if (customerFilterName(); as customerName) {
+      <div class="flex">
+        <button
+          type="button"
+          data-customer-filter
+          (click)="clearCustomerFilter()"
+          [attr.aria-label]="'پاک کردن فیلتر سفارش‌های ' + customerName"
+          class="inline-flex min-h-8 max-w-full items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary max-sm:min-h-11 dark:bg-primary/20 dark:text-primary-light"
+        >
+          <i class="pi pi-user text-[10px]" aria-hidden="true"></i>
+          <span class="min-w-0 truncate">سفارش‌های {{ customerName }}</span>
+          <i class="pi pi-times text-[10px]" aria-hidden="true"></i>
+        </button>
+      </div>
+    }
+
     @if (dateError(); as message) {
       <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
     }

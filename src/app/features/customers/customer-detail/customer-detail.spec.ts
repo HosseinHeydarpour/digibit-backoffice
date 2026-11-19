@@ -73,6 +73,16 @@ describe('CustomerDetail (BO-I02)', () => {
     expect(text).toContain('تومان'); // total spent
   });
 
+  it('links the profile to all orders of the customer', async () => {
+    await mount(RESULT);
+
+    const link = fixture.nativeElement.querySelector(
+      'a[href="/orders?customerId=3"]',
+    ) as HTMLAnchorElement;
+    expect(link).toBeTruthy();
+    expect(link.textContent).toContain('مشاهده همه سفارش‌ها');
+  });
+
   it('copies the phone and the email from the contact card', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {

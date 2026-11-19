@@ -6,13 +6,21 @@ import type { OrderQuery } from '../models/order.model';
 /** The filter bar's own state (BO-H02); paging/sort stay in `order-paging.ts`. */
 export interface OrderFilters {
   readonly query: string;
+  /** Set only by the profile's «مشاهده همه سفارش‌ها» link, not by the filter bar. */
+  readonly customerId: string;
   readonly status: OrderStatus | '';
   /** Gregorian `YYYY-MM-DD` as the Jalali control stores it. */
   readonly from: string | null;
   readonly to: string | null;
 }
 
-export const EMPTY_FILTERS: OrderFilters = { query: '', status: '', from: null, to: null };
+export const EMPTY_FILTERS: OrderFilters = {
+  query: '',
+  customerId: '',
+  status: '',
+  from: null,
+  to: null,
+};
 
 const STATUSES: readonly OrderStatus[] = [
   'pending',
@@ -37,6 +45,7 @@ export function filtersFromParams(params: ParamMap): OrderFilters {
 
   return {
     query: (params.get('query') ?? '').trim(),
+    customerId: (params.get('customerId') ?? '').trim(),
     status: STATUSES.includes(status as OrderStatus) ? (status as OrderStatus) : '',
     from: readDate(params.get('from')),
     to: readDate(params.get('to')),
@@ -69,6 +78,7 @@ export function filtersToQuery(filters: OrderFilters): OrderQuery {
 
   return {
     query: filters.query.trim(),
+    customerId: filters.customerId === '' ? undefined : filters.customerId,
     status: filters.status === '' ? undefined : filters.status,
     from: invalid || filters.from === null ? undefined : startOfDay(filters.from),
     to: invalid || filters.to === null ? undefined : endOfDay(filters.to),
@@ -80,6 +90,7 @@ export function filtersToQueryParams(filters: OrderFilters): Record<string, stri
   const params: Record<string, string> = {};
 
   if (filters.query.trim() !== '') params['query'] = filters.query.trim();
+  if (filters.customerId !== '') params['customerId'] = filters.customerId;
   if (filters.status !== '') params['status'] = filters.status;
   if (filters.from !== null) params['from'] = filters.from;
   if (filters.to !== null) params['to'] = filters.to;
@@ -88,7 +99,13 @@ export function filtersToQueryParams(filters: OrderFilters): Record<string, stri
 }
 
 export function filtersEqual(a: OrderFilters, b: OrderFilters): boolean {
-  return a.query === b.query && a.status === b.status && a.from === b.from && a.to === b.to;
+  return (
+    a.query === b.query &&
+    a.customerId === b.customerId &&
+    a.status === b.status &&
+    a.from === b.from &&
+    a.to === b.to
+  );
 }
 
 /** A range whose end is before its start (BO-H02 tc 10). */
@@ -99,6 +116,7 @@ export function dateRangeInvalid(filters: OrderFilters): boolean {
 export function hasActiveFilters(filters: OrderFilters): boolean {
   return (
     filters.query.trim() !== '' ||
+    filters.customerId !== '' ||
     filters.status !== '' ||
     filters.from !== null ||
     filters.to !== null

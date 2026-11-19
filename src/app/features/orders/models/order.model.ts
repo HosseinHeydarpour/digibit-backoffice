@@ -50,6 +50,8 @@ export type OrderSortField = 'createdAt' | 'total';
 export interface OrderQuery {
   /** Free text: order code or customer name. */
   readonly query?: string;
+  /** One customer's orders, used by the profile's «مشاهده همه سفارش‌ها» link. */
+  readonly customerId?: EntityId;
   readonly status?: OrderStatus;
   readonly from?: number;
   readonly to?: number;

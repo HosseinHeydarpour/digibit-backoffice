@@ -273,4 +273,22 @@ describe('OrderList paging and sort (BO-H01)', () => {
 
     expect(service.queries.length).toBe(before);
   });
+
+  it('keeps a customer filter from the URL and clears it from the chip', async () => {
+    await mount('/orders?customerId=7');
+
+    expect(lastQuery()).toMatchObject({ customerId: '7' });
+
+    const chip = fixture.nativeElement.querySelector('[data-customer-filter]') as HTMLButtonElement;
+    expect(chip).toBeTruthy();
+    expect(chip.textContent).toContain('زهرا محمدی');
+    expect(chip.getAttribute('aria-label')).toContain('پاک کردن فیلتر');
+
+    chip.click();
+    await settle();
+
+    expect(lastQuery().customerId).toBeUndefined();
+    expect(urlParams().get('customerId')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-customer-filter]')).toBeNull();
+  });
 });

@@ -70,6 +70,7 @@ export function buildQuery(query: OrderQuery = {}): HttpParams {
   };
 
   setText('query', query.query);
+  setText('customerId', query.customerId);
   setText('status', query.status);
   setMillis('from', query.from);
   setMillis('to', query.to);

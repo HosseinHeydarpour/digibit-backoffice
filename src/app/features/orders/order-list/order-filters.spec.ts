@@ -14,6 +14,7 @@ describe('order filters (BO-H02)', () => {
     const filters = filtersFromParams(
       convertToParamMap({
         query: ' ۱۴۰۲۳ ',
+        customerId: '42',
         status: 'shipped',
         from: '2026-11-01',
         to: '2026-11-10',
@@ -22,6 +23,7 @@ describe('order filters (BO-H02)', () => {
 
     expect(filters).toEqual({
       query: '۱۴۰۲۳',
+      customerId: '42',
       status: 'shipped',
       from: '2026-11-01',
       to: '2026-11-10',
@@ -39,11 +41,13 @@ describe('order filters (BO-H02)', () => {
   it('converts an inclusive Jalali day range to UTC millis', () => {
     const query = filtersToQuery({
       query: '',
+      customerId: '42',
       status: 'shipped',
       from: '2026-11-01',
       to: '2026-11-10',
     });
 
+    expect(query.customerId).toBe('42');
     expect(query.status).toBe('shipped');
     expect(query.from).toBe(new Date('2026-11-01T00:00:00').getTime());
     expect(query.to).toBe(new Date('2026-11-10T23:59:59.999').getTime());
@@ -60,7 +64,11 @@ describe('order filters (BO-H02)', () => {
   it('omits empty filters from the URL and compares by value', () => {
     expect(filtersToQueryParams(EMPTY_FILTERS)).toEqual({});
     expect(filtersToQueryParams({ ...EMPTY_FILTERS, status: 'paid' })).toEqual({ status: 'paid' });
+    expect(filtersToQueryParams({ ...EMPTY_FILTERS, customerId: '42' })).toEqual({
+      customerId: '42',
+    });
     expect(filtersEqual(EMPTY_FILTERS, { ...EMPTY_FILTERS })).toBe(true);
     expect(filtersEqual(EMPTY_FILTERS, { ...EMPTY_FILTERS, query: 'x' })).toBe(false);
+    expect(filtersEqual(EMPTY_FILTERS, { ...EMPTY_FILTERS, customerId: '42' })).toBe(false);
   });
 });

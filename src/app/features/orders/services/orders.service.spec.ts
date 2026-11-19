@@ -62,6 +62,7 @@ describe('buildQuery (BO-H01)', () => {
   it('serialises text, range, paging and sort into the exact query string', () => {
     const params = buildQuery({
       query: '  رضایی  ',
+      customerId: ' 42 ',
       status: 'shipped',
       from: 1_728_000_000_000,
       to: 1_729_000_000_000,
@@ -72,6 +73,7 @@ describe('buildQuery (BO-H01)', () => {
     });
 
     expect(params.get('query')).toBe('رضایی');
+    expect(params.get('customerId')).toBe('42');
     expect(params.get('status')).toBe('shipped');
     expect(params.get('from')).toBe('1728000000000');
     expect(params.get('to')).toBe('1729000000000');

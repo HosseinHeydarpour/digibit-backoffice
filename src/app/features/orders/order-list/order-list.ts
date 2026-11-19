@@ -306,6 +306,18 @@ export class OrderList {
 
   readonly hasFilters = computed(() => hasActiveFilters(this.filters()));
 
+  /**
+   * The label of the profile's customer filter chip. `null` when no customer id
+   * is in the URL; the first row supplies the name once the page answers.
+   */
+  readonly customerFilterName = computed<string | null>(() => {
+    if (this.filters().customerId === '') {
+      return null;
+    }
+
+    return this.items()?.[0]?.customerName ?? 'مشتری انتخاب‌شده';
+  });
+
   readonly dateError = computed(() =>
     dateRangeInvalid(this.filters()) ? 'تاریخ پایان نمی‌تواند قبل از شروع باشد.' : null,
   );
@@ -349,6 +361,11 @@ export class OrderList {
 
   clearFilters(): void {
     this.applyFilters(EMPTY_FILTERS);
+  }
+
+  /** The chip clears the profile's customer filter and leaves the other filters. */
+  clearCustomerFilter(): void {
+    this.applyFilters({ ...this.filters(), customerId: '' });
   }
 
   /**

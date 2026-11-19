@@ -128,11 +128,21 @@
     <article
       class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800 lg:col-span-3"
     >
-      <h2
-        class="border-b border-gray-200 px-5 py-4 text-base font-bold text-gray-900 dark:border-gray-700 dark:text-white"
+      <div
+        class="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-700"
       >
-        آخرین سفارش‌ها
-      </h2>
+        <h2 class="text-base font-bold text-gray-900 dark:text-white">آخرین سفارش‌ها</h2>
+        @if (account.orderCount > 0) {
+          <a
+            [routerLink]="['/orders']"
+            [queryParams]="{ customerId: account.id }"
+            class="inline-flex min-h-8 shrink-0 items-center gap-1 text-sm font-medium text-primary transition hover:text-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary max-sm:min-h-11"
+          >
+            مشاهده همه سفارش‌ها
+            <i class="pi pi-angle-left text-xs" aria-hidden="true"></i>
+          </a>
+        }
+      </div>
 
       @if (orders().length === 0) {
         <app-empty-state
