@@ -35,7 +35,10 @@ yarn-error.log
 /.angular/cache
 .sass-cache/
 /connect.lock
+# Test and e2e output
 /coverage
+/playwright-report
+/test-results
 /libpeerconnection.log
 testem.log
 /typings

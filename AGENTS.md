@@ -1277,15 +1277,12 @@ not check the prod file. BO-B06 added `SITE_URL` to the model and to `environmen
 `main` shipped with a production build that did not compile. **Run
 `ng build --configuration production` before merging anything that touches `environments/`.**
 
-Also note the current state of the bundle: the `initial` budget (500 kB warning / 750 kB error
-in `angular.json`) is exceeded on main and has been for several tasks — **787.47 kB before
-BO-E05, 788.61 kB after it, 788.75 kB after the two-bar chart, 790.22 kB after BO-E06** (the
-dashboard lives in the lazy chunk, which went from 241.83 to ~249.75 kB). `npm run build`
-therefore exits non-zero on a
-budget error that predates the task, and it is the ONLY thing that fails: `npm test`,
-`npm run lint`, `format:check` and `build-storybook` are green. Raising the ceiling is a
-`build`-scoped decision; it should not be silenced by bumping the limit inside a feature task,
-and the numbers above are what a future `build` task should start from.
+Also note the current state of the bundle: the `initial` budget in `angular.json` is **900 kB
+warning / 1.1 MB error**, raised by BO-P11/BO-P13 after the Angular 21 + PrimeNG 21 shell reached
+876.31 kB raw. The number users actually pay is the transfer size, **198.71 kB**, which meets the
+400 kB gzip target; the dashboard still lives in its lazy chunk with Chart.js. `npm run build` is
+green on this configuration — if it ever exits non-zero on a budget error, measure the transfer
+size before raising the ceiling again.
 
 ### Imports — let `lint:fix` decide
 
@@ -1573,6 +1570,7 @@ the built bundle, not to trust the build succeeding.
 | `npm start`               | dev server on http://localhost:4200             |
 | `npm run build`           | production build into `dist/backoffice/browser` |
 | `npm test`                | Vitest unit tests                               |
+| `npm run e2e`             | Playwright (starts the dev server itself)       |
 | `npm run lint`            | ESLint over ts and html                         |
 | `npm run lint:fix`        | ESLint with autofix                             |
 | `npm run format`          | format the whole repo with Prettier             |
@@ -1582,6 +1580,17 @@ the built bundle, not to trust the build succeeding.
 
 Formatting is applied automatically to staged files by the `pre-commit` hook
 (Husky + lint-staged), and commit messages are validated by the `commit-msg` hook.
+
+### E2E and CI (BO-P06, P08, P09, P13)
+
+- **Playwright owns the server.** `playwright.config.ts` starts `npm start` and reuses an already
+  running one locally; `CI=true` changes retries/workers and never reuses.
+- **The mock is the fixture.** Every e2e run starts from the in-memory fixtures; specs create their
+  own data (a product name with a timestamp) instead of depending on a previous test.
+- **The product wizard advances only when the tab is valid.** A spec fills the main tab, picks a
+  category, adds one complete variant, then walks to inventory where `[data-save]` exists.
+- **CI is `.github/workflows/ci.yml`:** lint, format check, `tsc -p tsconfig.app.json`, unit tests,
+  production build, then Playwright with Chromium. Reports upload only on failure.
 
 ## Storybook — the living catalogue
 

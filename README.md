@@ -1,44 +1,95 @@
-# بک‌آفیس (Backoffice)
+# بک‌آفیس دیجی‌بیت مارکت
 
-این پوشه محل توسعهٔ **پنل مدیریت** (بک‌آفیس) پروژه دیجی‌بیت مارکت است.
+پنل مدیریت فروشگاه، ساخته‌شده با Angular 21 (standalone + signals)، PrimeNG 21،
+Tailwind v4 و Vitest. رابط کاربری فارسی و کاملاً RTL است.
 
-## وضعیت فعلی: 📐 فاز ۱ — برنامه‌ریزی تکمیل
+## شروع سریع
 
-هنوز کدی نوشته نشده؛ مستندات فاز ۱ آماده است:
+```bash
+npm ci
+npm start          # http://localhost:4200
+npm test           # Vitest
+npm run e2e        # Playwright (Chromium)
+```
 
-| فایل                                         | مخاطب    | محتوا                                                                                                                                 |
-| -------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| [`ARCHITECTURE.md`](./ARCHITECTURE.md)       | 🤖 ایجنت | معماری کامل فنی: استک، ساختار پوشه‌ها، قرارداد API، مدل داده، RBAC، قراردادهای کدنویسی                                                |
-| [`ARCHITECTURE.html`](./ARCHITECTURE.html)   | 👤 شما   | همان معماری در قالب صفحهٔ بصری و خوانا (مرورگر)                                                                                       |
-| [`TASKS-PHASE-1.md`](./TASKS-PHASE-1.md)     | 🤖 ایجنت | **۱۵۶ تسک اتمیک** در ۱۶ صق؛ هر تسک شامل **توضیح**، **نحوهٔ اجرای بهینه**، **معیار پذیرش** و **۱۰ تا ۱۵ تست‌کیس** (جمعاً ۱۵۷۸ تست‌کیس) |
-| [`PHASE-1-TASKS.html`](./PHASE-1-TASKS.html) | 👤 شما   | برد تسک تعاملی: همان ۱۵۶ تسک با جزئیات/اجرا/تست‌های بازشونده، فیلتر، تیک، درصد پیشرفت (ذخیره در مرورگر)                               |
+## اسکریپت‌ها
 
-## دامنهٔ فاز ۱ (۱۲ ماژول)
+| دستور                     | کار                                            |
+| ------------------------- | ---------------------------------------------- |
+| `npm start`               | سرور توسعه روی 4200                            |
+| `npm run build`           | بیلد production در `dist/backoffice/browser`   |
+| `npm test`                | تست واحد Vitest                                |
+| `npm run e2e`             | تست‌های Playwright (سرور را خودش بالا می‌آورد) |
+| `npm run lint`            | ESLint روی TS و HTML                           |
+| `npm run lint:fix`        | ESLint با اصلاح خودکار                         |
+| `npm run format`          | Prettier                                       |
+| `npm run format:check`    | بررسی فرمت بدون نوشتن                          |
+| `npm run storybook`       | کاتالوگ Storybook                              |
+| `npm run build-storybook` | بیلد استاتیک Storybook                         |
 
-احراز هویت JWT · داشبورد · محصولات (CRUD + Variant + گالری) · دسته‌بندی درختی ·
-برند · سفارش‌ها (وضعیت + فاکتور) · مشتریان · کوپن تخفیف · روش‌های ارسال ·
-بنر و محتوا · تنظیمات فروشگاه · نظرات و تیکت پشتیبانی.
+## محیط و API
 
-خارج از فاز ۱: چندفروشندگی، وبلاگ، کیف پول، جستجوی Full-Text، گزارش Excel، SignalR.
+- `src/environments/environment.ts` (dev) و `environment.prod.ts` با `fileReplacements`
+  جابه‌جا می‌شوند؛ هر فیلد جدید را در **هر دو** اضافه کن.
+- `API_BASE_URL` روی `/api/v1` است و همهٔ درخواست‌ها از `ApiService` می‌گذرند.
+- `useMockApi` در dev روشن است: `core/mock/mock-interceptor.ts` از fixtureها جواب
+  می‌دهد و در production با `mock-interceptor.prod.ts` جایگزین می‌شود.
+- `SITE_URL` آدرس سایت کاربر است (لینک محصول در نظرات).
 
-## استک فاز ۱
+## ساختار
 
-Angular 17+ (Standalone) · TypeScript strict · PrimeNG (Arya) با RTL native ·
-تقویم جلالی (`Intl fa-IR`) · JWT + Refresh · Jest + Playwright · GitHub Actions.
+```
+src/app/
+  core/        سرویس‌ها، گاردها، توکن‌ها، mock و مدل‌های مشترک
+  shared/      کامپوننت/دایرکتیو/پایپ مشترک
+  layout/      shell، سایدبار، تاپ‌بار، drawer
+  features/    auth, dashboard, products, categories, brands, orders,
+               customers, coupons, shipping, banners, pages, settings,
+               comments, tickets
+```
 
-پالت رنگ از قالب مرجع «آرینو» گرفته شده (برند `#FF8229`).
+هر feature فقط از `core/` و `shared/` import می‌کند، نه از feature دیگر. مسیرها lazy‌اند
+و تعریفشان در `features/<name>/<name>.routes.ts` است.
 
-## نکات
+## نقش‌ها و مجوزها
 
-- مرجع طراحی: قالب «آرینو» در پوشهٔ [`../web temp/`](../web%20temp/) — صفحه‌های
-  `admin-panel-*` منبع الگوی منو و کامپوننت‌ها هستند.
-- سند معماری کل پروژه: [`../digibit-architecture.html`](../digibit-architecture.html)
-- این پوشه فعلاً روی دامنهٔ اصلی دیپلوی نمی‌شود؛ در آینده می‌تواند روی
-  ساب‌دامینی مثل `panel.digibitshop.ir` منتشر شود.
-- API: همهٔ اندپوینت‌ها زیر `/api/v1` طبق قرارداد فایل معماری.
+`PERMISSIONS` یک `Signal<readonly string[]>` است و پیش‌فرضش **خالی** (fail-closed).
+`permissionGuard` روی route و `*appHasPermission` روی کنترل‌ها همین لیست را می‌خوانند.
+مجوزهای نوشتنی مثل `comments.moderate`، `tickets.manage` و `settings.write` جدا از
+`*.view` هستند. این محدودسازی UI است؛ اعتبار نهایی سمت API است.
 
-## شروع کار (برای ایجنت)
+## تست
 
-۱. `ARCHITECTURE.md` را کامل بخوان.
-۲. از صف A در `TASKS-PHASE-1.md` شروع کن (بوت‌استرپ).
-۳. هر تسک = یک برنچ + تست؛ در پایان هر صق چک‌لیست «معیار پذیرش صق» را تیک بزن.
+- تست واحد: `npm test` (Vitest + TestBed).
+- e2e: `npm run e2e`؛ `playwright.config.ts` سرور توسعه را خودش اجرا می‌کند و
+  mock در حافظه است، پس هر اجرا از fixture یکسان شروع می‌شود.
+- CI: `.github/workflows/ci.yml` مراحل lint، format، typecheck، تست، بیلد و
+  Playwright را اجرا می‌کند.
+
+## دیپلوی
+
+خروجی `dist/backoffice/browser` را روی Nginx سرو کن و برای مسیرهای SPA fallback بگذار:
+
+```nginx
+location / {
+  try_files $uri $uri/ /index.html;
+}
+```
+
+سقف باندل اولیه در `angular.json` روی ۹۰۰kB هشدار / ۱.۱MB خطاست؛ انتقال واقعی
+حدود ۲۰۰kB است. بیلد production باید سبز باشد.
+
+## عیب‌یابی
+
+- **Storybook بالا نمی‌آید:** فقط با `npm run storybook` (Angular target) اجرا کن،
+  نه `storybook dev`.
+- **صفحه سفید بعد از دیپلوی:** fallback نکسی را چک کن؛ مسیرهای lazy بدون آن 404 می‌شوند.
+- **خطای باندل:** `npm run build` را کامل بخوان؛ سقف در `angular.json` است.
+- **تست‌های e2e:** یک بار `npx playwright install chromium` لازم است.
+
+## مستندات
+
+- [`AGENTS.md`](./AGENTS.md) — قواعد کد، Commit، RTL، Storybook و تصمیم‌های ماژول‌ها.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — معماری و قرارداد API.
+- `../tasks and arc/backoffice/TASKS-PHASE-1.md` — تسک‌های فاز ۱.
+- `../tasks and arc/checklist/tests.html` — چک‌لیست تست دستی و یکپارچگی.
