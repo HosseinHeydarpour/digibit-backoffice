@@ -1643,4 +1643,120 @@ describe('mockInterceptor', () => {
 
     return created.data.id;
   }
+
+  // --- BO-M01..M07: settings ---------------------------------------------------
+
+  interface SettingsBody {
+    store: Record<string, string>;
+    payment: Record<string, unknown>;
+    sms: Record<string, unknown>;
+    seo: Record<string, unknown>;
+  }
+
+  function validSettings(): SettingsBody {
+    return {
+      store: {
+        name: 'دیجی‌بیت مارکت',
+        description: 'فروشگاه',
+        phone: '09121234567',
+        email: 'info@digibit.market',
+        province: 'تهران',
+        city: 'تهران',
+        postalCode: '1234567890',
+        address: 'ولیعصر',
+        logoUrl: '',
+        instagram: '',
+        telegram: '',
+        whatsapp: '',
+      },
+      payment: { gateway: 'zarinpal', merchantId: 'zp-1', sandbox: true },
+      sms: { provider: 'kavenegar', sender: '10008663', otpTemplate: 'کد: {code}' },
+      seo: { metaTitle: 'عنوان', metaDescription: 'توضیح', keywords: ['الف'], ogImage: '' },
+    };
+  }
+
+  async function getSettings(): Promise<SettingsBody> {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<SettingsBody>>('/api/v1/settings', { headers: { [MOCK_HEADER]: '1' } }),
+    );
+
+    return body.data;
+  }
+
+  it('settings: returns masks and never the raw keys', async () => {
+    const settings = await getSettings();
+
+    expect(settings.payment['merchantKeyMasked']).toMatch(/^•••• /);
+    expect(settings.payment['hasMerchantKey']).toBe(true);
+    expect(settings.payment).not.toHaveProperty('merchantKey');
+    expect(settings.sms).not.toHaveProperty('apiKey');
+  });
+
+  it('settings: an empty key keeps the stored secret', async () => {
+    const before = await getSettings();
+
+    await firstValueFrom(
+      http.put<ApiResponse<SettingsBody>>('/api/v1/settings', validSettings(), {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    const after = await getSettings();
+
+    expect(after.payment['merchantKeyMasked']).toBe(before.payment['merchantKeyMasked']);
+  });
+
+  it('settings: a new key replaces the stored one and is re-masked', async () => {
+    const update = validSettings();
+    update['payment'] = { ...update['payment'], merchantKey: 'zp_new_key_9999' };
+
+    const saved = await firstValueFrom(
+      http.put<ApiResponse<SettingsBody>>('/api/v1/settings', update, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(saved.data.payment['merchantKeyMasked']).toBe('•••• 9999');
+    expect(saved.data.payment).not.toHaveProperty('merchantKey');
+  });
+
+  it('settings: invalid groups answer 422 with namespaced fields', async () => {
+    const update = validSettings();
+    update['store'] = { ...update['store'], phone: '123' };
+
+    const error = await firstValueFrom(
+      http
+        .put<HttpErrorResponse>('/api/v1/settings', update, { headers: { [MOCK_HEADER]: '1' } })
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(error.status).toBe(422);
+    expect(error.error.error.fields['store.phone']).toBeTruthy();
+  });
+
+  it('settings: the SMS test needs a saved provider', async () => {
+    const body = await firstValueFrom(
+      http.post<ApiResponse<{ message: string }>>(
+        '/api/v1/settings/sms/test',
+        {},
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(body.data.message).toContain('ارسال شد');
+  });
+
+  it('settings: resetMockState restores the seed', async () => {
+    const update = validSettings();
+    update['store'] = { ...update['store'], name: 'نام تازه' };
+
+    await firstValueFrom(
+      http.put<ApiResponse<SettingsBody>>('/api/v1/settings', update, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    resetMockState();
+
+    expect((await getSettings()).store['name']).toBe('دیجی‌بیت مارکت');
+  });
 });

@@ -26,8 +26,8 @@
 // BO-F10+ (variants), etc.
 
 import { Routes } from '@angular/router';
+import { unsavedChangesGuard } from '@core/guards/unsaved-changes.guard';
 
-import { unsavedProductChangesGuard } from './guards/unsaved-product-changes.guard';
 import { ProductCreate } from './product-create/product-create';
 import { ProductDetail } from './product-detail/product-detail';
 import { productEditResolver } from './product-edit/product-edit.resolver';
@@ -73,7 +73,7 @@ export const PRODUCTS_ROUTES: Routes = [
     path: 'new',
     component: ProductCreate,
     title: 'افزودن محصول',
-    canDeactivate: [unsavedProductChangesGuard],
+    canDeactivate: [unsavedChangesGuard],
     data: { title: 'افزودن محصول', breadcrumb: 'افزودن محصول', permission: PRODUCTS_PERMISSION },
   },
 
@@ -83,7 +83,7 @@ export const PRODUCTS_ROUTES: Routes = [
     path: ':id/edit',
     component: ProductCreate,
     title: 'ویرایش محصول',
-    canDeactivate: [unsavedProductChangesGuard],
+    canDeactivate: [unsavedChangesGuard],
     // Both are required for the error block's «تلاش دوباره» (BO-F14 tc 6):
     // `onSameUrlNavigation` (at the call site) stops the router dropping the
     // navigation, and `always` stops it reusing the cached resolve result.

@@ -133,9 +133,8 @@ export const routes: Routes = [
       },
       {
         path: 'settings',
-        data: { title: 'تنظیمات', breadcrumb: 'تنظیمات' },
-        title: 'تنظیمات',
-        children: [],
+        loadChildren: () =>
+          import('@features/settings/settings.routes').then((m) => m.SETTINGS_ROUTES),
       },
       // The profile page BO-B06's topbar dropdown links to. Component-less like
       // the rest: the page itself is a later task, and a route that exists is

@@ -1061,6 +1061,33 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   validates the same title/body/meta limits.
 - **The `/pages` route** guards `content.view`; the edit control needs `content.manage`.
 
+### Settings (BO-M01..M07)
+
+- **Four tabs, four forms, one transaction.** `SettingsPage` owns `storeForm`, `paymentForm`,
+  `smsForm` and `seoForm`; each tab renders one of them, but the sticky bar sends all four in one
+  `PUT /settings`. `dirtyCount` is the number of dirty groups, so «۳ مورد ذخیره‌نشده» means three
+  tabs, not three fields.
+- **The tab is URL state.** `?tab=` is validated against the closed set and falls back to `store`;
+  `onTabChange` writes it with `replaceUrl`. Switching away from a dirty tab asks, and the edits
+  stay — only the visible tab changes. The page implements `hasUnsavedChanges()`, and
+  `SETTINGS_ROUTES` wires the shared `unsavedChangesGuard` (`core/guards/`) plus a `beforeunload`
+  listener.
+- **Secrets are write-only.** `GET /settings` returns `merchantKeyMasked` / `hasMerchantKey` and
+  `apiKeyMasked` / `hasApiKey`, never the key. The form's key controls start EMPTY; the payload
+  omits them when blank, so the stored secret survives, and `toUpdate` only includes a trimmed
+  value when the admin typed one. The mock repeats the contract: masks are computed on read, and a
+  new key is stored but never echoed.
+- **The server still validates.** `PUT /settings` answers 422 with namespaced `fields`
+  (`store.phone`, `payment.merchantId`, `sms.otpTemplate`), and `onSaveError` splits the path to find
+  the group and control. A failed save leaves every edit in place.
+- **The OTP template must contain `{code}`.** The client refuses to save without it (and says why),
+  the mock answers 422, and the test-SMS endpoint refuses when sender or key is missing.
+- **`settings.write` is the only grant.** The sidebar item and the route declare the same
+  permission, so the menu mirrors the guard; `permissionGuard` is fail-closed. This is UI plus
+  route gating — the backend is still the authority.
+- **The logo follows the banner/brand rule.** Picking a file validates type/size and shows a blob
+  preview; the upload happens on save through the shared `POST /media`, and cancel writes nothing.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

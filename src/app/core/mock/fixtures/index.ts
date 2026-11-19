@@ -18,6 +18,8 @@ export { MOCK_BANNERS } from './banners.fixture';
 export type { MockBanner } from './banners.fixture';
 export { MOCK_CONTENT_PAGES } from './content-pages.fixture';
 export type { MockContentPage } from './content-pages.fixture';
+export { MOCK_SETTINGS } from './settings.fixture';
+export type { MockSettings } from './settings.fixture';
 export type { SessionUser } from '@shared/models/session.model';
 
 /** 12 modules, matching the 12 feature folders. */
@@ -293,13 +295,6 @@ export const MOCK_DASHBOARD_SUMMARY = {
   pendingOrders: MOCK_ORDER_DETAILS.filter((order) => order.status === 'pending').length,
   lowStockCount: MOCK_LOW_STOCK.length,
   newComments: 5,
-};
-
-export const MOCK_SETTINGS = {
-  store: { name: 'دیجیبیت مارکت', phone: '02112345678', email: 'info@digibit.market' },
-  payment: { gateway: 'zarinpal', sandbox: true, merchantId: '****4321' },
-  sms: { provider: 'kavenegar', sender: '10008663', apiKey: '****9876' },
-  seo: { title: 'دیجیبیت مارکت', description: 'فروشگاه اینترنتی', keywords: ['فروشگاه', 'آنلاین'] },
 };
 
 /**

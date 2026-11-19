@@ -1,0 +1,55 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as SettingsStories from '../app/features/settings/settings-page/settings-page.stories';
+
+<Meta title="Features/Settings" />
+
+# تنظیمات / Settings
+
+صفحهٔ تنظیمات (BO-M01 تا BO-M07) با چهار تب: اطلاعات فروشگاه، درگاه پرداخت، پیامک و سئو.
+همهٔ تب‌ها یک تراکنش‌اند: یک «ذخیرهٔ همه» و یک شمارندهٔ تغییرات.
+
+The settings page (BO-M01..M07) with four tabs: store, payment, SMS and SEO. All tabs are one
+transaction: one «save all» and one dirty counter.
+
+## کاربرد / Use case
+
+وقتی مدیر ارشد باید اطلاعات فروشگاه، درگاه و پیامک را بدون دست‌زدن به کد عوض کند. صفحه فقط با
+مجوز `settings.write` باز می‌شود؛ بدون آن، مسیر مستقیم هم به ۴۰۳ می‌رود.
+
+Use it when the super admin must change shop, gateway and SMS details without code. The page needs
+`settings.write`; without it, even a direct URL lands on 403.
+
+## رفتارها / Behaviour
+
+- **چهار تب، چهار فرم، یک ذخیره.** هر تب `FormGroup` خودش را دارد، اما نوار پایین همه را با یک
+  `PUT /settings` می‌فرستد و شمارندهٔ تغییرات مجموع گروه‌های dirty است.
+- **تب در URL است.** `?tab=payment` قابل اشتراک است و رفرش همان تب را باز می‌کند.
+- **تب dirty با تأیید عوض می‌شود.** تغییرات دور ریخته نمی‌شوند؛ فقط تب عوض می‌شود. ترک صفحه با
+  `canDeactivate` می‌پرسد و رفرش با `beforeunload`.
+- **کلیدها فقط نوشتنی‌اند.** ورودی کلید خالی شروع می‌شود و ماسک «•••• 6789» کنارش است: خالی
+  گذاشتن یعنی کلید فعلی بماند، تایپ کردن یعنی جایگزین شود، و پاسخ سرور هرگز کلید کامل را ندارد.
+- **درگاه آزمایشی هشدار قرمز دارد** تا فروش واقعی با sandbox اشتباه نشود.
+- **پیامک آزمایشی** فقط وقتی فرستنده و کلید ذخیره شده باشند جواب می‌دهد؛ قالب OTP باید `{code}`
+  داشته باشد و سرور هم همین را بررسی می‌کند.
+- **سئو پیش‌نمایش دارد:** عنوان ۷۰ و توضیحات ۱۶۰ کاراکتر، شمارندهٔ زنده و کارت نتیجهٔ جستجو.
+
+**English**
+
+- **Four tabs, four forms, one save.** Each tab owns its `FormGroup`, but the bottom bar sends them
+  all in one `PUT /settings`; the dirty counter is the sum of the dirty groups.
+- **The tab lives in the URL.** `?tab=payment` is shareable and a refresh reopens it.
+- **A dirty tab switch asks first.** Edits are kept; only the tab changes. `canDeactivate` guards
+  in-app exits and `beforeunload` guards a refresh.
+- **Keys are write-only.** The key input starts empty beside a «•••• 6789» mask: empty keeps the
+  stored key, typing replaces it, and the response never carries the full key.
+- **Sandbox mode has a red warning** so a live shop cannot be left on the test gateway by accident.
+- **Test SMS** works once a sender and key are stored; the OTP template must contain `{code}` and
+  the server enforces the same rule.
+- **SEO has a preview:** title 70, description 160, live counters and a search-result card.
+
+## پیش‌نمایش / Preview
+
+<Canvas of={SettingsStories.Default} />
+
+<Canvas of={SettingsStories.Loading} />

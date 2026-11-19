@@ -1,6 +1,6 @@
-// src/app/features/products/guards/unsaved-product-changes.guard.ts
+// src/app/core/guards/unsaved-changes.guard.ts
 //
-// BO-F07 tc 7: leaving a dirty product form must ask first.
+// Leaving a form with unsaved edits must ask first (BO-F07 tc 7, BO-M06 tc 3).
 //
 // A `CanDeactivateFn` is the only hook that covers EVERY in-app exit — the
 // back link, the sidebar, the browser's Back button — with one answer. A
@@ -20,7 +20,7 @@ export interface HasUnsavedChanges {
   hasUnsavedChanges(): boolean;
 }
 
-export const unsavedProductChangesGuard: CanDeactivateFn<HasUnsavedChanges> = (component) => {
+export const unsavedChangesGuard: CanDeactivateFn<HasUnsavedChanges> = (component) => {
   if (!component?.hasUnsavedChanges?.()) {
     return true;
   }

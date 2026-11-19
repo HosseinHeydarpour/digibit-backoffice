@@ -410,7 +410,7 @@ function resolve(
     }
 
     case 'settings':
-      return ok(fixtures.MOCK_SETTINGS);
+      return resolveSettings(method, id, sub, body);
 
     default:
       return null; // unrecognised → pass through to the real backend
@@ -1427,6 +1427,128 @@ function resolveContentPages(
   return method === 'GET' ? ok(found) : NOT_FOUND;
 }
 
+let SETTINGS: fixtures.MockSettings = cloneSettings();
+
+function cloneSettings(): fixtures.MockSettings {
+  return JSON.parse(JSON.stringify(fixtures.MOCK_SETTINGS)) as fixtures.MockSettings;
+}
+
+/** «•••• 6789» — the mock never returns the raw key. */
+function maskKey(key: string): string {
+  return key === '' ? '' : `•••• ${key.slice(-4)}`;
+}
+
+function settingsResponse(): unknown {
+  return {
+    store: SETTINGS.store,
+    payment: {
+      gateway: SETTINGS.payment.gateway,
+      merchantId: SETTINGS.payment.merchantId,
+      sandbox: SETTINGS.payment.sandbox,
+      merchantKeyMasked: maskKey(SETTINGS.payment.merchantKey),
+      hasMerchantKey: SETTINGS.payment.merchantKey !== '',
+    },
+    sms: {
+      provider: SETTINGS.sms.provider,
+      sender: SETTINGS.sms.sender,
+      otpTemplate: SETTINGS.sms.otpTemplate,
+      apiKeyMasked: maskKey(SETTINGS.sms.apiKey),
+      hasApiKey: SETTINGS.sms.apiKey !== '',
+    },
+    seo: SETTINGS.seo,
+  };
+}
+
+/**
+ * `/settings` and `/settings/sms/test` (BO-M01..M07).
+ *
+ * TRACE — saving the payment tab with a new key:
+ *   1. The page sends `{ payment: { gateway, merchantId, sandbox, merchantKey } }`
+ *      inside the four-group body.
+ *   2. A non-empty `merchantKey` replaces the stored one; an EMPTY/absent key
+ *      keeps the old one, so the masked value never overwrites the secret.
+ *   3. The answer carries only `merchantKeyMasked`, so the raw key never leaves
+ *      the server after the write.
+ */
+function resolveSettings(
+  method: string,
+  id: string | undefined,
+  sub: string | undefined,
+  body: unknown,
+): MockResolution {
+  if (method === 'POST' && id === 'sms' && sub === 'test') {
+    if (SETTINGS.sms.sender === '' || SETTINGS.sms.apiKey === '') {
+      return fieldValidationError({ sms: ['اول شمارهٔ فرستنده و کلید API را ذخیره کن.'] });
+    }
+
+    return ok({ message: 'پیامک آزمایشی به شمارهٔ مدیر ارسال شد.' });
+  }
+
+  if (method === 'GET') {
+    return ok(settingsResponse());
+  }
+
+  if (method !== 'PUT') {
+    return NOT_FOUND;
+  }
+
+  const data = asRecord(body);
+  const store = asRecord(data['store']);
+  const payment = asRecord(data['payment']);
+  const sms = asRecord(data['sms']);
+  const seo = asRecord(data['seo']);
+  const merchantKey = String(payment['merchantKey'] ?? '').trim();
+  const apiKey = String(sms['apiKey'] ?? '').trim();
+  const fields: Record<string, string[]> = {};
+  const storeName = String(store['name'] ?? '').trim();
+  const phone = String(store['phone'] ?? '').trim();
+  const email = String(store['email'] ?? '').trim();
+  const merchantId = String(payment['merchantId'] ?? '').trim();
+  const sender = String(sms['sender'] ?? '').trim();
+  const otpTemplate = String(sms['otpTemplate'] ?? '');
+
+  if (storeName.length < 3) fields['store.name'] = ['نام فروشگاه باید حداقل ۳ کاراکتر باشد.'];
+  if (!/^09\d{9}$/.test(phone)) fields['store.phone'] = ['شماره با ۰۹ شروع شود و ۱۱ رقم باشد.'];
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) fields['store.email'] = ['ایمیل معتبر نیست.'];
+  if (merchantId === '') fields['payment.merchantId'] = ['مرچنت کد الزامی است.'];
+  if (sender === '') fields['sms.sender'] = ['شمارهٔ فرستنده الزامی است.'];
+  if (!otpTemplate.includes('{code}')) fields['sms.otpTemplate'] = ['قالب باید شامل {code} باشد.'];
+
+  if (Object.keys(fields).length > 0) {
+    return fieldValidationError(fields);
+  }
+
+  SETTINGS = {
+    store: { ...SETTINGS.store, ...(store as Partial<fixtures.MockSettings['store']>) },
+    payment: {
+      ...SETTINGS.payment,
+      gateway:
+        (payment['gateway'] as fixtures.MockSettings['payment']['gateway']) ??
+        SETTINGS.payment.gateway,
+      merchantId: String(payment['merchantId'] ?? SETTINGS.payment.merchantId),
+      sandbox: payment['sandbox'] === true,
+      merchantKey: merchantKey === '' ? SETTINGS.payment.merchantKey : merchantKey,
+    },
+    sms: {
+      ...SETTINGS.sms,
+      provider:
+        (sms['provider'] as fixtures.MockSettings['sms']['provider']) ?? SETTINGS.sms.provider,
+      sender: String(sms['sender'] ?? SETTINGS.sms.sender),
+      otpTemplate: String(sms['otpTemplate'] ?? SETTINGS.sms.otpTemplate),
+      apiKey: apiKey === '' ? SETTINGS.sms.apiKey : apiKey,
+    },
+    seo: {
+      ...SETTINGS.seo,
+      ...(seo as Partial<fixtures.MockSettings['seo']>),
+      keywords: Array.isArray(seo['keywords'])
+        ? (seo['keywords'] as unknown[]).map(String)
+        : SETTINGS.seo.keywords,
+    },
+  };
+
+  return ok(settingsResponse(), 'تنظیمات ذخیره شد.');
+}
+
 function categoryName(id: string): string {
   return CATEGORIES.find((category) => category.id === id)?.name ?? '-';
 }
@@ -2160,6 +2282,7 @@ export function resetMockState(): void {
   SHIPPING = fixtures.MOCK_SHIPPING_METHODS.map((method) => ({ ...method }));
   BANNERS = fixtures.MOCK_BANNERS.map((banner) => ({ ...banner }));
   PAGES = fixtures.MOCK_CONTENT_PAGES.map((page) => ({ ...page }));
+  SETTINGS = cloneSettings();
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */

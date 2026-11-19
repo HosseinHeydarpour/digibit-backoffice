@@ -1,0 +1,496 @@
+<app-page-header title="تنظیمات" description="اطلاعات فروشگاه، درگاه پرداخت، پیامک و سئو" />
+
+@if (loadError()) {
+  <div
+    class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+  >
+    <app-error-state [title]="loadError()!" />
+  </div>
+} @else if (loading()) {
+  <div
+    class="space-y-3 rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+    role="status"
+    aria-busy="true"
+    aria-label="در حال بارگذاری تنظیمات"
+  >
+    @for (i of [1, 2, 3, 4]; track i) {
+      <div class="h-12 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700"></div>
+    }
+  </div>
+} @else {
+  <div
+    class="rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+  >
+    <p-tabs [value]="activeTab()" (valueChange)="onTabChange($event)">
+      <p-tablist>
+        <p-tab value="store">اطلاعات فروشگاه</p-tab>
+        <p-tab value="payment">درگاه پرداخت</p-tab>
+        <p-tab value="sms">پیامک</p-tab>
+        <p-tab value="seo">سئو</p-tab>
+      </p-tablist>
+
+      <p-tabpanels>
+        <p-tabpanel value="store">
+          <form [formGroup]="storeForm" class="space-y-4 pt-3">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <app-form-field
+                controlName="name"
+                label="نام فروشگاه"
+                inputId="store-name"
+                [error]="fieldError(storeForm, 'name')"
+              >
+                <input pInputText id="store-name" formControlName="name" class="w-full" />
+              </app-form-field>
+              <app-form-field
+                controlName="phone"
+                label="تلفن همراه"
+                inputId="store-phone"
+                hint="۰۹…"
+                [error]="fieldError(storeForm, 'phone')"
+              >
+                <input
+                  pInputText
+                  id="store-phone"
+                  formControlName="phone"
+                  dir="ltr"
+                  class="w-full"
+                />
+              </app-form-field>
+            </div>
+
+            <app-form-field
+              controlName="description"
+              label="توضیح کوتاه"
+              inputId="store-description"
+            >
+              <input
+                pInputText
+                id="store-description"
+                formControlName="description"
+                class="w-full"
+              />
+            </app-form-field>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <app-form-field
+                controlName="email"
+                label="ایمیل"
+                inputId="store-email"
+                [error]="fieldError(storeForm, 'email')"
+              >
+                <input
+                  pInputText
+                  id="store-email"
+                  formControlName="email"
+                  dir="ltr"
+                  class="w-full"
+                />
+              </app-form-field>
+              <app-form-field
+                controlName="province"
+                label="استان"
+                inputId="store-province"
+                [error]="fieldError(storeForm, 'province')"
+              >
+                <input pInputText id="store-province" formControlName="province" class="w-full" />
+              </app-form-field>
+              <app-form-field
+                controlName="city"
+                label="شهر"
+                inputId="store-city"
+                [error]="fieldError(storeForm, 'city')"
+              >
+                <input pInputText id="store-city" formControlName="city" class="w-full" />
+              </app-form-field>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <app-form-field
+                controlName="postalCode"
+                label="کد پستی"
+                inputId="store-postal"
+                hint="۱۰ رقم"
+                [error]="fieldError(storeForm, 'postalCode')"
+              >
+                <input
+                  pInputText
+                  id="store-postal"
+                  formControlName="postalCode"
+                  dir="ltr"
+                  class="w-full"
+                />
+              </app-form-field>
+              <div class="sm:col-span-2">
+                <app-form-field
+                  controlName="address"
+                  label="نشانی"
+                  inputId="store-address"
+                  [error]="fieldError(storeForm, 'address')"
+                >
+                  <input pInputText id="store-address" formControlName="address" class="w-full" />
+                </app-form-field>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <app-form-field
+                controlName="instagram"
+                label="اینستاگرام"
+                inputId="store-instagram"
+                [error]="fieldError(storeForm, 'instagram')"
+              >
+                <input
+                  pInputText
+                  id="store-instagram"
+                  formControlName="instagram"
+                  dir="ltr"
+                  class="w-full"
+                  placeholder="https://instagram.com/…"
+                />
+              </app-form-field>
+              <app-form-field
+                controlName="telegram"
+                label="تلگرام"
+                inputId="store-telegram"
+                [error]="fieldError(storeForm, 'telegram')"
+              >
+                <input
+                  pInputText
+                  id="store-telegram"
+                  formControlName="telegram"
+                  dir="ltr"
+                  class="w-full"
+                  placeholder="https://t.me/…"
+                />
+              </app-form-field>
+              <app-form-field
+                controlName="whatsapp"
+                label="واتساپ"
+                inputId="store-whatsapp"
+                [error]="fieldError(storeForm, 'whatsapp')"
+              >
+                <input
+                  pInputText
+                  id="store-whatsapp"
+                  formControlName="whatsapp"
+                  dir="ltr"
+                  class="w-full"
+                  placeholder="https://wa.me/…"
+                />
+              </app-form-field>
+            </div>
+
+            <div class="space-y-2">
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">لوگو</p>
+              <div class="flex flex-wrap items-center gap-3">
+                @if (logoPreview(); as url) {
+                  <img
+                    [src]="url"
+                    alt="لوگوی فروشگاه"
+                    class="h-14 w-14 rounded-lg border border-gray-200 object-contain dark:border-gray-700"
+                  />
+                } @else {
+                  <span
+                    class="flex h-14 w-14 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-700"
+                  >
+                    <i class="pi pi-image" aria-hidden="true"></i>
+                  </span>
+                }
+                <label
+                  class="inline-flex min-h-10 cursor-pointer items-center gap-1 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus-within:ring-2 focus-within:ring-primary dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 max-sm:min-h-11"
+                >
+                  <i class="pi pi-upload text-xs" aria-hidden="true"></i>
+                  انتخاب لوگو
+                  <input
+                    type="file"
+                    class="sr-only"
+                    accept="image/png,image/jpeg,image/webp"
+                    (change)="onLogoSelected($event)"
+                  />
+                </label>
+                @if (logoPreview() !== '') {
+                  <button
+                    type="button"
+                    (click)="removeLogo()"
+                    class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-red-600 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:bg-red-900/20"
+                  >
+                    <i class="pi pi-trash text-xs" aria-hidden="true"></i>
+                    حذف
+                  </button>
+                }
+                <span class="text-xs text-gray-500 dark:text-gray-400"
+                  >PNG/JPG/WebP · حداکثر ۲ مگابایت</span
+                >
+              </div>
+              @if (logoError(); as message) {
+                <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
+              }
+            </div>
+          </form>
+        </p-tabpanel>
+
+        <p-tabpanel value="payment">
+          <form [formGroup]="paymentForm" class="space-y-4 pt-3">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <app-form-field controlName="gateway" label="درگاه پرداخت" inputId="payment-gateway">
+                <p-select
+                  inputId="payment-gateway"
+                  formControlName="gateway"
+                  [options]="gatewayOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  appendTo="body"
+                  class="w-full"
+                  styleClass="w-full"
+                />
+              </app-form-field>
+              <app-form-field
+                controlName="merchantId"
+                label="مرچنت کد"
+                inputId="payment-merchant"
+                [error]="fieldError(paymentForm, 'merchantId')"
+              >
+                <input
+                  pInputText
+                  id="payment-merchant"
+                  formControlName="merchantId"
+                  dir="ltr"
+                  class="w-full"
+                />
+              </app-form-field>
+            </div>
+
+            <app-form-field
+              controlName="merchantKey"
+              label="کلید درگاه (کلید جدید)"
+              inputId="payment-key"
+              [hint]="'ذخیره‌شده: ' + (merchantKeyMasked() || 'هنوز کلیدی ذخیره نشده')"
+            >
+              <input
+                pInputText
+                id="payment-key"
+                formControlName="merchantKey"
+                dir="ltr"
+                class="w-full"
+                placeholder="خالی بگذار تا کلید فعلی بماند"
+              />
+            </app-form-field>
+
+            <div class="flex items-center gap-3">
+              <p-toggleswitch inputId="payment-sandbox" formControlName="sandbox" />
+              <label for="payment-sandbox" class="text-sm text-gray-700 dark:text-gray-300"
+                >حالت آزمایشی (sandbox)</label
+              >
+            </div>
+            @if (paymentForm.controls.sandbox.value) {
+              <p class="text-xs text-red-600 dark:text-red-400">
+                <i class="pi pi-exclamation-triangle text-xs" aria-hidden="true"></i>
+                در حالت آزمایشی پرداخت‌ها واقعی نیستند؛ برای فروش واقعی خاموشش کن.
+              </p>
+            }
+          </form>
+        </p-tabpanel>
+
+        <p-tabpanel value="sms">
+          <form [formGroup]="smsForm" class="space-y-4 pt-3">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <app-form-field controlName="provider" label="ارائه‌دهنده" inputId="sms-provider">
+                <p-select
+                  inputId="sms-provider"
+                  formControlName="provider"
+                  [options]="providerOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  appendTo="body"
+                  class="w-full"
+                  styleClass="w-full"
+                />
+              </app-form-field>
+              <app-form-field
+                controlName="sender"
+                label="شمارهٔ فرستنده"
+                inputId="sms-sender"
+                [error]="fieldError(smsForm, 'sender')"
+              >
+                <input
+                  pInputText
+                  id="sms-sender"
+                  formControlName="sender"
+                  dir="ltr"
+                  class="w-full"
+                />
+              </app-form-field>
+            </div>
+
+            <app-form-field
+              controlName="apiKey"
+              label="کلید API (کلید جدید)"
+              inputId="sms-key"
+              [hint]="'ذخیره‌شده: ' + (apiKeyMasked() || 'هنوز کلیدی ذخیره نشده')"
+            >
+              <input
+                pInputText
+                id="sms-key"
+                formControlName="apiKey"
+                dir="ltr"
+                class="w-full"
+                placeholder="خالی بگذار تا کلید فعلی بماند"
+              />
+            </app-form-field>
+
+            <app-form-field
+              controlName="otpTemplate"
+              label="قالب پیامک ورود"
+              inputId="sms-otp"
+              hint="باید شامل &#123;code&#125; باشد"
+              [error]="fieldError(smsForm, 'otpTemplate')"
+            >
+              <textarea
+                id="sms-otp"
+                rows="2"
+                pTextarea
+                formControlName="otpTemplate"
+                class="w-full"
+              ></textarea>
+            </app-form-field>
+
+            @if (!smsForm.controls.otpTemplate.value.includes('{code}')) {
+              <p class="text-xs text-red-600 dark:text-red-400">
+                قالب بدون <code dir="ltr">&#123;code&#125;</code> نمی‌تواند کد ورود را بفرستد.
+              </p>
+            }
+
+            <button
+              type="button"
+              pButton
+              (click)="testSms()"
+              [disabled]="testing()"
+              pLoading
+              [loading]="testing()"
+            >
+              <i class="pi pi-send text-xs" aria-hidden="true"></i>
+              ارسال پیامک آزمایشی
+            </button>
+          </form>
+        </p-tabpanel>
+
+        <p-tabpanel value="seo">
+          <form [formGroup]="seoForm" class="space-y-4 pt-3">
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div class="space-y-4">
+                <app-form-field
+                  controlName="metaTitle"
+                  label="عنوان پیش‌فرض متا"
+                  inputId="seo-title"
+                  [hint]="seoForm.controls.metaTitle.value.length + ' از ۷۰ کاراکتر'"
+                  [error]="fieldError(seoForm, 'metaTitle')"
+                >
+                  <input pInputText id="seo-title" formControlName="metaTitle" class="w-full" />
+                </app-form-field>
+                <app-form-field
+                  controlName="metaDescription"
+                  label="توضیحات متا"
+                  inputId="seo-description"
+                  [hint]="seoForm.controls.metaDescription.value.length + ' از ۱۶۰ کاراکتر'"
+                  [error]="fieldError(seoForm, 'metaDescription')"
+                >
+                  <textarea
+                    id="seo-description"
+                    rows="3"
+                    pTextarea
+                    formControlName="metaDescription"
+                    class="w-full"
+                  ></textarea>
+                </app-form-field>
+                <app-form-field
+                  controlName="keywords"
+                  label="کلمات کلیدی"
+                  inputId="seo-keywords"
+                  hint="با ویرگول جدا کن"
+                >
+                  <textarea
+                    id="seo-keywords"
+                    rows="2"
+                    pTextarea
+                    formControlName="keywords"
+                    class="w-full"
+                  ></textarea>
+                </app-form-field>
+                <app-form-field
+                  controlName="ogImage"
+                  label="تصویر اشتراک‌گذاری"
+                  inputId="seo-og"
+                  hint="آدرس تصویر"
+                >
+                  <input
+                    pInputText
+                    id="seo-og"
+                    formControlName="ogImage"
+                    dir="ltr"
+                    class="w-full"
+                  />
+                </app-form-field>
+              </div>
+
+              <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                  پیش‌نمایش نتیجهٔ جستجو
+                </p>
+                <p class="truncate text-sm font-medium text-blue-700 dark:text-blue-400">
+                  {{ seoForm.controls.metaTitle.value || 'عنوان صفحه' }}
+                </p>
+                <p class="mt-1 line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
+                  {{ seoForm.controls.metaDescription.value || 'توضیحات متا اینجا دیده می‌شود.' }}
+                </p>
+                <p class="mt-1 text-[11px] text-green-700 dark:text-green-400">digibit.market</p>
+                @if (seoForm.controls.ogImage.value !== '') {
+                  <img
+                    [src]="seoForm.controls.ogImage.value"
+                    alt="پیش‌نمایش تصویر اشتراک‌گذاری"
+                    class="mt-2 h-20 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-700"
+                  />
+                }
+                <p class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                  {{ seoKeywords().length | persianDigits }} کلمهٔ کلیدی
+                </p>
+              </div>
+            </div>
+          </form>
+        </p-tabpanel>
+      </p-tabpanels>
+    </p-tabs>
+  </div>
+
+  <div
+    class="sticky bottom-4 z-10 mt-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-md backdrop-blur dark:border-gray-700 dark:bg-gray-800/95 sm:flex-row sm:items-center sm:justify-between"
+  >
+    <p class="text-sm text-gray-600 dark:text-gray-300">
+      @if (dirtyCount() > 0) {
+        <span class="font-medium text-primary">{{ dirtyCount() | persianDigits }}</span>
+        مورد ذخیره‌نشده
+      } @else {
+        همه‌چیز ذخیره شده است.
+      }
+    </p>
+    <button
+      type="button"
+      pButton
+      (click)="save()"
+      [disabled]="!canSave()"
+      pLoading
+      [loading]="saving()"
+    >
+      <i class="pi pi-save text-xs" aria-hidden="true"></i>
+      ذخیرهٔ همه
+    </button>
+  </div>
+
+  @if (saveError(); as message) {
+    <p
+      role="alert"
+      class="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300"
+    >
+      {{ message }}
+    </p>
+  }
+}

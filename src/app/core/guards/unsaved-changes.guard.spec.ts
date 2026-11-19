@@ -2,8 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import type { ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
 import { ConfirmService } from '@core/services/confirm';
 
-import { unsavedProductChangesGuard } from './unsaved-product-changes.guard';
-import type { HasUnsavedChanges } from './unsaved-product-changes.guard';
+import { unsavedChangesGuard } from './unsaved-changes.guard';
+import type { HasUnsavedChanges } from './unsaved-changes.guard';
 
 class ConfirmStub {
   confirmed = true;
@@ -16,7 +16,7 @@ class ConfirmStub {
   }
 }
 
-describe('unsavedProductChangesGuard (BO-F07 tc 7)', () => {
+describe('unsavedChangesGuard (BO-F07 tc 7)', () => {
   let confirm: ConfirmStub;
 
   beforeEach(() => {
@@ -29,7 +29,7 @@ describe('unsavedProductChangesGuard (BO-F07 tc 7)', () => {
 
   function run(component: HasUnsavedChanges): Promise<boolean> | boolean {
     return TestBed.runInInjectionContext(() =>
-      unsavedProductChangesGuard(
+      unsavedChangesGuard(
         component,
         {} as ActivatedRouteSnapshot,
         {} as RouterStateSnapshot,
