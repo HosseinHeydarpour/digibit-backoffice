@@ -129,6 +129,9 @@ describe('OrderDetail (BO-H01)', () => {
     expect(rows[0].textContent).toContain('۱٬۷۰۰٬۰۰۰');
     // A simple product has no variant line to print.
     expect(rows[1].textContent).toContain('کابل شارژ تایپ سی');
+
+    expect(rows[0].querySelector('a[href="/products/p-1"]')).toBeTruthy();
+    expect(rows[1].querySelector('a[href="/products/p-2"]')).toBeTruthy();
   });
 
   it('prints the derived totals and marks free shipping as «رایگان»', () => {

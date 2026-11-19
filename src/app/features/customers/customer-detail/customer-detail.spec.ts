@@ -65,6 +65,7 @@ describe('CustomerDetail (BO-I02)', () => {
     await mount(RESULT);
     const text = fixture.nativeElement.textContent;
 
+    expect(text).toContain('نام مشتری');
     expect(text).toContain('مریم حسینی');
     expect(text).toContain('09121000003');
     expect(text).toContain('customer3@example.com');
