@@ -121,7 +121,15 @@ describe('CustomerList (BO-I01)', () => {
       fixture.nativeElement.querySelectorAll('thead th') as NodeListOf<HTMLElement>,
     ).map((th) => th.textContent?.trim());
 
-    expect(headers).toEqual(['مشتری', 'موبایل', 'ایمیل', 'تعداد سفارش', 'وضعیت', 'تاریخ عضویت']);
+    expect(headers).toEqual([
+      'مشتری',
+      'موبایل',
+      'ایمیل',
+      'تعداد سفارش',
+      'وضعیت',
+      'تاریخ عضویت',
+      'عملیات',
+    ]);
   });
 
   it('renders the Jalali signup date and the status label', async () => {
@@ -290,6 +298,16 @@ describe('CustomerList (BO-I01)', () => {
     await mount();
 
     expect(fixture.nativeElement.querySelector('[data-toggle-customer]')).toBeNull();
+  });
+
+  it('opens the profile from a row click (BO-I02 tc 10)', async () => {
+    await mount();
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    const row = fixture.nativeElement.querySelector('tbody tr') as HTMLElement;
+    row.click();
+
+    expect(navigate).toHaveBeenCalledWith(['/customers', '1']);
   });
 });
 

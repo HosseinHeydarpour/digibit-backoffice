@@ -11,6 +11,8 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '@core/guards/permission.guard';
 
+import { CustomerDetail } from './customer-detail/customer-detail';
+import { customerDetailResolver } from './customer-detail/customer-detail.resolver';
 import { CustomerList } from './customer-list/customer-list';
 
 export const CUSTOMERS_ROUTES: Routes = [
@@ -22,6 +24,19 @@ export const CUSTOMERS_ROUTES: Routes = [
     data: {
       title: 'مشتریان',
       breadcrumb: 'مشتریان',
+      permission: 'customers.view',
+    },
+  },
+  {
+    path: ':id',
+    component: CustomerDetail,
+    title: 'پروفایل مشتری',
+    canActivate: [permissionGuard],
+    runGuardsAndResolvers: 'always',
+    resolve: { detail: customerDetailResolver },
+    data: {
+      title: 'پروفایل مشتری',
+      breadcrumb: 'پروفایل مشتری',
       permission: 'customers.view',
     },
   },

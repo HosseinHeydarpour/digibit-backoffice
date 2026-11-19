@@ -961,6 +961,15 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   page above page 1 offers the way back to page 1.
 - **The table hides light columns on a phone** (email < `lg`, mobile/date < `md`, order count <
   `sm`), and the wrapper scrolls, not the page.
+- **The profile fetches in parallel and owns no second order model.** `customerDetailResolver`
+  `forkJoin`s `GET /customers/:id` with `GET /orders?customerId=…`; `lastOrders` lives on
+  `CustomersService` (not `OrdersService`) so the module never imports another feature. A 404 is a
+  `RedirectCommand('/404')`, anything else is `{ error }` plus the retry block, and retry needs the
+  route's `runGuardsAndResolvers: 'always'` as well as `onSameUrlNavigation: 'reload'`.
+- **The row click and the «مشاهده» link both lead to the profile.** The link stops propagation, so
+  one click is one navigation, and ctrl/middle-click still opens a new tab. The profile's order
+  table links into `/orders/:id` and uses the shared `ORDER_STATUS_META` (via `p-tag` severities),
+  never a second status vocabulary.
 
 ### Sales chart and Chart.js testing (BO-E03)
 

@@ -1,0 +1,198 @@
+@if (customer(); as account) {
+  <app-page-header [title]="account.fullName" [description]="pageDescription()" />
+
+  <div class="mb-4">
+    <a
+      routerLink="/customers"
+      class="inline-flex min-h-10 items-center gap-2 text-sm text-gray-600 transition hover:text-primary dark:text-gray-400"
+    >
+      <i class="pi pi-arrow-right text-xs" aria-hidden="true"></i>
+      بازگشت به مشتریان
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <!-- اطلاعات تماس و خلاصه -->
+    <article
+      class="rounded-xl border border-gray-200 bg-white p-5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:col-span-2"
+    >
+      <h2 class="mb-4 text-base font-bold text-gray-900 dark:text-white">اطلاعات مشتری</h2>
+
+      <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <dt class="text-xs text-gray-500 dark:text-gray-400">موبایل</dt>
+          <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+            <bdi class="font-mono" dir="ltr">{{ account.phone }}</bdi>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs text-gray-500 dark:text-gray-400">ایمیل</dt>
+          <dd class="mt-1 truncate text-sm text-gray-900 dark:text-white" [title]="account.email">
+            <bdi dir="ltr">{{ account.email }}</bdi>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs text-gray-500 dark:text-gray-400">وضعیت حساب</dt>
+          <dd class="mt-1">
+            <span
+              class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+              [class]="statusBadgeClass(account.status)"
+            >
+              {{ statusLabel(account.status) }}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs text-gray-500 dark:text-gray-400">تاریخ عضویت</dt>
+          <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+            {{ account.createdAt | persianDate }}
+          </dd>
+        </div>
+      </dl>
+
+      <!-- The two numbers the task asks for (BO-I02 tc 3), from the same record
+           the list prints, so the profile cannot disagree with the row. -->
+      <div
+        class="mt-5 grid grid-cols-1 gap-4 border-t border-gray-100 pt-5 sm:grid-cols-2 dark:border-gray-700"
+      >
+        <div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-700/40">
+          <p class="text-xs text-gray-500 dark:text-gray-400">تعداد سفارش</p>
+          <p class="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-white">
+            {{ account.orderCount | persianDigits }}
+          </p>
+        </div>
+        <div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-700/40">
+          <p class="text-xs text-gray-500 dark:text-gray-400">مجموع خرید</p>
+          <p class="mt-1 text-xl font-bold tabular-nums text-gray-900 dark:text-white">
+            {{ account.totalSpent | toman }}
+          </p>
+        </div>
+      </div>
+    </article>
+
+    <!-- آدرس‌ها -->
+    <article
+      class="rounded-xl border border-gray-200 bg-white p-5 shadow-md dark:border-gray-700 dark:bg-gray-800"
+    >
+      <h2 class="mb-4 text-base font-bold text-gray-900 dark:text-white">آدرس‌ها</h2>
+
+      <ul class="space-y-3">
+        @for (address of account.addresses; track address.id) {
+          <li class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-sm font-medium text-gray-900 dark:text-white">
+                {{ address.title }}
+              </span>
+              @if (address.isDefault) {
+                <span
+                  class="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary dark:bg-primary/20"
+                >
+                  پیش‌فرض
+                </span>
+              }
+            </div>
+            <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              {{ address.province }}، {{ address.city }}، {{ address.street }}
+            </p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              کد پستی {{ address.postalCode | persianDigits }} · {{ address.receiver }}
+            </p>
+          </li>
+        }
+      </ul>
+    </article>
+
+    <!-- آخرین سفارش‌ها -->
+    <article
+      class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800 lg:col-span-3"
+    >
+      <h2
+        class="border-b border-gray-200 px-5 py-4 text-base font-bold text-gray-900 dark:border-gray-700 dark:text-white"
+      >
+        آخرین سفارش‌ها
+      </h2>
+
+      @if (orders().length === 0) {
+        <app-empty-state
+          icon="pi pi-shopping-cart"
+          title="این مشتری هنوز سفارشی ندارد"
+          description="پس از اولین خرید، سفارش‌ها همین‌جا نمایش داده می‌شوند."
+        />
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700/50">
+              <tr>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                >
+                  کد سفارش
+                </th>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                >
+                  وضعیت
+                </th>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                >
+                  مبلغ
+                </th>
+                <th
+                  scope="col"
+                  class="hidden px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 sm:table-cell dark:text-gray-400"
+                >
+                  تاریخ
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+              @for (order of orders(); track order.id) {
+                <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <td class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium">
+                    <!-- A real link, so ctrl/middle-click opens the order in a new tab (tc 9). -->
+                    <a
+                      [routerLink]="['/orders', order.id]"
+                      class="font-mono text-primary transition hover:text-primary-dark"
+                    >
+                      {{ order.code | persianDigits }}
+                    </a>
+                  </td>
+                  <td class="whitespace-nowrap px-6 py-4 text-start">
+                    <p-tag
+                      [value]="orderStatusLabel(order.status)"
+                      [severity]="orderStatusSeverity(order.status)"
+                    />
+                  </td>
+                  <td
+                    class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium tabular-nums text-gray-900 dark:text-white"
+                  >
+                    {{ order.total | toman }}
+                  </td>
+                  <td
+                    class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 sm:table-cell dark:text-gray-400"
+                  >
+                    {{ order.createdAt | persianDate }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </article>
+  </div>
+} @else {
+  <app-page-header title="پروفایل مشتری" />
+
+  @if (loadError()) {
+    <div
+      class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+    >
+      <app-error-state [title]="loadError()!" (retry)="reload()" />
+    </div>
+  }
+}

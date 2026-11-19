@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ConfirmService } from '@core/services/confirm';
 import { ToastService } from '@core/services/toast';
@@ -65,7 +65,7 @@ type CustomerListView = 'loading' | 'error' | 'empty' | 'data';
  * pretending an avatar is a model field.
  */
 interface CustomerColumn {
-  readonly field: keyof CustomerListItem | 'customer';
+  readonly field: keyof CustomerListItem | 'customer' | 'actions';
   readonly header: string;
   readonly class?: string;
   readonly sortable?: boolean;
@@ -85,6 +85,7 @@ const COLUMNS: readonly CustomerColumn[] = [
   { field: 'orderCount', header: 'تعداد سفارش', class: 'hidden sm:table-cell tabular-nums' },
   { field: 'status', header: 'وضعیت' },
   { field: 'createdAt', header: 'تاریخ عضویت', class: 'hidden md:table-cell', sortable: true },
+  { field: 'actions', header: 'عملیات' },
 ];
 
 /**
@@ -117,6 +118,7 @@ const COLUMNS: readonly CustomerColumn[] = [
   imports: [
     PageHeader,
     FormsModule,
+    RouterLink,
     IconField,
     InputIcon,
     InputText,
@@ -487,6 +489,11 @@ export class CustomerList {
     if (next.size !== current.size) {
       this.statusOverrides.set(next);
     }
+  }
+
+  /** Row click → the profile (BO-I02). `routerLink` inside stops propagation. */
+  openCustomer(customerId: EntityId): void {
+    void this.router.navigate(['/customers', customerId]);
   }
 
   /** One atomic state update and one URL write (never two navigations). */

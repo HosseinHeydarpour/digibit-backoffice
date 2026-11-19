@@ -1,16 +1,18 @@
 import { Canvas, Meta } from '@storybook/addon-docs/blocks';
 
 import * as CustomerListStories from '../app/features/customers/customer-list/customer-list.stories';
+import * as CustomerDetailStories from '../app/features/customers/customer-detail/customer-detail.stories';
 
 <Meta title="Features/Customers" />
 
 # مشتریان / Customers
 
-صفحهٔ مشتریان (BO-I01): فهرست صفحه‌بندی‌شده با جستجوی نام/موبایل/ایمیل، فیلتر وضعیت حساب و
-تاریخ عضویت شمسی. پروفایل مشتری در BO-I02 به همین ماژول اضافه می‌شود.
+صفحهٔ مشتریان (BO-I01, BO-I02): فهرست صفحه‌بندی‌شده با جستجوی نام/موبایل/ایمیل، فیلتر وضعیت حساب و
+تاریخ عضویت شمسی، به‌همراه پروفایل مشتری با آدرس‌ها، خلاصهٔ خرید و آخرین سفارش‌ها.
 
-The customers screen (BO-I01): a paged list with free-text search over name, mobile and email, an
-account-status filter and a Solar signup date. The customer profile arrives in BO-I02.
+The customers screen (BO-I01, BO-I02): a paged list with free-text search over name, mobile and
+email, an account-status filter and a Solar signup date, plus a profile with addresses, spend
+summary and the latest orders.
 
 ## کاربرد / Use case
 
@@ -86,3 +88,20 @@ Loading, an empty list, a failed request and a stale bookmark.
 <Canvas of={CustomerListStories.FilteredEmpty} />
 
 <Canvas of={CustomerListStories.StalePage} />
+
+## پروفایل مشتری / Customer profile
+
+پروفایل (BO-I02): اطلاعات تماس، وضعیت حساب، تعداد و مجموع خرید، آدرس‌ها و پنج سفارش آخر با
+لینک به ماژول سفارش‌ها. سفارش‌های این مشتری و اطلاعاتش با یک `forkJoin` موازی گرفته می‌شوند.
+
+The profile (BO-I02): contact details, account status, order count and total spend, addresses and
+the five latest orders with links into the orders module. Both requests are fetched in parallel with
+`forkJoin`.
+
+<Canvas of={CustomerDetailStories.Default} />
+
+<Canvas of={CustomerDetailStories.Blocked} />
+
+<Canvas of={CustomerDetailStories.NoOrders} />
+
+<Canvas of={CustomerDetailStories.RequestFailed} />

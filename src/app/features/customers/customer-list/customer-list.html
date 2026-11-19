@@ -190,7 +190,10 @@
           </thead>
           <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
             @for (item of items(); track item.id) {
-              <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/50">
+              <tr
+                (click)="openCustomer(item.id)"
+                class="cursor-pointer transition hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              >
                 <!-- مشتری — initials stand in for a photo the API does not send. -->
                 <td class="whitespace-nowrap px-6 py-4 text-start">
                   <div class="flex items-center gap-3">
@@ -271,6 +274,20 @@
                   class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 md:table-cell dark:text-gray-400"
                 >
                   {{ item.createdAt | persianDate }}
+                </td>
+
+                <!-- عملیات — a real link: ctrl/middle-click opens a new tab, and
+                     `stopPropagation` keeps the row handler from navigating twice. -->
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  <a
+                    [routerLink]="['/customers', item.id]"
+                    (click)="$event.stopPropagation()"
+                    class="inline-flex items-center gap-1 text-sm text-primary transition hover:text-primary-dark"
+                    aria-label="مشاهدهٔ مشتری"
+                  >
+                    <i class="pi pi-eye text-sm" aria-hidden="true"></i>
+                    <span>مشاهده</span>
+                  </a>
                 </td>
               </tr>
             }
