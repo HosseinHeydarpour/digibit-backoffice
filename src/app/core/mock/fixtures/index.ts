@@ -12,6 +12,8 @@ export { MOCK_CUSTOMERS, MOCK_CUSTOMER_DETAILS, toCustomerListItem } from './cus
 export type { MockCustomer, MockCustomerAddress, MockCustomerDetail } from './customers.fixture';
 export { MOCK_COUPONS } from './coupons.fixture';
 export type { MockCoupon, MockCouponType } from './coupons.fixture';
+export { MOCK_SHIPPING_METHODS } from './shipping.fixture';
+export type { MockShippingMethod } from './shipping.fixture';
 export type { SessionUser } from '@shared/models/session.model';
 
 /** 12 modules, matching the 12 feature folders. */
@@ -163,15 +165,6 @@ export const MOCK_CATEGORIES = [
     isActive: true,
   },
 ];
-
-export const MOCK_SHIPPING_METHODS = makeList(6, (i) => ({
-  id: pad(i + 1),
-  name: ['پست پیشتاز', 'تیپاکس', 'پیک تهران', 'تحویل حضوری', 'پست سفارشی', 'ارسال رایگان'][i],
-  cost: i === 5 ? 0 : 45_000 + i * 15_000,
-  freeFrom: i === 5 ? 0 : 1_000_000,
-  estimatedDays: i + 1,
-  isActive: i % 4 !== 0,
-}));
 
 export const MOCK_BANNERS = makeList(8, (i) => ({
   id: pad(i + 1),

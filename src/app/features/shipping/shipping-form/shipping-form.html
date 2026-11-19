@@ -1,0 +1,136 @@
+<form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
+  <app-form-field
+    controlName="name"
+    label="نام روش"
+    inputId="shipping-name"
+    hint="مثلاً «پست پیشتاز» یا «پیک تهران»"
+    [error]="fieldError('name')"
+  >
+    <input
+      pInputText
+      id="shipping-name"
+      formControlName="name"
+      class="w-full"
+      placeholder="پست پیشتاز"
+    />
+  </app-form-field>
+
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <app-form-field
+      controlName="cost"
+      label="هزینه"
+      inputId="shipping-cost"
+      hint="صفر یعنی ارسال رایگان"
+      [error]="fieldError('cost')"
+    >
+      <p-inputnumber
+        inputId="shipping-cost"
+        formControlName="cost"
+        mode="decimal"
+        [min]="0"
+        [useGrouping]="false"
+        suffix=" تومان"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </app-form-field>
+
+    <app-form-field
+      controlName="freeFrom"
+      label="رایگان از"
+      inputId="shipping-free-from"
+      hint="خالی یعنی بدون آستانه"
+      [error]="fieldError('freeFrom')"
+    >
+      <p-inputnumber
+        inputId="shipping-free-from"
+        formControlName="freeFrom"
+        mode="decimal"
+        [min]="0"
+        [useGrouping]="false"
+        [showClear]="true"
+        suffix=" تومان"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </app-form-field>
+  </div>
+
+  @if (thresholdWarning(); as warning) {
+    <p class="text-xs text-yellow-700 dark:text-yellow-400">
+      <i class="pi pi-exclamation-circle text-xs" aria-hidden="true"></i>
+      {{ warning }}
+    </p>
+  }
+
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <app-form-field
+      controlName="minDays"
+      label="حداقل روز"
+      inputId="shipping-min-days"
+      hint="بین ۱ و ۳۰"
+      [error]="fieldError('minDays')"
+    >
+      <p-inputnumber
+        inputId="shipping-min-days"
+        formControlName="minDays"
+        mode="decimal"
+        [min]="1"
+        [max]="30"
+        [useGrouping]="false"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </app-form-field>
+
+    <app-form-field
+      controlName="maxDays"
+      label="حداکثر روز"
+      inputId="shipping-max-days"
+      hint="بعد از حداقل روز"
+      [error]="fieldError('maxDays')"
+    >
+      <p-inputnumber
+        inputId="shipping-max-days"
+        formControlName="maxDays"
+        mode="decimal"
+        [min]="1"
+        [max]="30"
+        [useGrouping]="false"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </app-form-field>
+  </div>
+
+  @if (saveError(); as message) {
+    <p
+      role="alert"
+      class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300"
+    >
+      {{ message }}
+    </p>
+  }
+
+  <div
+    class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end dark:border-gray-700"
+  >
+    <button
+      type="button"
+      (click)="cancelled.emit()"
+      [disabled]="saving()"
+      class="inline-flex min-h-10 items-center justify-center rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+    >
+      انصراف
+    </button>
+    <button
+      pButton
+      type="submit"
+      pLoading
+      [loading]="saving()"
+      class="inline-flex min-h-10 items-center justify-center"
+    >
+      ذخیره
+    </button>
+  </div>
+</form>

@@ -13,6 +13,8 @@ export type Permission =
   | 'customers.block'
   | 'coupons.view'
   | 'coupons.manage'
+  | 'shipping.view'
+  | 'shipping.manage'
   | 'content.view'
   | 'comments.view'
   | 'tickets.view'

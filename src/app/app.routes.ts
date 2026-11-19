@@ -99,17 +99,19 @@ export const routes: Routes = [
         loadChildren: () =>
           import('@features/coupons/coupons.routes').then((m) => m.COUPONS_ROUTES),
       },
+      // Shipping owns its routes (BO-K01): the method list arrives as its own
+      // lazy chunk and edits ship in the same module.
       {
         path: 'shipping',
-        data: { title: 'روش‌های ارسال', breadcrumb: 'روش‌های ارسال' },
-        title: 'روش‌های ارسال',
-        children: [],
+        loadChildren: () =>
+          import('@features/shipping/shipping.routes').then((m) => m.SHIPPING_ROUTES),
       },
+      // Banners owns its routes (BO-L01): the card grid arrives as its own lazy
+      // chunk; BO-L02..L07 add upload, edit, reorder and delete on top.
       {
         path: 'banners',
-        data: { title: 'بنر و محتوا', breadcrumb: 'بنر و محتوا' },
-        title: 'بنر و محتوا',
-        children: [],
+        loadChildren: () =>
+          import('@features/banners/banners.routes').then((m) => m.BANNERS_ROUTES),
       },
       {
         path: 'comments',

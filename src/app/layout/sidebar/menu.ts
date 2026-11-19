@@ -62,7 +62,7 @@ export const MENU: readonly MenuGroup[] = [
         label: 'روش‌های ارسال',
         icon: 'pi pi-truck',
         routerLink: '/shipping',
-        permission: 'orders.view',
+        permission: 'shipping.view',
       },
     ],
   },
@@ -123,4 +123,5 @@ export const MOCK_PERMISSIONS: readonly Permission[] = [
   ...MENU_PERMISSIONS,
   'customers.block',
   'coupons.manage',
+  'shipping.manage',
 ];

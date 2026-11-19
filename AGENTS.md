@@ -999,6 +999,39 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
 - **`coupons.manage` gates the write actions** (create, edit, switch); the route needs
   `coupons.view` and `permissionGuard`.
 
+### Shipping methods (BO-K01..K06)
+
+- **Two invariants belong to the server.** The default method cannot be disabled or deleted, and
+  at least one method stays active; the mock answers 409. The list warns before asking, writes the
+  switch back on those paths, and keeps the same optimistic/rollback shape as the other toggles.
+- **A used method is soft-deleted.** `DELETE` checks `MOCK_ORDER_DETAILS.shippingMethod` by name and
+  switches the row off (`{ deleted: false, method }`) instead of erasing it; an unused one is
+  removed (`{ deleted: true }`). The client decides nothing, because only the server can see usage.
+- **`setDefault` is its own endpoint.** `PATCH /shipping-methods/:id/default` clears the previous
+  flag in the same request, so two rows can never both claim to be default.
+- **The free threshold has three real states:** `null` (no threshold), `0` (always free) and an
+  amount. `freeFromLabel` prints «—», «همیشه رایگان» and «از …»; collapsing them would hide which
+  promise the shop made.
+- **A free threshold below the base cost is a warning, not an error.** The values save; a yellow
+  line explains that no order actually ships free.
+- **The form is re-created per dialog open** (like coupons/brands), so a cancelled edit cannot
+  leak. Names are unique server-side and a 422 lands under the input.
+- **`shipping.view` / `shipping.manage`** guard the route and the write controls; the menu item now
+  carries `shipping.view` instead of borrowing `orders.view`.
+
+### Banners list (BO-L01)
+
+- **The list is a card grid, not a table.** A banner is an image; the card carries the image,
+  title, position badge, per-slot order, Jalali window and status. `GET /banners` now answers an
+  ordered ARRAY (not a `Page`), because the page needs the whole set and has no paginator.
+- **The position filter is local.** One fetch; the select filters the array in memory. A filtered
+  empty («بنری با این موقعیت نیست» + clear) is distinct from a shop with no banners.
+- **A broken image degrades to one card.** The `error` event adds the id to `brokenImages` and that
+  card renders a placeholder; the rest of the grid is untouched. The mock's `/mock/banner-*.jpg`
+  URLs deliberately do not exist, so the placeholder is reachable in the demo.
+- **Read-only on purpose.** Upload, create/edit, reorder and delete are BO-L02..L07; the page has
+  no create button and guards `content.view` only.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

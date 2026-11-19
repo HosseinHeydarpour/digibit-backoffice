@@ -1,0 +1,57 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as BannerListStories from '../app/features/banners/banner-list/banner-list.stories';
+
+<Meta title="Features/Banners" />
+
+# بنر و محتوا / Banners
+
+فهرست بنرها (BO-L01) به‌صورت کارت‌های تصویری: تصویر، عنوان، موقعیت (هدر/اسلایدر/کناری)، ترتیب
+در همان موقعیت، بازهٔ نمایش شمسی و وضعیت. آپلود، ایجاد/ویرایش، مرتب‌سازی و حذف در BO-L02 تا
+BO-L07 اضافه می‌شوند.
+
+The banner list (BO-L01) as image cards: image, title, position (header/slider/sidebar), order in
+that slot, Solar display window and status. Upload, create/edit, reorder and delete arrive in
+BO-L02..L07.
+
+## کاربرد / Use case
+
+وقتی محتوا باید بداند کدام بنر کجا و چه زمانی دیده می‌شود، بدون باز کردن فرم ویرایش. کارت
+تصویری انتخاب شده چون خود بنر یک تصویر است و جدول اعداد آن را پنهان می‌کند.
+
+Use it when content needs to see which banner shows where and when, without opening the editor.
+A card grid is used because the banner is an image; a table of numbers hides it.
+
+## رفتارها / Behaviour
+
+- **فیلتر موقعیت محلی است.** یک بار لیست می‌آید و سلکت فقط همان آرایه را فیلتر می‌کند؛ تغییر
+  موقعیت درخواست تازه نمی‌فرستد.
+- **تصویر خراب یک کارت است، نه خطای صفحه.** همان کارت placeholder می‌دهد و بقیهٔ شبکه سالم
+  می‌ماند.
+- **خالی فیلترشده با فروشگاه خالی فرق دارد.** «بنری با این موقعیت نیست» دکمهٔ پاک‌کردن فیلتر
+  دارد؛ فروشگاه بدون بنر فقط توضیح می‌دهد که بنرها از مدیریت محتوا اضافه می‌شوند.
+- **ترتیب داخل هر موقعیت است.** بنر کناری با ترتیب ۱ و بنر هدر با ترتیب ۱ هر دو «ترتیب ۱» را
+  نشان می‌دهند، چون در دو جای مختلف‌اند.
+- **این صفحه فقط‌خواندنی است.** دکمهٔ ساخت یا حذف ندارد؛ L02 به بعد اضافه می‌کنند.
+
+**English**
+
+- **The position filter is local.** One fetch, then the select filters the array in memory; changing
+  it sends no request.
+- **A broken image is one card, not a page error.** That card shows a placeholder and the grid stays
+  usable.
+- **A filtered empty is not an empty shop.** «بنری با این موقعیت نیست» offers a clear button; a shop
+  with no banners only explains that they are added from content management.
+- **Order is per position.** A sidebar order 1 and a header order 1 both print «ترتیب ۱» because
+  they live in different slots.
+- **Read-only.** No create/delete buttons; L02+ adds them.
+
+## پیش‌نمایش / Preview
+
+<Canvas of={BannerListStories.Default} />
+
+<Canvas of={BannerListStories.Loading} />
+
+<Canvas of={BannerListStories.Empty} />
+
+<Canvas of={BannerListStories.RequestFailed} />

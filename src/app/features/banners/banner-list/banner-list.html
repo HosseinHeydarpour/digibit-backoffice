@@ -1,0 +1,157 @@
+<app-page-header title="بنر و محتوا" description="بنرهای تبلیغاتی فروشگاه، موقعیت و بازهٔ نمایش" />
+
+<div
+  class="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <div>
+      <label
+        for="banner-position"
+        class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        موقعیت
+      </label>
+      <p-select
+        inputId="banner-position"
+        [ngModel]="position()"
+        (onChange)="onPositionChange($event.value)"
+        [options]="positionOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </div>
+    @if (hasFilter()) {
+      <button
+        type="button"
+        (click)="clearFilter()"
+        class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+      >
+        <i class="pi pi-times text-xs" aria-hidden="true"></i>
+        پاک کردن فیلتر
+      </button>
+    }
+  </div>
+</div>
+
+@switch (viewState()) {
+  @case ('loading') {
+    <div
+      class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+      role="status"
+      aria-busy="true"
+      aria-label="در حال بارگذاری بنرها"
+    >
+      @for (i of [1, 2, 3]; track i) {
+        <div
+          class="animate-pulse overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+        >
+          <div class="aspect-video bg-gray-200 dark:bg-gray-700"></div>
+          <div class="space-y-2 p-4">
+            <div class="h-4 w-2/3 rounded bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-3 w-1/2 rounded bg-gray-200 dark:bg-gray-700"></div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @case ('error') {
+    <div
+      class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+    >
+      <app-error-state [title]="listError()!" (retry)="retry()" />
+    </div>
+  }
+
+  @case ('empty') {
+    @if (hasFilter()) {
+      <div
+        class="rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+      >
+        <app-empty-state
+          icon="pi pi-images"
+          title="بنری با این موقعیت نیست"
+          description="موقعیت دیگری را انتخاب کن یا فیلتر را بردار."
+          actionLabel="پاک کردن فیلتر"
+          (action)="clearFilter()"
+        />
+      </div>
+    } @else {
+      <div
+        class="rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+      >
+        <app-empty-state
+          icon="pi pi-images"
+          title="هنوز بنری اضافه نشده"
+          description="بنرها از بخش مدیریت محتوا اضافه می‌شوند."
+        />
+      </div>
+    }
+  }
+
+  @default {
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      @for (banner of rows(); track banner.id) {
+        <article
+          class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md transition hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+        >
+          <div class="relative aspect-video bg-gray-100 dark:bg-gray-700/40">
+            @if (isBroken(banner.id)) {
+              <div
+                class="flex h-full flex-col items-center justify-center gap-1 text-gray-400 dark:text-gray-500"
+                role="img"
+                [attr.aria-label]="'پیش‌نمایش بنر ' + banner.title + ' در دسترس نیست'"
+              >
+                <i class="pi pi-image text-3xl" aria-hidden="true"></i>
+                <span class="text-xs">پیش‌نمایش نیست</span>
+              </div>
+            } @else {
+              <img
+                [src]="banner.imageUrl"
+                [alt]="banner.title"
+                class="h-full w-full object-cover"
+                (error)="onImageError(banner.id)"
+              />
+            }
+
+            <span
+              class="absolute start-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-white"
+            >
+              {{ positionLabel(banner.position) }}
+            </span>
+            <span
+              class="absolute end-2 top-2 rounded-full bg-gray-900/70 px-2 py-0.5 text-[11px] font-medium text-white"
+            >
+              ترتیب {{ banner.order | persianDigits }}
+            </span>
+          </div>
+
+          <div class="space-y-2 p-4">
+            <h2
+              class="truncate text-sm font-bold text-gray-900 dark:text-white"
+              [title]="banner.title"
+            >
+              {{ banner.title }}
+            </h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ banner.from | persianDate }} تا {{ banner.to | persianDate }}
+            </p>
+            <span
+              class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+              [class]="
+                banner.isActive
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+              "
+            >
+              {{ banner.isActive ? 'فعال' : 'غیرفعال' }}
+            </span>
+          </div>
+        </article>
+      }
+    </div>
+  }
+}

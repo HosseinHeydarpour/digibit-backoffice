@@ -381,9 +381,16 @@ function resolve(
     case 'coupons':
       return resolveCoupons(method, id, sub, params, body, page, pageSize);
     case 'shipping-methods':
-      return paged(fixtures.MOCK_SHIPPING_METHODS, page, pageSize);
-    case 'banners':
-      return paged(fixtures.MOCK_BANNERS, page, pageSize);
+      return resolveShipping(method, id, sub, body);
+    case 'banners': {
+      if (!id) {
+        return ok([...fixtures.MOCK_BANNERS].sort((a, b) => a.order - b.order));
+      }
+
+      const found = fixtures.MOCK_BANNERS.find((banner) => banner.id === id);
+
+      return found ? ok(found) : NOT_FOUND;
+    }
 
     case 'orders': {
       if (!id) return paged(filterOrders(params), page, pageSize);
@@ -749,7 +756,7 @@ function toCouponBody(body: unknown): CouponBody {
 }
 
 /** The 422 body the form maps under each field. */
-function couponValidationError(fields: Record<string, string[]>): MockResolution {
+function fieldValidationError(fields: Record<string, string[]>): MockResolution {
   return {
     status: 422,
     body: { error: { code: 'VALIDATION', message: 'اطلاعات کوپن معتبر نیست.', fields } },
@@ -830,7 +837,7 @@ function resolveCoupons(
       const fields = validateCoupon(input, null);
 
       if (fields) {
-        return couponValidationError(fields);
+        return fieldValidationError(fields);
       }
 
       const next: fixtures.MockCoupon = {
@@ -914,13 +921,236 @@ function resolveCoupons(
     const fields = validateCoupon(input, id);
 
     if (fields) {
-      return couponValidationError(fields);
+      return fieldValidationError(fields);
     }
 
     const next: fixtures.MockCoupon = { ...found, ...input };
     COUPONS = COUPONS.map((coupon) => (coupon.id === id ? next : coupon));
 
     return ok(next, 'کوپن ذخیره شد.');
+  }
+
+  return method === 'GET' ? ok(found) : NOT_FOUND;
+}
+
+/** The shipping store: seeded from the fixture, rebuilt by `resetMockState()`. */
+let SHIPPING: fixtures.MockShippingMethod[] = fixtures.MOCK_SHIPPING_METHODS.map((method) => ({
+  ...method,
+}));
+
+interface ShippingBody {
+  name: string;
+  cost: number;
+  freeFrom: number | null;
+  minDays: number;
+  maxDays: number;
+}
+
+function toShippingBody(body: unknown): ShippingBody {
+  const data = asRecord(body);
+  const freeFrom = data['freeFrom'];
+
+  return {
+    name: String(data['name'] ?? '').trim(),
+    cost: Number(data['cost'] ?? 0),
+    freeFrom:
+      freeFrom === null || freeFrom === undefined || freeFrom === '' ? null : Number(freeFrom),
+    minDays: Number(data['minDays'] ?? 0),
+    maxDays: Number(data['maxDays'] ?? 0),
+  };
+}
+
+/** BO-K06's rules, on the server side of the wire. */
+function validateShipping(
+  input: ShippingBody,
+  excludeId: string | null,
+): Record<string, string[]> | null {
+  const fields: Record<string, string[]> = {};
+
+  if (input.name === '') {
+    fields['name'] = ['نام روش الزامی است.'];
+  } else if (input.name.length < 3 || input.name.length > 40) {
+    fields['name'] = ['نام باید بین ۳ و ۴۰ کاراکتر باشد.'];
+  } else if (SHIPPING.some((method) => method.name === input.name && method.id !== excludeId)) {
+    fields['name'] = ['روشی با این نام وجود دارد.'];
+  }
+
+  if (!Number.isFinite(input.cost) || input.cost < 0) {
+    fields['cost'] = ['هزینه نباید منفی باشد.'];
+  }
+
+  if (input.freeFrom !== null && (!Number.isFinite(input.freeFrom) || input.freeFrom < 0)) {
+    fields['freeFrom'] = ['آستانهٔ رایگان نباید منفی باشد.'];
+  }
+
+  if (!Number.isFinite(input.minDays) || input.minDays < 1 || input.minDays > 30) {
+    fields['minDays'] = ['حداقل روز باید بین ۱ و ۳۰ باشد.'];
+  }
+
+  if (
+    !Number.isFinite(input.maxDays) ||
+    input.maxDays > 30 ||
+    (Number.isFinite(input.minDays) && input.maxDays < input.minDays)
+  ) {
+    fields['maxDays'] = ['حداکثر روز باید بین حداقل روز و ۳۰ باشد.'];
+  }
+
+  return Object.keys(fields).length > 0 ? fields : null;
+}
+
+function nextShippingOrder(): number {
+  return SHIPPING.reduce((max, method) => Math.max(max, method.order), 0) + 1;
+}
+
+/**
+ * `/shipping-methods` and its three sub-routes (BO-K01..K06).
+ *
+ * Two invariants the server enforces so the checkout cannot break:
+ *   - the default method cannot be disabled or deleted;
+ *   - the last active method cannot be disabled.
+ *
+ * TRACE — DELETE /shipping-methods/2 (the default, «تیپاکس»):
+ *   1. `found.isDefault` is true → 409, and the row stays.
+ *   2. DELETE /shipping-methods/1 (پست پیشتاز, used by orders):
+ *      the name appears in `MOCK_ORDER_DETAILS.shippingMethod`, so the method
+ *      is switched off and the answer is `{ deleted: false, method }`.
+ *   3. DELETE of an unused method removes it and answers `{ deleted: true }`.
+ */
+function resolveShipping(
+  method: string,
+  id: string | undefined,
+  sub: string | undefined,
+  body: unknown,
+): MockResolution {
+  if (!id) {
+    if (method === 'POST') {
+      const input = toShippingBody(body);
+      const fields = validateShipping(input, null);
+
+      if (fields) {
+        return fieldValidationError(fields);
+      }
+
+      const next: fixtures.MockShippingMethod = {
+        id: String(SHIPPING.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1),
+        ...input,
+        isDefault: false,
+        isActive: true,
+        order: nextShippingOrder(),
+      };
+
+      SHIPPING = [...SHIPPING, next];
+
+      return created(next, 'روش ارسال ایجاد شد.');
+    }
+
+    if (method !== 'GET') {
+      return NOT_FOUND;
+    }
+
+    return ok([...SHIPPING].sort((a, b) => a.order - b.order));
+  }
+
+  const found = SHIPPING.find((item) => item.id === id);
+
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  if (method === 'PATCH' && sub === 'status') {
+    const isActive = asRecord(body)['isActive'] === true;
+
+    if (!isActive && found.isDefault) {
+      return {
+        status: 409,
+        body: {
+          error: {
+            code: 'SHIPPING_DEFAULT',
+            message: 'روش پیش‌فرض را نمی‌توان غیرفعال کرد؛ اول روش دیگری را پیش‌فرض کن.',
+          },
+        },
+      };
+    }
+
+    if (!isActive && SHIPPING.filter((item) => item.isActive).length === 1) {
+      return {
+        status: 409,
+        body: {
+          error: {
+            code: 'SHIPPING_LAST',
+            message: 'حداقل یک روش ارسال فعال باید بماند.',
+          },
+        },
+      };
+    }
+
+    const next: fixtures.MockShippingMethod = { ...found, isActive };
+    SHIPPING = SHIPPING.map((item) => (item.id === id ? next : item));
+
+    return ok(next, isActive ? 'روش ارسال فعال شد.' : 'روش ارسال غیرفعال شد.');
+  }
+
+  if (method === 'PATCH' && sub === 'default') {
+    if (!found.isActive) {
+      return {
+        status: 409,
+        body: {
+          error: {
+            code: 'SHIPPING_INACTIVE',
+            message: 'روش غیرفعال را نمی‌توان پیش‌فرض کرد.',
+          },
+        },
+      };
+    }
+
+    SHIPPING = SHIPPING.map((item) => ({ ...item, isDefault: item.id === id }));
+    const next = SHIPPING.find((item) => item.id === id)!;
+
+    return ok(next, 'روش پیش‌فرض تغییر کرد.');
+  }
+
+  if (method === 'DELETE') {
+    if (found.isDefault) {
+      return {
+        status: 409,
+        body: {
+          error: {
+            code: 'SHIPPING_DEFAULT',
+            message: 'روش پیش‌فرض را نمی‌توان حذف کرد.',
+          },
+        },
+      };
+    }
+
+    const used = fixtures.MOCK_ORDER_DETAILS.some((order) => order.shippingMethod === found.name);
+
+    if (used) {
+      const next: fixtures.MockShippingMethod = { ...found, isActive: false };
+      SHIPPING = SHIPPING.map((item) => (item.id === id ? next : item));
+
+      return ok(
+        { deleted: false, method: next },
+        'این روش در سفارش‌ها استفاده شده؛ به‌جای حذف غیرفعال شد.',
+      );
+    }
+
+    SHIPPING = SHIPPING.filter((item) => item.id !== id);
+
+    return ok({ deleted: true }, 'روش ارسال حذف شد.');
+  }
+
+  if (method === 'PUT') {
+    const input = toShippingBody(body);
+    const fields = validateShipping(input, id);
+
+    if (fields) {
+      return fieldValidationError(fields);
+    }
+
+    const next: fixtures.MockShippingMethod = { ...found, ...input };
+    SHIPPING = SHIPPING.map((item) => (item.id === id ? next : item));
+
+    return ok(next, 'روش ارسال ذخیره شد.');
   }
 
   return method === 'GET' ? ok(found) : NOT_FOUND;
@@ -1656,6 +1886,7 @@ export function resetMockState(): void {
   BRANDS.splice(0, BRANDS.length, ...seedBrands());
   CUSTOMERS = fixtures.MOCK_CUSTOMER_DETAILS;
   COUPONS = fixtures.MOCK_COUPONS.map((coupon) => ({ ...coupon }));
+  SHIPPING = fixtures.MOCK_SHIPPING_METHODS.map((method) => ({ ...method }));
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */

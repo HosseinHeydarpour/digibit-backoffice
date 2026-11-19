@@ -1459,6 +1459,84 @@ describe('mockInterceptor', () => {
     expect(soft.data.deleted).toBe(false);
   });
 
+  // --- BO-K01..K06: shipping methods -----------------------------------------
+
+  it('shipping: lists the six methods in display order', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ name: string; order: number }[]>>('/api/v1/shipping-methods', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(body.data.length).toBe(6);
+    expect(body.data[0].name).toBe('پست پیشتاز');
+    expect([...body.data].sort((a, b) => a.order - b.order)).toEqual(body.data);
+  });
+
+  it('shipping: a duplicate name is a 422 with fields.name', async () => {
+    const error = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>(
+          '/api/v1/shipping-methods',
+          { name: 'پست پیشتاز', cost: 10_000, freeFrom: null, minDays: 1, maxDays: 2 },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(error.status).toBe(422);
+    expect(error.error.error.fields.name[0]).toContain('وجود دارد');
+  });
+
+  it('shipping: setting a default clears the previous one', async () => {
+    await firstValueFrom(
+      http.patch<ApiResponse<unknown>>(
+        '/api/v1/shipping-methods/1/default',
+        {},
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; isDefault: boolean }[]>>('/api/v1/shipping-methods', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(body.data.filter((method) => method.isDefault).map((method) => method.id)).toEqual([
+      '1',
+    ]);
+  });
+
+  it('shipping: the default cannot be disabled or deleted, used ones are switched off', async () => {
+    const disable = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          '/api/v1/shipping-methods/2/status',
+          { isActive: false },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+    expect(disable.status).toBe(409);
+
+    const removeDefault = await firstValueFrom(
+      http
+        .delete<HttpErrorResponse>('/api/v1/shipping-methods/2', {
+          headers: { [MOCK_HEADER]: '1' },
+        })
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+    expect(removeDefault.status).toBe(409);
+
+    const soft = await firstValueFrom(
+      http.delete<ApiResponse<{ deleted: boolean }>>('/api/v1/shipping-methods/1', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(soft.data.deleted).toBe(false);
+  });
+
   /** `POST /categories` with only the fields the mock needs. */
   async function createCategory(name: string, slug: string, parentId?: string): Promise<string> {
     const created = await firstValueFrom(

@@ -1,0 +1,61 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as ShippingListStories from '../app/features/shipping/shipping-list/shipping-list.stories';
+import * as ShippingFormStories from '../app/features/shipping/shipping-form/shipping-form.stories';
+
+<Meta title="Features/Shipping" />
+
+# روش‌های ارسال / Shipping methods
+
+مدیریت روش‌های ارسال (BO-K01 تا BO-K06): نام، هزینه، آستانهٔ ارسال رایگان، بازهٔ تحویل و
+وضعیت، به‌همراه انتخاب روش پیش‌فرض. هر روش دقیقاً یکی از این سه حالت را دارد: هزینه دارد،
+رایگان است، یا از مبلغی رایگان می‌شود.
+
+The shipping screen (BO-K01..K06): name, cost, free threshold, delivery window and status, plus
+the default picker. Every method is one of three things: paid, free, or free above a cart total.
+
+## کاربرد / Use case
+
+وقتی فروشگاه روش‌های ارسال را تعریف می‌کند و سفارش‌ها باید بدانند هزینه و زمان تحویل چیست.
+پیش‌فرض همان چیزی است که چک‌اوت انتخاب می‌کند؛ بقیه در فهرست می‌مانند تا مشتری انتخاب کند.
+
+Use it when the shop defines its delivery options. The default is what checkout picks; the rest
+stay selectable.
+
+## رفتارها / Behaviour
+
+- **دو قاعدهٔ سرور:** روش پیش‌فرض نه غیرفعال می‌شود نه حذف، و همیشه حداقل یک روش فعال می‌ماند.
+  کلاینت قبل از درخواست هشدار می‌دهد و mock برای ردیف کهنه ۴۰۹ می‌دهد.
+- **روش استفاده‌شده حذف نمی‌شود.** اگر نام روش در سفارشی آمده باشد، حذف آن را غیرفعال می‌کند
+  تا گزارش قدیمی همان نام را نگه دارد.
+- **آستانهٔ رایگان سه حالت دارد:** خالی (بدون آستانه)، صفر (همیشه رایگان) و مبلغ.
+- **هزینهٔ صفر مجاز است.** فرم هزینهٔ منفی و بازهٔ معکوس را رد می‌کند؛ اگر آستانهٔ رایگان از
+  هزینه کمتر باشد فقط هشدار می‌دهد.
+- **toggle خوش‌بینانه است:** پیل فوری عوض می‌شود و خطا آن را برمی‌گرداند.
+
+**English**
+
+- **Two server invariants:** the default cannot be disabled or deleted, and at least one method
+  stays active. The client warns first; the mock answers 409 for a stale row.
+- **A used method is never erased.** If its name appears in an order, the delete switches it off so
+  old reports keep the name.
+- **The free threshold has three states:** empty (none), zero (always free) and an amount.
+- **A zero cost is legal.** The form rejects a negative cost and an inverted window; a threshold
+  below the cost is only a warning.
+- **The toggle is optimistic:** the pill flips at once and a failure rolls it back.
+
+## پیش‌نمایش / Preview
+
+<Canvas of={ShippingListStories.Default} />
+
+<Canvas of={ShippingListStories.Loading} />
+
+<Canvas of={ShippingListStories.Empty} />
+
+<Canvas of={ShippingListStories.RequestFailed} />
+
+## فرم / Form
+
+<Canvas of={ShippingFormStories.Create} />
+
+<Canvas of={ShippingFormStories.Edit} />

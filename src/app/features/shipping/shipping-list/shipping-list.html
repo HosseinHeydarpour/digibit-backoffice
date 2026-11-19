@@ -1,0 +1,244 @@
+<app-page-header title="روش‌های ارسال" description="هزینه، زمان تحویل و روش پیش‌فرض فروشگاه">
+  @if (canManage()) {
+    <button page-header-actions pButton type="button" (click)="openCreate()">
+      <i class="pi pi-plus text-xs" aria-hidden="true"></i>
+      افزودن روش ارسال
+    </button>
+  }
+</app-page-header>
+
+<div
+  class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  @if (isFetching() && result() !== null) {
+    <div
+      class="h-1 w-full overflow-hidden bg-primary/10"
+      role="progressbar"
+      aria-label="در حال به‌روزرسانی روش‌های ارسال"
+    >
+      <div class="h-full w-1/3 animate-pulse rounded-full bg-primary"></div>
+    </div>
+  }
+
+  @switch (viewState()) {
+    @case ('loading') {
+      <div
+        class="overflow-x-auto"
+        role="status"
+        aria-busy="true"
+        aria-label="در حال بارگذاری روش‌های ارسال"
+      >
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <tr>
+              @for (header of ['روش', 'هزینه', 'رایگان از', 'زمان تحویل', 'وضعیت']; track header) {
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                >
+                  {{ header }}
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+            @for (i of [1, 2, 3]; track i) {
+              <tr class="animate-pulse">
+                @for (header of [1, 2, 3, 4, 5]; track header) {
+                  <td class="px-6 py-4 text-start">
+                    <div class="h-4 max-w-28 rounded bg-gray-200 dark:bg-gray-700"></div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('error') {
+      <div class="p-6">
+        <app-error-state [title]="listError()!" (retry)="retry()" />
+      </div>
+    }
+
+    @case ('empty') {
+      <app-empty-state
+        icon="pi pi-truck"
+        title="هنوز روش ارسالی تعریف نشده"
+        description="اولین روش ارسال را از دکمهٔ «افزودن روش ارسال» بساز."
+      />
+    }
+
+    @default {
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <tr>
+              <th
+                scope="col"
+                class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+              >
+                روش
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+              >
+                هزینه
+              </th>
+              <th
+                scope="col"
+                class="hidden px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 md:table-cell dark:text-gray-400"
+              >
+                رایگان از
+              </th>
+              <th
+                scope="col"
+                class="hidden px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 sm:table-cell dark:text-gray-400"
+              >
+                زمان تحویل
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+              >
+                وضعیت
+              </th>
+              @if (canManage()) {
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                >
+                  عملیات
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+            @for (method of methods(); track method.id) {
+              <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ method.name }}
+                    </span>
+                    @if (method.isDefault) {
+                      <span
+                        class="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary dark:bg-primary/20"
+                      >
+                        پیش‌فرض
+                      </span>
+                    }
+                  </div>
+                </td>
+
+                <td
+                  class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium tabular-nums text-gray-900 dark:text-white"
+                >
+                  {{ costLabel(method) }}
+                </td>
+
+                <td
+                  class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 md:table-cell dark:text-gray-400"
+                >
+                  {{ freeFrom(method) }}
+                </td>
+
+                <td
+                  class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 sm:table-cell dark:text-gray-400"
+                >
+                  {{ windowLabel(method) }}
+                </td>
+
+                <td class="whitespace-nowrap px-6 py-4 text-start">
+                  @if (canManage()) {
+                    <label
+                      [for]="'shipping-status-' + method.id"
+                      class="inline-flex shrink-0 items-center justify-center max-sm:size-11"
+                    >
+                      <p-toggleswitch
+                        #toggle
+                        [inputId]="'shipping-status-' + method.id"
+                        [ngModel]="method.isActive"
+                        (click)="$event.preventDefault()"
+                        (onChange)="toggleStatus(method, toggle)"
+                        [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
+                        [ariaLabel]="'وضعیت روش ' + method.name"
+                        [attr.data-toggle-shipping]="method.id"
+                      />
+                    </label>
+                  } @else {
+                    <span
+                      class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+                      [class]="
+                        method.isActive
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                      "
+                    >
+                      {{ method.isActive ? 'فعال' : 'غیرفعال' }}
+                    </span>
+                  }
+                </td>
+
+                @if (canManage()) {
+                  <td class="whitespace-nowrap px-6 py-4 text-start">
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        (click)="openEdit(method)"
+                        [attr.data-edit-shipping]="method.id"
+                        [attr.aria-label]="'ویرایش روش ' + method.name"
+                        class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-primary transition hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+                        ویرایش
+                      </button>
+                      @if (!method.isDefault) {
+                        <button
+                          type="button"
+                          (click)="setDefault(method)"
+                          [attr.data-default-shipping]="method.id"
+                          [attr.aria-label]="'پیش‌فرض کردن ' + method.name"
+                          class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-gray-600 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          <i class="pi pi-star text-sm" aria-hidden="true"></i>
+                          پیش‌فرض
+                        </button>
+                      }
+                      <button
+                        type="button"
+                        (click)="removeMethod(method)"
+                        [attr.data-delete-shipping]="method.id"
+                        [attr.aria-label]="'حذف روش ' + method.name"
+                        class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-red-600 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:bg-red-900/20"
+                      >
+                        <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+                        حذف
+                      </button>
+                    </div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</div>
+
+<p-dialog
+  [visible]="dialogOpen()"
+  (visibleChange)="onDialogVisibility($event)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: '34rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+  [header]="editing() ? 'ویرایش روش ارسال' : 'افزودن روش ارسال'"
+>
+  @if (dialogOpen()) {
+    <app-shipping-form [method]="editing()" (saved)="onSaved($event)" (cancelled)="closeDialog()" />
+  }
+</p-dialog>
