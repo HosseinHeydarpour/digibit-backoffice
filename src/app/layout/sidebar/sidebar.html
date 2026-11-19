@@ -35,6 +35,14 @@
               >
                 <i [class]="item.icon + ' me-3 text-base'"></i>
                 <span>{{ item.label }}</span>
+                @if (item.routerLink === '/tickets' && unread.count() > 0) {
+                  <span
+                    class="ms-auto inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white"
+                    [attr.aria-label]="unread.count() + ' تیکت خوانده‌نشده'"
+                  >
+                    {{ unread.count() | persianDigits }}
+                  </span>
+                }
               </a>
             </li>
           }

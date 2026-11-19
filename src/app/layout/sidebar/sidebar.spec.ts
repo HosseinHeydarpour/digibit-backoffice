@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { PERMISSIONS } from '@core/auth/permissions.token';
+import { TicketUnread } from '@core/services/ticket-unread';
 
 import { MENU, MENU_PERMISSIONS } from './menu';
 import type { Permission } from './menu.model';
@@ -47,7 +48,11 @@ function createSidebar(initial: readonly Permission[] = MENU_PERMISSIONS): {
 
   TestBed.configureTestingModule({
     imports: [Sidebar],
-    providers: [provideRouter(ROUTES_FOR_TEST), { provide: PERMISSIONS, useValue: permissions }],
+    providers: [
+      provideRouter(ROUTES_FOR_TEST),
+      { provide: PERMISSIONS, useValue: permissions },
+      { provide: TicketUnread, useValue: { count: signal(0) } },
+    ],
   });
 
   const fixture = TestBed.createComponent(Sidebar);
@@ -147,7 +152,10 @@ describe('Sidebar', () => {
     // with it instead of throwing on an undefined permission.
     TestBed.configureTestingModule({
       imports: [Sidebar],
-      providers: [provideRouter(ROUTES_FOR_TEST)],
+      providers: [
+        provideRouter(ROUTES_FOR_TEST),
+        { provide: TicketUnread, useValue: { count: signal(0) } },
+      ],
     });
     const fixture = TestBed.createComponent(Sidebar);
 

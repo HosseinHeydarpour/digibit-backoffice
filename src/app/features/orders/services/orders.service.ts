@@ -17,7 +17,13 @@ import { ApiService } from '@core/services/api';
 import type { EntityId, Page } from '@shared/models';
 import { Observable } from 'rxjs';
 
-import type { Order, OrderListItem, OrderQuery } from '../models/order.model';
+import type {
+  Order,
+  OrderCancelInput,
+  OrderListItem,
+  OrderQuery,
+  OrderStatusChange,
+} from '../models/order.model';
 
 const ORDERS_PATH = '/orders';
 
@@ -98,5 +104,15 @@ export class OrdersService {
   /** `GET /orders/:id` → the full order for the detail page. */
   get(id: EntityId): Observable<Order> {
     return this.api.get<Order>(`${ORDERS_PATH}/${encodeURIComponent(id)}`);
+  }
+
+  /** `PATCH /orders/:id/status` → the order with the new history entry. */
+  changeStatus(id: EntityId, input: OrderStatusChange): Observable<Order> {
+    return this.api.patch<Order>(`${ORDERS_PATH}/${encodeURIComponent(id)}/status`, input);
+  }
+
+  /** `PATCH /orders/:id/cancel` → the cancelled order; the reason is mandatory. */
+  cancel(id: EntityId, input: OrderCancelInput): Observable<Order> {
+    return this.api.patch<Order>(`${ORDERS_PATH}/${encodeURIComponent(id)}/cancel`, input);
   }
 }

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import type { Page } from '@shared/models';
 import { Observable, of, throwError } from 'rxjs';
 
@@ -11,22 +12,28 @@ const ROWS: TicketListItem[] = [
   {
     id: '1',
     code: 'TK-2400',
+    userId: 'c1',
     userName: 'زهرا محمدی',
     subject: 'پیگیری سفارش ۱۴۰۰۰',
     status: 'open',
     priority: 'high',
     unread: true,
     lastMessageAt: 1_728_000_000_000,
+    assigneeId: 'u1',
+    assigneeName: 'نگار شریفی',
   },
   {
     id: '2',
     code: 'TK-2401',
+    userId: 'c2',
     userName: 'علی رضایی',
     subject: 'سوال دربارهٔ گارانتی',
     status: 'closed',
     priority: 'normal',
     unread: false,
     lastMessageAt: 1_727_900_000_000,
+    assigneeId: null,
+    assigneeName: null,
   },
 ];
 
@@ -68,7 +75,7 @@ describe('TicketList (BO-O01)', () => {
 
     await TestBed.configureTestingModule({
       imports: [TicketList],
-      providers: [{ provide: TicketsService, useValue: service }],
+      providers: [provideRouter([]), { provide: TicketsService, useValue: service }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(TicketList);

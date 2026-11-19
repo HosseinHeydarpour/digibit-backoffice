@@ -7,32 +7,49 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
+import { JalaliDatepicker } from '@shared/components/jalali-datepicker/jalali-datepicker';
 import { PageHeader } from '@shared/components/page-header/page-header';
+import { LoadingDirective } from '@shared/directives/loading.directive';
 import type { EntityId, Page, SelectOption, SortOrder } from '@shared/models';
 import type { OrderStatus } from '@shared/models/status-badge.model';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { formatDigits, PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
+import { ButtonDirective } from 'primeng/button';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
+import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import {
   BehaviorSubject,
   catchError,
   combineLatest,
+  debounceTime,
   distinctUntilChanged,
-  map,
   of,
   switchMap,
   tap,
 } from 'rxjs';
 
 import type { OrderColumn, OrderListItem } from '../models/order.model';
+import { buildOrdersCsv, downloadCsv } from '../order-csv';
 import { orderStatusBadgeClass, orderStatusLabel } from '../order-status';
 import { OrdersService } from '../services/orders.service';
 
+import {
+  EMPTY_FILTERS,
+  dateRangeInvalid,
+  filtersEqual,
+  filtersFromParams,
+  filtersToQuery,
+  filtersToQueryParams,
+  hasActiveFilters,
+} from './order-filters';
+import type { OrderFilters } from './order-filters';
 import {
   PAGE_SIZE_OPTIONS,
   isPageSize,
@@ -110,8 +127,15 @@ const COLUMNS: readonly OrderColumn[] = [
   imports: [
     PageHeader,
     FormsModule,
+    ReactiveFormsModule,
     RouterLink,
     Select,
+    JalaliDatepicker,
+    ButtonDirective,
+    LoadingDirective,
+    IconField,
+    InputIcon,
+    InputText,
     PersianDatePipe,
     PersianDigitsPipe,
     TomanPipe,
@@ -145,6 +169,23 @@ export class OrderList {
     pagingFromParams(this.route.snapshot.queryParamMap),
   );
 
+  /** BO-H02's filter state, seeded from the same URL. */
+  private readonly filters$ = new BehaviorSubject<OrderFilters>(
+    filtersFromParams(this.route.snapshot.queryParamMap),
+  );
+
+  readonly filters = signal<OrderFilters>(this.filters$.value);
+
+  readonly queryControl = new FormControl(this.filters().query, { nonNullable: true });
+
+  readonly fromControl = new FormControl<string | null>(this.filters().from);
+
+  readonly toControl = new FormControl<string | null>(this.filters().to);
+
+  readonly exporting = signal(false);
+
+  readonly exportError = signal<string | null>(null);
+
   /**
    * Non-null when the last fetch rejected (BO-E07 tc 2).
    *
@@ -169,13 +210,13 @@ export class OrderList {
    * overwrite page 3.
    */
   readonly page = toSignal<Page<OrderListItem> | null>(
-    combineLatest([this.reload$, this.state$]).pipe(
+    combineLatest([this.reload$, this.state$, this.filters$]).pipe(
       tap(() => {
         this.itemsError.set(null);
         this.isFetching.set(true);
       }),
-      switchMap(([, paging]) =>
-        this.ordersService.list(pagingToQuery(paging)).pipe(
+      switchMap(([, paging, filters]) =>
+        this.ordersService.list({ ...pagingToQuery(paging), ...filtersToQuery(filters) }).pipe(
           tap({
             next: () => {
               this.itemsError.set(null);
@@ -245,23 +286,101 @@ export class OrderList {
     return PAGE_SIZE_OPTIONS.map((size) => ({ label: formatDigits(size), value: size }));
   }
 
+  get statusSelectOptions(): SelectOption<OrderStatus | ''>[] {
+    return [
+      { label: 'همهٔ وضعیت‌ها', value: '' },
+      { label: 'در انتظار پرداخت', value: 'pending' },
+      { label: 'پرداخت‌شده', value: 'paid' },
+      { label: 'در حال پردازش', value: 'processing' },
+      { label: 'ارسال‌شده', value: 'shipped' },
+      { label: 'تحویل‌شده', value: 'delivered' },
+      { label: 'لغوشده', value: 'cancelled' },
+      { label: 'مرجوع‌شده', value: 'returned' },
+    ];
+  }
+
+  readonly hasFilters = computed(() => hasActiveFilters(this.filters()));
+
+  readonly dateError = computed(() =>
+    dateRangeInvalid(this.filters()) ? 'تاریخ پایان نمی‌تواند قبل از شروع باشد.' : null,
+  );
+
   constructor() {
     // Back/forward (or a pasted URL) changes the parameters WITHOUT going
-    // through `writeState`. Mirror that into the state; our own navigation is
-    // a no-op here because the comparator already sees the same values.
-    this.route.queryParamMap
-      .pipe(
-        map((params) => pagingFromParams(params)),
-        distinctUntilChanged(pagingEqual),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((next) => {
-        if (pagingEqual(next, this.paging())) {
-          return;
-        }
+    // through `writeState`. Mirror that into both streams; our own navigation
+    // is a no-op because the comparators already see the same values.
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const nextPaging = pagingFromParams(params);
+      const nextFilters = filtersFromParams(params);
 
-        this.paging.set(next);
-        this.state$.next(next);
+      if (!pagingEqual(nextPaging, this.paging())) {
+        this.paging.set(nextPaging);
+        this.state$.next(nextPaging);
+      }
+
+      if (!filtersEqual(nextFilters, this.filters())) {
+        this.filters.set(nextFilters);
+        this.filters$.next(nextFilters);
+        this.syncFilterControls(nextFilters);
+      }
+    });
+
+    this.queryControl.valueChanges
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => this.applyFilters({ ...this.filters(), query: value }));
+
+    this.fromControl.valueChanges
+      .pipe(distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => this.applyFilters({ ...this.filters(), from: value }));
+
+    this.toControl.valueChanges
+      .pipe(distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => this.applyFilters({ ...this.filters(), to: value }));
+  }
+
+  onStatusFilter(value: OrderStatus | ''): void {
+    this.applyFilters({ ...this.filters(), status: value });
+  }
+
+  clearFilters(): void {
+    this.applyFilters(EMPTY_FILTERS);
+  }
+
+  /**
+   * Downloads every filtered row, not just the visible page (BO-H08).
+   *
+   * The request reuses the SAME filter/paging builders as the table, so the
+   * file can never disagree with what the screen asked for; `pageSize: 1000`
+   * is the contract's "all rows" page.
+   */
+  exportCsv(): void {
+    if (this.exporting()) {
+      return;
+    }
+
+    this.exporting.set(true);
+    this.exportError.set(null);
+
+    this.ordersService
+      .list({
+        ...pagingToQuery(this.paging()),
+        ...filtersToQuery(this.filters()),
+        page: 1,
+        pageSize: 1000,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (page) => {
+          this.exporting.set(false);
+          downloadCsv(
+            buildOrdersCsv(page.items),
+            `orders-${new Date().toISOString().slice(0, 10)}.csv`,
+          );
+        },
+        error: () => {
+          this.exporting.set(false);
+          this.exportError.set('خروجی CSV ناموفق بود؛ دوباره تلاش کن.');
+        },
       });
   }
 
@@ -352,24 +471,64 @@ export class OrderList {
       return;
     }
 
-    this.writeState(next);
+    this.writeState(next, this.filters());
+  }
+
+  /** Filter change: resets to page 1 in the same emission (one request). */
+  private applyFilters(next: OrderFilters): void {
+    if (filtersEqual(next, this.filters())) {
+      return;
+    }
+
+    this.writeState({ ...this.paging(), page: 1 }, next);
+  }
+
+  private syncFilterControls(filters: OrderFilters): void {
+    if (this.queryControl.value !== filters.query) {
+      this.queryControl.setValue(filters.query, { emitEvent: false });
+    }
+
+    if (this.fromControl.value !== filters.from) {
+      this.fromControl.setValue(filters.from, { emitEvent: false });
+    }
+
+    if (this.toControl.value !== filters.to) {
+      this.toControl.setValue(filters.to, { emitEvent: false });
+    }
   }
 
   /**
-   * Single write path: state → stream → URL.
+   * Single write path: state → streams → URL.
    *
-   * `replaceUrl` keeps history clean while paging; `merge` preserves parameters
-   * this task does not own (BO-H02's filters). The caller has already checked
-   * equality, so a repeat click does not create a duplicate navigation.
+   * The whole query is written (`queryParamsHandling: ''`), not merged: a
+   * cleared filter must disappear from the URL, and `merge` would leave
+   * `?status=shipped` behind after the select returned to «همه». `replaceUrl`
+   * keeps paging and typing out of history.
    */
-  private writeState(next: OrderPaging): void {
-    this.paging.set(next);
-    this.state$.next(next);
+  private writeState(paging: OrderPaging, filters: OrderFilters): void {
+    const pagingChanged = !pagingEqual(paging, this.paging());
+    const filtersChanged = !filtersEqual(filters, this.filters());
+
+    this.paging.set(paging);
+    this.filters.set(filters);
+
+    // Each stream emits ONE request via `combineLatest`; pushing both when only
+    // one changed would fetch the same page twice.
+    if (pagingChanged) {
+      this.state$.next(paging);
+    }
+
+    if (filtersChanged) {
+      this.filters$.next(filters);
+    }
 
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: pagingToQueryParams(next),
-      queryParamsHandling: 'merge',
+      queryParams: {
+        ...pagingToQueryParams(paging),
+        ...filtersToQueryParams(filters),
+      },
+      queryParamsHandling: '',
       replaceUrl: true,
     });
   }

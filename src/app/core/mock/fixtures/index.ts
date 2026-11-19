@@ -217,26 +217,8 @@ export const MOCK_COMMENTS: readonly MockComment[] = makeList<MockComment>(18, (
   };
 });
 
-export const MOCK_TICKETS = makeList(8, (i) => ({
-  id: pad(i + 1),
-  code: `TK-${2400 + i}`,
-  userId: pad((i % 8) + 1),
-  userName: [
-    'زهرا محمدی',
-    'علی رضایی',
-    'مریم حسینی',
-    'رضا کریمی',
-    'سارا احمدی',
-    'محمد نوری',
-    'نگار شریفی',
-    'امیر صادقی',
-  ][i],
-  subject: `پیگیری سفارش شماره ${14000 + i}`,
-  status: ['open', 'pending', 'closed'][i % 3],
-  priority: i % 3 === 0 ? 'high' : 'normal',
-  unread: i % 4 === 0,
-  lastMessageAt: now - i * 7_200_000,
-}));
+export { MOCK_TICKETS, MOCK_TICKET_DETAILS, SUPPORT_AGENTS } from './tickets.fixture';
+export type { MockTicket, MockTicketMessage, MockTicketStatusHistory } from './tickets.fixture';
 
 /**
  * A week of daily sales, in Toman — `[today, yesterday, …]`.

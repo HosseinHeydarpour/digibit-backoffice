@@ -16,6 +16,47 @@
 import { ORDER_STATUS_META } from '@shared/models/status-badge.model';
 import type { OrderStatus } from '@shared/models/status-badge.model';
 
+/**
+ * The happy path an order walks, in display order (BO-H05). It is separate from
+ * the transition graph below because the timeline shows steps that have not
+ * happened yet, while the graph only answers "where can I go NOW".
+ */
+export const ORDER_FLOW: readonly OrderStatus[] = [
+  'pending',
+  'paid',
+  'processing',
+  'shipped',
+  'delivered',
+];
+
+/**
+ * The transitions the UI offers (BO-H04). Cancelling is NOT here: it has its own
+ * endpoint and a mandatory reason (BO-H07), so folding it into a generic status
+ * patch would let a cancel slip through without one.
+ *
+ * `cancelled` and `returned` are terminal — there is deliberately no path out.
+ */
+export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  pending: ['paid'],
+  paid: ['processing'],
+  processing: ['shipped'],
+  shipped: ['delivered', 'returned'],
+  delivered: ['returned'],
+  cancelled: [],
+  returned: [],
+};
+
+/** The statuses a cancel action may start from (BO-H07 tc 6). */
+export const CANCELLABLE: readonly OrderStatus[] = ['pending', 'paid', 'processing'];
+
+/** Preset reasons for the cancel dialog; «سایر» opens free text. */
+export const CANCEL_REASONS: readonly string[] = [
+  'انصراف مشتری',
+  'تغییر آدرس یا روش ارسال',
+  'ناموجود شدن کالا',
+  'سایر',
+];
+
 /** Persian label for a status; an unknown value reads «نامشخص», never raw English. */
 export function orderStatusLabel(status: OrderStatus): string {
   return ORDER_STATUS_META[status]?.label ?? 'نامشخص';

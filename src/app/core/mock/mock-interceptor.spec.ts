@@ -1896,4 +1896,202 @@ describe('mockInterceptor', () => {
     expect(body.data).toHaveLength(3);
     expect(body.meta?.total).toBe(8);
   });
+
+  it('tickets: opening a ticket marks it read and drops the unread count', async () => {
+    const before = await firstValueFrom(
+      http.get<ApiResponse<{ count: number }>>('/api/v1/tickets/unread-count', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(before.data.count).toBeGreaterThan(0);
+
+    await firstValueFrom(
+      http.get<ApiResponse<{ unread: boolean }>>('/api/v1/tickets/1', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    const after = await firstValueFrom(
+      http.get<ApiResponse<{ count: number }>>('/api/v1/tickets/unread-count', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(after.data.count).toBe(before.data.count - 1);
+  });
+
+  it('tickets: replying appends an agent message and waits for the customer', async () => {
+    const detail = await firstValueFrom(
+      http.get<ApiResponse<{ messages: unknown[]; status: string }>>('/api/v1/tickets/2', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    const count = detail.data.messages.length;
+
+    const updated = await firstValueFrom(
+      http.post<ApiResponse<{ messages: { author: string; body: string }[]; status: string }>>(
+        '/api/v1/tickets/2/reply',
+        { body: 'سلام، بررسی شد.' },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(updated.data.messages).toHaveLength(count + 1);
+    expect(updated.data.messages.at(-1)).toMatchObject({
+      author: 'agent',
+      body: 'سلام، بررسی شد.',
+    });
+    expect(updated.data.status).toBe('pending');
+
+    const empty = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>(
+          '/api/v1/tickets/2/reply',
+          { body: '  ' },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(empty.status).toBe(422);
+  });
+
+  it('tickets: status transitions and assignment update the same detail', async () => {
+    const invalid = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          '/api/v1/tickets/3/status',
+          { status: 'pending' },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(invalid.status).toBe(422);
+
+    const closed = await firstValueFrom(
+      http.patch<ApiResponse<{ status: string; statusHistory: unknown[] }>>(
+        '/api/v1/tickets/1/status',
+        { status: 'closed', note: 'پاسخ داده شد' },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(closed.data.status).toBe('closed');
+
+    const assigned = await firstValueFrom(
+      http.patch<ApiResponse<{ assigneeId: string | null; assigneeName: string | null }>>(
+        '/api/v1/tickets/1/assign',
+        { userId: 'u2' },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(assigned.data).toMatchObject({ assigneeId: 'u2', assigneeName: 'امیر صادقی' });
+  });
+
+  // --- BO-H04/H07: order mutations --------------------------------------------
+
+  interface OrderRow {
+    id: string;
+    status: string;
+    statusHistory: { status: string; note: string | null }[];
+  }
+
+  async function orderWithStatus(status: string): Promise<OrderRow> {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { status, pageSize: 1 },
+      }),
+    );
+
+    const detail = await firstValueFrom(
+      http.get<ApiResponse<OrderRow>>(`/api/v1/orders/${body.data[0].id}`, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    return detail.data;
+  }
+
+  it('orders: an allowed status change appends history and moves the list', async () => {
+    const order = await orderWithStatus('processing');
+
+    const updated = await firstValueFrom(
+      http.patch<ApiResponse<OrderRow>>(
+        `/api/v1/orders/${order.id}/status`,
+        { status: 'shipped' },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(updated.data.status).toBe('shipped');
+    expect(updated.data.statusHistory.at(-1)?.status).toBe('shipped');
+
+    const listed = await firstValueFrom(
+      http.get<ApiResponse<OrderRow[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { status: 'shipped', pageSize: 100 },
+      }),
+    );
+
+    expect(listed.data.some((row) => row.id === order.id)).toBe(true);
+  });
+
+  it('orders: an illegal transition is a 422', async () => {
+    const order = await orderWithStatus('pending');
+
+    const error = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          `/api/v1/orders/${order.id}/status`,
+          { status: 'delivered' },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(error.status).toBe(422);
+  });
+
+  it('orders: cancel needs a reason and refuses a shipped order', async () => {
+    const payable = await orderWithStatus('paid');
+    const noReason = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          `/api/v1/orders/${payable.id}/cancel`,
+          { reason: '' },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(noReason.status).toBe(422);
+
+    const cancelled = await firstValueFrom(
+      http.patch<ApiResponse<OrderRow>>(
+        `/api/v1/orders/${payable.id}/cancel`,
+        { reason: 'انصراف مشتری' },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(cancelled.data.status).toBe('cancelled');
+    expect(cancelled.data.statusHistory.at(-1)?.note).toBe('انصراف مشتری');
+
+    const shipped = await orderWithStatus('shipped');
+    const conflict = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          `/api/v1/orders/${shipped.id}/cancel`,
+          { reason: 'انصراف مشتری' },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(conflict.status).toBe(409);
+  });
 });

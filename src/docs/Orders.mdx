@@ -1,7 +1,9 @@
 import { Canvas, Meta } from '@storybook/addon-docs/blocks';
 
 import * as OrderDetailStories from '../app/features/orders/order-detail/order-detail.stories';
+import * as OrderInvoiceStories from '../app/features/orders/order-invoice/order-invoice.stories';
 import * as OrderListStories from '../app/features/orders/order-list/order-list.stories';
+import * as OrderTimelineStories from '../app/features/orders/order-timeline/order-timeline.stories';
 
 <Meta title="Features/Orders" />
 
@@ -120,3 +122,24 @@ Loading, an empty shop, a failed request and a stale bookmark.
 <Canvas of={OrderDetailStories.FreeShipping} />
 
 <Canvas of={OrderDetailStories.LoadFailed} />
+
+## Filters, actions and export (BO-H02, H04-H08, H11)
+
+- **The filter bar shares one state path with paging.** Status, text and the Jalali «از/تا» write
+  the same URL object; an inverted range blocks the request and says why, and a cleared filter is
+  removed from the URL rather than left behind.
+- **Only legal transitions are offered.** `ORDER_TRANSITIONS` is the graph; the server repeats it
+  and answers 422 if a stale dialog asks for something else.
+- **Cancel needs a reason** and is refused for a shipped order (409). The reason is written into
+  the history entry, which is what the timeline prints.
+- **The invoice prints alone.** `invoice-print` plus the print rules hide the shell, so Ctrl+P
+  produces the A4 sheet; a cancelled order carries the red stamp.
+- **CSV exports every filtered row**, not the visible page, with a UTF-8 BOM and Persian headers.
+
+<Canvas of={OrderTimelineStories.Processing} />
+
+<Canvas of={OrderTimelineStories.Cancelled} />
+
+<Canvas of={OrderInvoiceStories.Delivered} />
+
+<Canvas of={OrderInvoiceStories.Cancelled} />

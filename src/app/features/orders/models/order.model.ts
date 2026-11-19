@@ -122,6 +122,17 @@ export interface Order extends OrderListItem {
   readonly statusHistory: readonly OrderStatusHistoryEntry[];
 }
 
+/** `PATCH /orders/:id/status` (BO-H04). The note is required for `returned`. */
+export interface OrderStatusChange {
+  readonly status: OrderStatus;
+  readonly note?: string;
+}
+
+/** `PATCH /orders/:id/cancel` (BO-H07) — the reason is always mandatory. */
+export interface OrderCancelInput {
+  readonly reason: string;
+}
+
 /**
  * One column of the list table. `sortable` is consumed by the header button,
  * `class` carries the responsive hiding (BO-H01 tc 9). Lives here as a TYPE;

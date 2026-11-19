@@ -20,6 +20,7 @@ export type Permission =
   | 'comments.view'
   | 'comments.moderate'
   | 'tickets.view'
+  | 'tickets.manage'
   | 'settings.write';
 
 export interface MenuItem {

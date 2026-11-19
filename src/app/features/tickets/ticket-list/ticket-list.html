@@ -159,9 +159,13 @@
                       ></i>
                       <span class="sr-only">خوانده‌نشده</span>
                     }
-                    <span class="truncate text-sm" [title]="ticket.subject">{{
-                      ticket.subject
-                    }}</span>
+                    <a
+                      [routerLink]="['/tickets', ticket.id]"
+                      class="truncate text-sm text-gray-900 hover:text-primary dark:text-white"
+                      [title]="ticket.subject"
+                    >
+                      {{ ticket.subject }}
+                    </a>
                   </span>
                 </td>
                 <td class="whitespace-nowrap px-4 py-3">
@@ -196,7 +200,13 @@
                     <i class="pi pi-envelope shrink-0 text-xs text-primary" aria-hidden="true"></i>
                     <span class="sr-only">خوانده‌نشده</span>
                   }
-                  <span class="truncate" [title]="ticket.subject">{{ ticket.subject }}</span>
+                  <a
+                    [routerLink]="['/tickets', ticket.id]"
+                    class="block truncate text-gray-900 hover:text-primary dark:text-white"
+                    [title]="ticket.subject"
+                  >
+                    {{ ticket.subject }}
+                  </a>
                 </p>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ticket.userName }}</p>
               </div>

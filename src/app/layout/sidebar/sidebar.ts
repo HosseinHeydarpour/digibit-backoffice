@@ -1,18 +1,23 @@
 import { Component, computed, inject, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { PERMISSIONS } from '@core/auth/permissions.token';
+import { TicketUnread } from '@core/services/ticket-unread';
+import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 
 import { MENU } from './menu';
 import { filterMenu } from './menu-filter';
 
 @Component({
   selector: 'app-sidebar',
-  imports: [RouterLink, RouterLinkActive],
+  imports: [RouterLink, RouterLinkActive, PersianDigitsPipe],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.scss',
 })
 export class Sidebar {
   private readonly permissions = inject(PERMISSIONS);
+
+  /** One shared poller; the desktop sidebar and the mobile drawer render it twice. */
+  protected readonly unread = inject(TicketUnread);
 
   /**
    * Recomputed whenever the permission signal changes, which is what makes the

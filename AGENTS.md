@@ -931,6 +931,29 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   init hazards), and the detail's money cards print «رایگان» for zero shipping and a discount
   line only when the discount is real.
 
+### Order filters, status, cancel, invoice and CSV (BO-H02, H04-H08, H11)
+
+- **Filters and paging share one write path.** `order-list/order-filters.ts` owns the Jalali
+  «از/تا» (stored as Gregorian `YYYY-MM-DD`, converted to local start/end-of-day millis), the
+  status and the text. `writeState` replaces the WHOLE query; `merge` would leave a cleared
+  `status=shipped` behind. Streams are pushed only when their value changed, or one click fetches
+  twice.
+- **The graph is the server's too.** `ORDER_TRANSITIONS` in `order-status.ts` decides what the
+  dialog offers; `changeOrderStatus` repeats the map and answers 422 for anything else. Cancel is
+  a separate endpoint because its reason is mandatory, and a shipped order answers 409.
+- **The mock store is mutable and resettable.** `ORDER_DETAILS` and `ORDER_LIST` are cloned from
+  the fixtures and moved together, so a status changed on the detail is what the queue shows on
+  the next read; `resetMockState()` rebuilds both.
+- **`OrderTimeline` walks `ORDER_FLOW`, not the history**, so a missing past entry still renders a
+  done step. Cancelled/returned orders get one red row with the reason instead of the five steps.
+- **The invoice is isolated for print.** `OrderInvoice` carries `invoice-print`; the print block
+  in `tailwind.css` hides everything else, drops the dialog chrome and lets the sheet own the
+  page. Cancelled/returned invoices print a red stamp.
+- **CSV is pure and complete.** `buildOrdersCsv` adds a UTF-8 BOM, Persian headers, Persian
+  status labels and dates; the export request uses `pageSize: 1000` with the SAME filter builders,
+  so the file cannot disagree with the table.
+- **The customer link is a real route** to `/customers/:id` (BO-H11), not a dead name.
+
 ### Customers (BO-I01..I06)
 
 - **One fixture, three projections.** `customers.fixture.ts` builds 187 records from the order
@@ -1108,7 +1131,7 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   the site link is a slug URL from `SITE_URL` in a new tab. A missing product is a plain name, not
   a broken link.
 
-### Tickets (BO-O01)
+### Tickets (BO-O01..O08)
 
 - **The queue is state, not URL.** Status, priority, search and page live in component signals;
   one `GET /tickets` carries them together. Filters reset to page 1, search is debounced 300 ms.
@@ -1118,8 +1141,20 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   after filtering, because creation order would put an answered old ticket above a waiting new one.
 - **Empty and filtered-empty differ**, exactly like comments and products: only the filtered case
   offers «پاک کردن فیلترها».
-- **Only the queue exists yet.** Thread, composer, status change, assignment and the unread badge
-  are O02..O08; this page deliberately renders no disabled shell of them.
+- **One store, two projections.** `tickets.fixture.ts` seeds eight tickets with their threads and
+  status history; `TICKETS` in the mock is the mutable copy, and the list row is the detail minus
+  the thread. A reply moves `lastMessageAt` and sets `pending` (waiting for the customer).
+- **Opening marks read.** `GET /tickets/:id` flips `unread` and returns the thread; the detail
+  refreshes the badge, and the badge itself polls `/tickets/unread-count` once a minute, skipping
+  a hidden tab and refreshing on visibility.
+- **The composer follows the keyboard contract.** Enter sends, Shift+Enter adds a line,
+  Ctrl+Enter sends too; an empty box sends nothing and a failed send keeps the text.
+- **Closing asks, and warns without an agent reply.** Reopening a closed ticket needs
+  `settings.write` (the SuperAdmin proxy); reply, status and assign need `tickets.manage`.
+- **The assignee select is the support team**, with the current user labelled «(من)» and an
+  explicit «بدون کارشناس» option; assignment writes a note into the history.
+- **`ticketDetailResolver` mirrors the order one**: 404 → `/404`, other failures → `{ error }`,
+  and retry needs both `onSameUrlNavigation: 'reload'` and `runGuardsAndResolvers: 'always'`.
 
 ### Sales chart and Chart.js testing (BO-E03)
 

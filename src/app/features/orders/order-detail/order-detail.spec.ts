@@ -1,7 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { ToastService } from '@core/services/toast';
+import { MessageService } from 'primeng/api';
+import { of } from 'rxjs';
 
 import type { Order } from '../models/order.model';
+import { OrdersService } from '../services/orders.service';
 
 import { OrderDetail } from './order-detail';
 import { ORDER_DETAIL_ERROR } from './order-detail.resolver';
@@ -65,11 +69,27 @@ const ORDER: Order = {
 describe('OrderDetail (BO-H01)', () => {
   let fixture: ComponentFixture<OrderDetail>;
   let router: Router;
+  let orders: {
+    changeStatus: ReturnType<typeof vi.fn>;
+    cancel: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
+    orders = {
+      changeStatus: vi.fn((_id: string, input: { status: string }) =>
+        of({ ...ORDER, status: input.status }),
+      ),
+      cancel: vi.fn(() => of({ ...ORDER, status: 'cancelled' })),
+    };
+
     await TestBed.configureTestingModule({
       imports: [OrderDetail],
-      providers: [provideRouter([{ path: '**', children: [] }])],
+      providers: [
+        provideRouter([{ path: '**', children: [] }]),
+        { provide: MessageService, useValue: { add: vi.fn(), clear: vi.fn() } },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
+        { provide: OrdersService, useValue: orders },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(OrderDetail);
@@ -151,11 +171,9 @@ describe('OrderDetail (BO-H01)', () => {
     fixture.componentRef.setInput('detail', { order: cancelled });
     fixture.detectChanges();
 
-    const entries = fixture.nativeElement.querySelectorAll('ol li');
-    expect(entries.length).toBe(2);
-    expect(entries[0].textContent).toContain('در انتظار پرداخت');
-    expect(entries[1].textContent).toContain('لغوشده');
-    expect(entries[1].textContent).toContain('انصراف مشتری از خرید');
+    expect(text()).toContain('این سفارش لغوشده است.');
+    expect(text()).toContain('انصراف مشتری از خرید');
+    expect(fixture.nativeElement.querySelectorAll('app-order-timeline ol li')).toHaveLength(5);
   });
 
   it('the back link points at the orders list', () => {
@@ -186,4 +204,58 @@ describe('OrderDetail (BO-H01)', () => {
 
     expect(navigate).toHaveBeenCalledWith(router.url, { onSameUrlNavigation: 'reload' });
   });
+
+  it('offers only the next status the graph allows (BO-H04)', () => {
+    fixture.componentRef.setInput('detail', { order: { ...ORDER, status: 'paid' } });
+    fixture.detectChanges();
+
+    const button = Array.from<HTMLButtonElement>(
+      fixture.nativeElement.querySelectorAll('button'),
+    ).find((item) => item.textContent?.includes('تغییر وضعیت'));
+
+    button!.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('تغییر وضعیت سفارش');
+    expect(fixture.nativeElement.querySelector('#order-next-status')).toBeTruthy();
+
+    component().statusTarget.setValue('shipped');
+    component().applyStatus();
+
+    expect(orders.changeStatus).not.toHaveBeenCalled();
+    expect(component().actionError()).toContain('مجاز نیست');
+  });
+
+  it('applies an allowed transition and updates the badge', () => {
+    fixture.componentRef.setInput('detail', { order: { ...ORDER, status: 'processing' } });
+    fixture.detectChanges();
+
+    component().statusTarget.setValue('shipped');
+    component().applyStatus();
+    fixture.detectChanges();
+
+    expect(orders.changeStatus).toHaveBeenCalledWith('7', { status: 'shipped', note: undefined });
+    expect(text()).toContain('ارسال');
+  });
+
+  it('refuses a cancel without a reason and sends the chosen one (BO-H07)', () => {
+    fixture.componentRef.setInput('detail', { order: { ...ORDER, status: 'processing' } });
+    fixture.detectChanges();
+
+    component().confirmCancel();
+
+    expect(orders.cancel).not.toHaveBeenCalled();
+    expect(component().actionError()).toContain('دلیل');
+
+    component().cancelReason.setValue('انصراف مشتری');
+    component().confirmCancel();
+    fixture.detectChanges();
+
+    expect(orders.cancel).toHaveBeenCalledWith('7', { reason: 'انصراف مشتری' });
+    expect(text()).toContain('لغوشده');
+  });
+
+  function component(): OrderDetail {
+    return fixture.componentInstance;
+  }
 });

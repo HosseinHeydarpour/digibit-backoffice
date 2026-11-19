@@ -4,6 +4,97 @@
   class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
 >
   <!--
+    FILTERS (BO-H02). Every control writes the SAME state + URL path as paging, so
+    the request and a shared link can never disagree about what is on screen.
+  -->
+  <div class="flex flex-col gap-3 border-b border-gray-200 p-4 dark:border-gray-700">
+    <div class="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-center">
+      <p-iconfield class="lg:col-span-4">
+        <p-inputicon class="pi pi-search" />
+        <input
+          pInputText
+          [formControl]="queryControl"
+          class="w-full"
+          placeholder="جستجوی کد سفارش یا نام مشتری"
+          aria-label="جستجوی سفارش‌ها"
+        />
+      </p-iconfield>
+
+      <p-select
+        inputId="orders-status"
+        [ngModel]="filters().status"
+        (onChange)="onStatusFilter($event.value)"
+        [options]="statusSelectOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full lg:col-span-3"
+        styleClass="w-full"
+      />
+
+      <div class="lg:col-span-2">
+        <label for="orders-from" class="mb-1 block text-xs text-gray-500 dark:text-gray-400">
+          از تاریخ
+        </label>
+        <app-jalali-datepicker
+          [control]="fromControl"
+          inputId="orders-from"
+          placeholder="از تاریخ"
+        />
+      </div>
+
+      <div class="lg:col-span-2">
+        <label for="orders-to" class="mb-1 block text-xs text-gray-500 dark:text-gray-400">
+          تا تاریخ
+        </label>
+        <app-jalali-datepicker [control]="toControl" inputId="orders-to" placeholder="تا تاریخ" />
+      </div>
+
+      <div class="flex items-center gap-2 lg:col-span-1 lg:justify-end">
+        @if (hasFilters()) {
+          <button
+            type="button"
+            pButton
+            [text]="true"
+            severity="secondary"
+            (click)="clearFilters()"
+            aria-label="پاک کردن فیلترها"
+            class="min-h-10 shrink-0 max-sm:min-h-11"
+          >
+            <i class="pi pi-filter-slash text-xs" aria-hidden="true"></i>
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (dateError(); as message) {
+      <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
+    }
+
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      @if (exportError(); as message) {
+        <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
+      } @else {
+        <span></span>
+      }
+      <button
+        type="button"
+        pButton
+        [outlined]="true"
+        severity="secondary"
+        (click)="exportCsv()"
+        [disabled]="exporting()"
+        pLoading
+        [loading]="exporting()"
+        class="min-h-10 max-sm:min-h-11"
+      >
+        <i class="pi pi-download text-xs" aria-hidden="true"></i>
+        خروجی CSV
+      </button>
+    </div>
+  </div>
+
+  <!--
     A page/sort change keeps the previous rows visible while the next request is
     in flight (unlike the first load, which shows the skeleton). This thin bar
     is the only feedback needed; there is no layout jump.
@@ -94,7 +185,15 @@
         customers, not by the panel, so there is NO create action here — the
         stale-page case gets its way back to page 1 instead.
       -->
-      @if (paging().page > 1) {
+      @if (hasFilters()) {
+        <app-empty-state
+          icon="pi pi-filter"
+          title="سفارشی با این فیلترها پیدا نشد"
+          description="بازه یا وضعیت را تغییر بده یا فیلترها را پاک کن."
+          actionLabel="پاک کردن فیلترها"
+          (action)="clearFilters()"
+        />
+      } @else if (paging().page > 1) {
         <app-empty-state
           icon="pi pi-inbox"
           title="سفارشی در این صفحه نیست"

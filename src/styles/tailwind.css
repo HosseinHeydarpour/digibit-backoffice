@@ -192,6 +192,40 @@
   a {
     text-decoration: none;
   }
+
+  /* The invoice dialog (BO-H06) prints alone: hide the page behind it, drop the
+     dialog chrome, and let the sheet own the whole page box. `:has` is safe in
+     the Chrome-family browsers this panel targets. */
+  body:has(.invoice-print) * {
+    visibility: hidden;
+  }
+
+  body:has(.invoice-print) .invoice-print,
+  body:has(.invoice-print) .invoice-print * {
+    visibility: visible;
+  }
+
+  body:has(.invoice-print) .invoice-print {
+    position: absolute;
+    inset: 0;
+    max-width: none;
+    padding: 0;
+  }
+
+  body:has(.invoice-print) .p-dialog-mask {
+    position: static !important;
+    background: transparent !important;
+  }
+
+  body:has(.invoice-print) .p-dialog {
+    max-height: none !important;
+    box-shadow: none !important;
+  }
+
+  body:has(.invoice-print) .max-h-\[70vh\] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
 }
 
 /* ============================================================================

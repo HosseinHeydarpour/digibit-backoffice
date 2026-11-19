@@ -25,6 +25,40 @@
     />
   </div>
 } @else if (order(); as order) {
+  <!-- Actions (BO-H04/H06/H07): only the transitions the graph allows are offered. -->
+  <div class="mb-4 flex flex-wrap items-center gap-2">
+    @if (nextStatuses().length > 0) {
+      <button type="button" pButton (click)="openStatusDialog()" class="min-h-10 max-sm:min-h-11">
+        <i class="pi pi-refresh text-xs" aria-hidden="true"></i>
+        تغییر وضعیت
+      </button>
+    }
+    @if (canCancel()) {
+      <button
+        type="button"
+        pButton
+        severity="danger"
+        [outlined]="true"
+        (click)="openCancelDialog()"
+        class="min-h-10 max-sm:min-h-11"
+      >
+        <i class="pi pi-times text-xs" aria-hidden="true"></i>
+        لغو سفارش
+      </button>
+    }
+    <button
+      type="button"
+      pButton
+      severity="secondary"
+      [outlined]="true"
+      (click)="openInvoice()"
+      class="min-h-10 max-sm:min-h-11"
+    >
+      <i class="pi pi-print text-xs" aria-hidden="true"></i>
+      فاکتور و چاپ
+    </button>
+  </div>
+
   <!-- Three info cards: the order itself, the customer/address, the payment. -->
   <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
     <!-- اطلاعات سفارش -->
@@ -94,6 +128,18 @@
         <div class="flex items-center justify-between gap-3">
           <dt class="text-gray-500 dark:text-gray-400">گیرنده</dt>
           <dd class="font-medium text-gray-900 dark:text-white">{{ order.address.fullName }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">پروفایل مشتری</dt>
+          <dd>
+            <a
+              [routerLink]="['/customers', order.customerId]"
+              class="inline-flex min-h-8 items-center gap-1 text-sm text-primary hover:underline max-sm:min-h-11"
+            >
+              <i class="pi pi-user text-xs" aria-hidden="true"></i>
+              مشاهدهٔ مشتری
+            </a>
+          </dd>
         </div>
         <div class="flex items-center justify-between gap-3">
           <dt class="text-gray-500 dark:text-gray-400">تلفن</dt>
@@ -349,28 +395,197 @@
         تاریخچه وضعیت
       </h2>
 
-      <ol class="space-y-4">
-        @for (entry of order.statusHistory; track entry.id) {
-          <li class="flex items-start justify-between gap-3 text-sm">
-            <div class="min-w-0">
-              <span
-                class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
-                [class]="statusBadgeClass(entry.status)"
-              >
-                {{ statusLabel(entry.status) }}
-              </span>
-              @if (entry.note) {
-                <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                  {{ entry.note }}
-                </p>
-              }
-            </div>
-            <span class="shrink-0 tabular-nums text-xs text-gray-500 dark:text-gray-400">
-              {{ entry.createdAt | persianDate }}
-            </span>
-          </li>
-        }
-      </ol>
+      <app-order-timeline [status]="order.status" [history]="order.statusHistory" />
     </section>
   </div>
+
+  <p-dialog
+    [visible]="statusDialog()"
+    (visibleChange)="onStatusDialogVisibility($event)"
+    header="تغییر وضعیت سفارش"
+    [modal]="true"
+    [style]="{ width: '95vw', maxWidth: '30rem' }"
+  >
+    <div class="space-y-4">
+      <p class="text-sm text-gray-600 dark:text-gray-300">
+        وضعیت فعلی:
+        <span class="font-medium text-gray-900 dark:text-white">{{
+          statusLabel(order.status)
+        }}</span>
+      </p>
+
+      <div>
+        <label
+          for="order-next-status"
+          class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          وضعیت جدید
+        </label>
+        <p-select
+          inputId="order-next-status"
+          [formControl]="statusTarget"
+          [options]="statusOptions()"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          class="w-full"
+          styleClass="w-full"
+        />
+      </div>
+
+      <div>
+        <label
+          for="order-status-note"
+          class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          یادداشت
+          @if (statusNeedsNote()) {
+            <span class="text-red-600">*</span>
+          }
+        </label>
+        <textarea
+          id="order-status-note"
+          pTextarea
+          rows="2"
+          [formControl]="statusNote"
+          class="w-full"
+          [placeholder]="statusNeedsNote() ? 'دلیل مرجوعی الزامی است' : 'اختیاری'"
+        ></textarea>
+      </div>
+
+      @if (actionError(); as message) {
+        <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
+      }
+    </div>
+
+    <div class="mt-4 flex justify-end gap-2">
+      <button
+        type="button"
+        pButton
+        [text]="true"
+        (click)="onStatusDialogVisibility(false)"
+        class="min-h-10 max-sm:min-h-11"
+      >
+        انصراف
+      </button>
+      <button
+        type="button"
+        pButton
+        (click)="applyStatus()"
+        [disabled]="saving()"
+        pLoading
+        [loading]="saving()"
+        class="min-h-10 max-sm:min-h-11"
+      >
+        ثبت وضعیت
+      </button>
+    </div>
+  </p-dialog>
+
+  <p-dialog
+    [visible]="cancelDialog()"
+    (visibleChange)="onCancelDialogVisibility($event)"
+    header="لغو سفارش"
+    [modal]="true"
+    [style]="{ width: '95vw', maxWidth: '30rem' }"
+  >
+    <div class="space-y-4">
+      <p
+        class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300"
+      >
+        این عملیات بازگشت‌پذیر نیست و موجودی کالاها سمت سرور آزاد می‌شود.
+      </p>
+
+      <div>
+        <label
+          for="order-cancel-reason"
+          class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          دلیل لغو <span class="text-red-600">*</span>
+        </label>
+        <p-select
+          inputId="order-cancel-reason"
+          [formControl]="cancelReason"
+          [options]="cancelReasons"
+          appendTo="body"
+          class="w-full"
+          styleClass="w-full"
+          placeholder="یک دلیل انتخاب کن"
+        />
+      </div>
+
+      @if (needsCancelText()) {
+        <div>
+          <label
+            for="order-cancel-other"
+            class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            متن دلیل
+          </label>
+          <textarea
+            id="order-cancel-other"
+            pTextarea
+            rows="2"
+            [formControl]="cancelOther"
+            class="w-full"
+          ></textarea>
+        </div>
+      }
+
+      @if (actionError(); as message) {
+        <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
+      }
+    </div>
+
+    <div class="mt-4 flex justify-end gap-2">
+      <button
+        type="button"
+        pButton
+        [text]="true"
+        (click)="onCancelDialogVisibility(false)"
+        class="min-h-10 max-sm:min-h-11"
+      >
+        انصراف
+      </button>
+      <button
+        type="button"
+        pButton
+        severity="danger"
+        (click)="confirmCancel()"
+        [disabled]="saving()"
+        pLoading
+        [loading]="saving()"
+        class="min-h-10 max-sm:min-h-11"
+      >
+        لغو سفارش
+      </button>
+    </div>
+  </p-dialog>
+
+  <p-dialog
+    [visible]="invoiceOpen()"
+    (visibleChange)="onInvoiceVisibility($event)"
+    header="فاکتور سفارش"
+    [modal]="true"
+    [style]="{ width: '95vw', maxWidth: '56rem' }"
+  >
+    <div class="max-h-[70vh] overflow-auto">
+      <app-order-invoice [order]="order" />
+    </div>
+    <div class="mt-4 flex justify-end gap-2">
+      <button
+        type="button"
+        pButton
+        [text]="true"
+        (click)="onInvoiceVisibility(false)"
+        class="min-h-10 max-sm:min-h-11"
+      >
+        بستن
+      </button>
+      <button type="button" pButton (click)="printInvoice()" class="min-h-10 max-sm:min-h-11">
+        <i class="pi pi-print text-xs" aria-hidden="true"></i>
+        چاپ
+      </button>
+    </div>
+  </p-dialog>
 }

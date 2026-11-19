@@ -18,6 +18,7 @@ import {
   type Route,
   type Routes,
 } from '@angular/router';
+import { MessageService } from 'primeng/api';
 
 import { routes as APP_ROUTES } from '../../app.routes';
 
@@ -103,6 +104,7 @@ function setup(): { fixture: ReturnType<typeof TestBed.createComponent<Host>>; r
       provideRouter(ROUTES, withComponentInputBinding()),
       provideHttpClient(),
       provideHttpClientTesting(),
+      { provide: MessageService, useValue: { add: vi.fn(), clear: vi.fn() } },
     ],
   });
 

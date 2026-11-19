@@ -1,5 +1,6 @@
 import { Canvas, Meta } from '@storybook/addon-docs/blocks';
 
+import * as TicketDetailStories from '../app/features/tickets/ticket-detail/ticket-detail.stories';
 import * as TicketStories from '../app/features/tickets/ticket-list/ticket-list.stories';
 
 <Meta title="Features/Tickets" />
@@ -47,3 +48,19 @@ reply and status change arrive with the later O tasks. The route is guarded by `
 <Canvas of={TicketStories.Default} />
 
 <Canvas of={TicketStories.Loading} />
+
+## Thread, reply and assignment (BO-O02..O08)
+
+- **The thread is one record.** Opening the page marks the ticket read, which is what makes the
+  sidebar badge drop; the messages paint in time order, customer right and agent left.
+- **The composer follows the keyboard contract.** Enter sends, Shift+Enter adds a line,
+  Ctrl+Enter sends too. An empty box sends nothing, a failed send keeps the text, and a successful
+  answer appends to the thread and clears the box.
+- **Closing asks, and warns when nobody answered.** Reopening a closed ticket needs the
+  SuperAdmin grant (`settings.write`); every other action needs `tickets.manage`.
+- **The assignee select is the support team**, with the current user labelled «(من)» and an
+  explicit «بدون کارشناس» option.
+- **The sidebar badge polls once a minute** (skipping a hidden tab) and refreshes on visibility,
+  after opening, replying or changing a status.
+
+<Canvas of={TicketDetailStories.Default} />

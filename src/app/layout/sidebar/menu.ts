@@ -132,4 +132,5 @@ export const MOCK_PERMISSIONS: readonly Permission[] = [
   'shipping.manage',
   'content.manage',
   'comments.moderate',
+  'tickets.manage',
 ];

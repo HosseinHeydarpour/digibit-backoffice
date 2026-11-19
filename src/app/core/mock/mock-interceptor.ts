@@ -353,7 +353,7 @@ function resolve(
         const days = num(params, 'days', 7);
         return ok(fixtures.getMockSalesChart(days));
       }
-      if (id === 'recent-orders') return paged(fixtures.MOCK_ORDERS.slice(0, 8), page, pageSize);
+      if (id === 'recent-orders') return paged(ORDER_LIST.slice(0, 8), page, pageSize);
       if (id === 'low-stock') return paged(fixtures.MOCK_LOW_STOCK, page, pageSize);
       return NOT_FOUND;
 
@@ -390,10 +390,12 @@ function resolve(
 
     case 'orders': {
       if (!id) return paged(filterOrders(params), page, pageSize);
+      if (sub === 'status' && method === 'PATCH') return changeOrderStatus(id, body);
+      if (sub === 'cancel' && method === 'PATCH') return cancelOrder(id, body);
       // The detail answers the FULL record (items/address/payment/history);
-      // the list rows are a projection of the same fixture, so the two screens
+      // the list rows are a projection of the same store, so the two screens
       // cannot disagree about one order.
-      const found = fixtures.MOCK_ORDER_DETAILS.find((order) => order.id === id);
+      const found = ORDER_DETAILS.find((order) => order.id === id);
       return found ? ok(found) : NOT_FOUND;
     }
 
@@ -403,13 +405,12 @@ function resolve(
     case 'comments':
       return resolveComments(method, id, sub, params, body, page, pageSize);
 
-    case 'tickets': {
-      if (id) {
-        const found = byId(fixtures.MOCK_TICKETS, id);
-        return found ? ok(found) : NOT_FOUND;
-      }
-      return resolveTickets(params, page, pageSize);
-    }
+    case 'tickets':
+      return resolveTickets(method, id, sub, params, body, page, pageSize);
+
+    case 'users':
+      // The only user list this panel needs so far: the support team (BO-O05).
+      return params.get('role') === 'support' ? ok(fixtures.SUPPORT_AGENTS) : null;
 
     case 'settings':
       return resolveSettings(method, id, sub, body);
@@ -582,7 +583,7 @@ function filterOrders(params: ParamReader): Record<string, unknown>[] {
   const sort = params.get('sort');
   const direction = params.get('dir') === 'desc' ? -1 : 1;
 
-  let rows = fixtures.MOCK_ORDERS.filter((order) => {
+  let rows = ORDER_LIST.filter((order) => {
     const haystack = `${order.code} ${order.customerName}`.toLowerCase();
 
     return (
@@ -599,6 +600,122 @@ function filterOrders(params: ParamReader): Record<string, unknown>[] {
   }
 
   return rows;
+}
+
+/**
+ * The mutable order store (BO-H04/H07): the detail record and its list
+ * projection move together, so a status changed on the detail page is what the
+ * list shows on the next navigation. `resetMockState()` rebuilds both.
+ */
+function cloneOrderDetails(): fixtures.MockOrder[] {
+  return fixtures.MOCK_ORDER_DETAILS.map((order) => structuredClone(order));
+}
+
+function cloneOrderList(): (typeof fixtures.MOCK_ORDERS)[number][] {
+  return fixtures.MOCK_ORDERS.map((row) => ({ ...row }));
+}
+
+let ORDER_DETAILS = cloneOrderDetails();
+let ORDER_LIST = cloneOrderList();
+
+/** The same graph the UI offers; the server repeats it so a stale dialog cannot win. */
+const MOCK_ORDER_TRANSITIONS: Record<string, readonly string[]> = {
+  pending: ['paid'],
+  paid: ['processing'],
+  processing: ['shipped'],
+  shipped: ['delivered', 'returned'],
+  delivered: ['returned'],
+  cancelled: [],
+  returned: [],
+};
+
+const MOCK_CANCELLABLE = ['pending', 'paid', 'processing'];
+
+function storeOrder(updated: fixtures.MockOrder): void {
+  ORDER_DETAILS = ORDER_DETAILS.map((order) => (order.id === updated.id ? updated : order));
+  ORDER_LIST = ORDER_LIST.map((row) =>
+    row.id === updated.id ? { ...row, status: updated.status } : row,
+  );
+}
+
+/** `PATCH /orders/:id/status` (BO-H04). */
+function changeOrderStatus(id: string, body: unknown): MockResolution {
+  const order = ORDER_DETAILS.find((row) => row.id === id);
+
+  if (!order) return NOT_FOUND;
+
+  const data = asRecord(body);
+  const status = String(data['status'] ?? '');
+  const note = String(data['note'] ?? '').trim();
+  const allowed = MOCK_ORDER_TRANSITIONS[order.status] ?? [];
+
+  if (!allowed.includes(status)) {
+    return fieldValidationError({ status: ['این گذار وضعیت مجاز نیست.'] });
+  }
+
+  if (status === 'returned' && note === '') {
+    return fieldValidationError({ note: ['برای مرجوعی، دلیل را بنویس.'] });
+  }
+
+  if (status === 'delivered' && order.payment.trackingCode === null) {
+    return fieldValidationError({ status: ['سفارش بدون پرداخت تحویل داده نمی‌شود.'] });
+  }
+
+  const updated: fixtures.MockOrder = {
+    ...order,
+    status: status as fixtures.MockOrder['status'],
+    statusHistory: [
+      ...order.statusHistory,
+      {
+        id: `${order.id}-h${order.statusHistory.length + 1}`,
+        status: status as fixtures.MockOrder['status'],
+        note: note === '' ? null : note,
+        createdAt: Date.now(),
+      },
+    ],
+  };
+
+  storeOrder(updated);
+
+  return ok(updated, 'وضعیت سفارش به‌روز شد.');
+}
+
+/** `PATCH /orders/:id/cancel` (BO-H07) — reason mandatory, shipped cannot cancel. */
+function cancelOrder(id: string, body: unknown): MockResolution {
+  const order = ORDER_DETAILS.find((row) => row.id === id);
+
+  if (!order) return NOT_FOUND;
+
+  const reason = String(asRecord(body)['reason'] ?? '').trim();
+
+  if (reason === '') {
+    return fieldValidationError({ reason: ['دلیل لغو الزامی است.'] });
+  }
+
+  if (!MOCK_CANCELLABLE.includes(order.status)) {
+    return {
+      status: 409,
+      body: { error: { code: 'CONFLICT', message: 'این سفارش دیگر قابل لغو نیست.' } },
+    };
+  }
+
+  const updated: fixtures.MockOrder = {
+    ...order,
+    status: 'cancelled',
+    statusHistory: [
+      ...order.statusHistory,
+      {
+        id: `${order.id}-h${order.statusHistory.length + 1}`,
+        status: 'cancelled',
+        note: reason,
+        createdAt: Date.now(),
+      },
+    ],
+  };
+
+  storeOrder(updated);
+
+  return ok(updated, 'سفارش لغو شد.');
 }
 
 /** Persian and Arabic digits → Latin, so «۰۹۱۲» searches the same row as `0912`. */
@@ -1620,22 +1737,183 @@ function categoryName(id: string): string {
 }
 
 /** `GET /tickets` — status + priority + text, newest last message first (BO-O01). */
-function resolveTickets(params: ParamReader, page: number, pageSize: number): MockResolution {
-  const status = params.get('status') ?? '';
-  const priority = params.get('priority') ?? '';
-  const text = (params.get('query') ?? '').trim().toLowerCase();
+let TICKETS: fixtures.MockTicket[] = fixtures.MOCK_TICKET_DETAILS.map((ticket) =>
+  structuredClone(ticket),
+);
 
-  const rows = fixtures.MOCK_TICKETS.filter((ticket) => {
-    if (status !== '' && ticket.status !== status) return false;
-    if (priority !== '' && ticket.priority !== priority) return false;
-    if (text !== '') {
-      const haystack = `${ticket.subject} ${ticket.userName}`.toLowerCase();
-      if (!haystack.includes(text)) return false;
+/** The queue projection: the detail minus the thread. */
+function ticketRow(ticket: fixtures.MockTicket) {
+  return {
+    id: ticket.id,
+    code: ticket.code,
+    userId: ticket.userId,
+    userName: ticket.userName,
+    subject: ticket.subject,
+    status: ticket.status,
+    priority: ticket.priority,
+    unread: ticket.unread,
+    lastMessageAt: ticket.lastMessageAt,
+    assigneeId: ticket.assigneeId,
+    assigneeName: ticket.assigneeName,
+  };
+}
+
+function findTicket(id: string): fixtures.MockTicket | undefined {
+  return TICKETS.find((ticket) => ticket.id === id);
+}
+
+/**
+ * `/tickets` (BO-O01..O08).
+ *
+ * TRACE — opening ticket 1, then replying:
+ *   1. `GET /tickets/1` finds the store row, flips `unread` to false and returns
+ *      the full thread; the badge reads one less on its next poll.
+ *   2. `POST /tickets/1/reply { body }` appends an agent message, moves
+ *      `lastMessageAt` to now and sets the status to `pending` (waiting for the
+ *      customer), then returns the updated detail.
+ *   3. `PATCH /tickets/1/status { status: 'closed' }` appends a history row;
+ *      an illegal target (e.g. closing an already closed ticket) answers 422.
+ */
+function resolveTickets(
+  method: string,
+  id: string | undefined,
+  sub: string | undefined,
+  params: ParamReader,
+  body: unknown,
+  page: number,
+  pageSize: number,
+): MockResolution {
+  if (method === 'GET' && id === 'unread-count') {
+    return ok({ count: TICKETS.filter((ticket) => ticket.unread).length });
+  }
+
+  if (method === 'GET' && id === undefined) {
+    const status = params.get('status') ?? '';
+    const priority = params.get('priority') ?? '';
+    const text = (params.get('query') ?? '').trim().toLowerCase();
+
+    const rows = TICKETS.filter((ticket) => {
+      if (status !== '' && ticket.status !== status) return false;
+      if (priority !== '' && ticket.priority !== priority) return false;
+      if (text !== '') {
+        const haystack = `${ticket.subject} ${ticket.userName}`.toLowerCase();
+        if (!haystack.includes(text)) return false;
+      }
+      return true;
+    })
+      .sort((a, b) => b.lastMessageAt - a.lastMessageAt)
+      .map(ticketRow);
+
+    return paged(rows, page, pageSize);
+  }
+
+  if (id === undefined) return NOT_FOUND;
+
+  const ticket = findTicket(id);
+
+  if (!ticket) return NOT_FOUND;
+
+  if (method === 'GET' && sub === undefined) {
+    if (ticket.unread) {
+      TICKETS = TICKETS.map((row) => (row.id === id ? { ...row, unread: false } : row));
     }
-    return true;
-  }).sort((a, b) => b.lastMessageAt - a.lastMessageAt);
 
-  return paged(rows, page, pageSize);
+    return ok(findTicket(id));
+  }
+
+  if (method === 'POST' && sub === 'reply') {
+    const text = String(asRecord(body)['body'] ?? '').trim();
+
+    if (text === '') {
+      return fieldValidationError({ body: ['متن پاسخ خالی است.'] });
+    }
+
+    const updated: fixtures.MockTicket = {
+      ...ticket,
+      status: 'pending',
+      unread: false,
+      lastMessageAt: Date.now(),
+      messages: [
+        ...ticket.messages,
+        {
+          id: `${ticket.id}-m${ticket.messages.length + 1}`,
+          author: 'agent',
+          authorName: 'کارشناس پشتیبانی',
+          body: text,
+          createdAt: Date.now(),
+          attachments: [],
+        },
+      ],
+    };
+
+    TICKETS = TICKETS.map((row) => (row.id === id ? updated : row));
+
+    return ok(updated, 'پاسخ ارسال شد.');
+  }
+
+  if (method === 'PATCH' && sub === 'status') {
+    const data = asRecord(body);
+    const status = String(data['status'] ?? '') as fixtures.MockTicket['status'];
+    const note = String(data['note'] ?? '').trim();
+    const allowed: Record<string, readonly string[]> = {
+      open: ['pending', 'closed'],
+      pending: ['open', 'closed'],
+      closed: ['open'],
+    };
+
+    if (!(allowed[ticket.status] ?? []).includes(status)) {
+      return fieldValidationError({ status: ['این گذار وضعیت مجاز نیست.'] });
+    }
+
+    const updated: fixtures.MockTicket = {
+      ...ticket,
+      status,
+      statusHistory: [
+        ...ticket.statusHistory,
+        {
+          id: `${ticket.id}-h${ticket.statusHistory.length + 1}`,
+          status,
+          note: note === '' ? null : note,
+          createdAt: Date.now(),
+        },
+      ],
+    };
+
+    TICKETS = TICKETS.map((row) => (row.id === id ? updated : row));
+
+    return ok(updated, 'وضعیت تیکت به‌روز شد.');
+  }
+
+  if (method === 'PATCH' && sub === 'assign') {
+    const userId = asRecord(body)['userId'];
+    const agent =
+      typeof userId === 'string' ? fixtures.SUPPORT_AGENTS.find((row) => row.id === userId) : null;
+
+    if (userId !== null && agent === undefined) {
+      return fieldValidationError({ userId: ['کارشناس انتخاب‌شده معتبر نیست.'] });
+    }
+
+    const updated: fixtures.MockTicket = {
+      ...ticket,
+      assigneeId: agent?.id ?? null,
+      assigneeName: agent?.name ?? null,
+      statusHistory: [
+        ...ticket.statusHistory,
+        {
+          id: `${ticket.id}-h${ticket.statusHistory.length + 1}`,
+          status: ticket.status,
+          note: agent ? `تخصیص به ${agent.name}` : 'لغو تخصیص',
+          createdAt: Date.now(),
+        },
+      ],
+    };
+
+    TICKETS = TICKETS.map((row) => (row.id === id ? updated : row));
+
+    return ok(updated, 'تخصیص به‌روز شد.');
+  }
+
+  return NOT_FOUND;
 }
 
 function brandName(id: string): string {
@@ -2363,12 +2641,15 @@ export function resetMockState(): void {
   CATEGORIES.splice(0, CATEGORIES.length, ...seedCategories());
   BRANDS.splice(0, BRANDS.length, ...seedBrands());
   CUSTOMERS = fixtures.MOCK_CUSTOMER_DETAILS;
+  ORDER_DETAILS = cloneOrderDetails();
+  ORDER_LIST = cloneOrderList();
   COUPONS = fixtures.MOCK_COUPONS.map((coupon) => ({ ...coupon }));
   SHIPPING = fixtures.MOCK_SHIPPING_METHODS.map((method) => ({ ...method }));
   BANNERS = fixtures.MOCK_BANNERS.map((banner) => ({ ...banner }));
   PAGES = fixtures.MOCK_CONTENT_PAGES.map((page) => ({ ...page }));
   SETTINGS = cloneSettings();
   COMMENTS = fixtures.MOCK_COMMENTS.map((comment) => ({ ...comment }));
+  TICKETS = fixtures.MOCK_TICKET_DETAILS.map((ticket) => structuredClone(ticket));
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */

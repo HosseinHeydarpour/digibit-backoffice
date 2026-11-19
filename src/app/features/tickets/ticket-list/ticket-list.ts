@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
@@ -41,6 +42,7 @@ const PAGE_SIZE = 10;
   imports: [
     ReactiveFormsModule,
     FormsModule,
+    RouterLink,
     PageHeader,
     EmptyState,
     ErrorState,
