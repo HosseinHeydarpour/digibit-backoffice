@@ -518,8 +518,19 @@ export class CustomerList {
     }
   }
 
-  /** Row click → the profile (BO-I02). `routerLink` inside stops propagation. */
-  openCustomer(customerId: EntityId): void {
+  /**
+   * Row click → the profile (BO-I02). The status switch is a row action, so a
+   * click inside `[data-row-action]` must not navigate; the switch's own
+   * handler already stops the bubbled click, and this guard covers the label's
+   * 44px padding around it.
+   */
+  openCustomer(customerId: EntityId, event?: Event): void {
+    const target = event?.target as HTMLElement | null;
+
+    if (target?.closest('[data-row-action]')) {
+      return;
+    }
+
     void this.router.navigate(['/customers', customerId]);
   }
 

@@ -1292,6 +1292,8 @@ describe('mockInterceptor', () => {
     );
 
     expect(missing.status).toBe(404);
+    const errorBody = missing.error as { error: { message: string } };
+    expect(errorBody.error.message).toBe('کاربری با این شناسه دریافت نشد.');
   });
 
   it('customers: PATCH status persists into the next list read', async () => {

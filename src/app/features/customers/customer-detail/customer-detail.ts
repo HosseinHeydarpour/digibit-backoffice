@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
@@ -48,6 +49,8 @@ import type { CustomerDetailResult } from './customer-detail.resolver';
 export class CustomerDetail {
   private readonly router = inject(Router);
 
+  private readonly toast = inject(ToastService);
+
   /** Bound by `withComponentInputBinding()` from `resolve: { detail: … }`. */
   readonly detail = input<CustomerDetailResult | null>(null);
 
@@ -82,6 +85,29 @@ export class CustomerDetail {
 
   statusBadgeClass(status: CustomerStatus): string {
     return customerStatusBadgeClass(status);
+  }
+
+  /** Copy the profile's mobile number; a missing or blocked clipboard is quiet. */
+  copyPhone(phone: string): void {
+    this.copy(phone, 'شماره موبایل کپی شد.');
+  }
+
+  /** Copy the profile's email address. */
+  copyEmail(email: string): void {
+    this.copy(email, 'ایمیل کپی شد.');
+  }
+
+  private copy(value: string, message: string): void {
+    const clipboard = navigator.clipboard;
+
+    if (!clipboard?.writeText) {
+      return;
+    }
+
+    void clipboard.writeText(value).then(
+      () => this.toast.success(message),
+      () => undefined,
+    );
   }
 
   /** The shared order vocabulary — the profile must not invent its own words. */

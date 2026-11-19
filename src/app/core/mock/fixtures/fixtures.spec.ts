@@ -255,6 +255,10 @@ describe('customer fixtures (BO-I04)', () => {
     }
   });
 
+  it('gives the first customer more than five orders for the profile limit', () => {
+    expect(MOCK_CUSTOMER_DETAILS[0].orderCount).toBeGreaterThan(5);
+  });
+
   it('gives every customer at least one address, with exactly one default', () => {
     for (const customer of MOCK_CUSTOMER_DETAILS) {
       expect(customer.addresses.length).toBeGreaterThan(0);

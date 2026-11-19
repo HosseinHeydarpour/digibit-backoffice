@@ -191,7 +191,7 @@
           <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
             @for (item of items(); track item.id) {
               <tr
-                (click)="openCustomer(item.id)"
+                (click)="openCustomer(item.id, $event)"
                 class="cursor-pointer transition hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
                 <!-- مشتری — initials stand in for a photo the API does not send. -->
@@ -264,12 +264,13 @@
                       <label
                         [for]="'customer-status-' + item.id"
                         class="inline-flex shrink-0 items-center justify-center max-sm:size-11"
+                        data-row-action
                       >
                         <p-toggleswitch
                           #toggle
                           [inputId]="'customer-status-' + item.id"
                           [ngModel]="item.status === 'active'"
-                          (click)="$event.preventDefault()"
+                          (click)="$event.preventDefault(); $event.stopPropagation()"
                           (onChange)="toggleStatus(item, toggle)"
                           [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
                           [ariaLabel]="'وضعیت حساب ' + item.fullName"

@@ -399,6 +399,28 @@ describe('CustomerList status toggle (BO-I03)', () => {
     expect(fixture.nativeElement.querySelector('[data-toggle-customer]')).toBeTruthy();
   });
 
+  it('does not open the profile when the status switch is clicked', () => {
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate');
+
+    const toggle = fixture.nativeElement.querySelector('[data-toggle-customer]') as HTMLElement;
+    toggle.click();
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('does not open the profile from the switch label padding', () => {
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate');
+
+    const label = fixture.nativeElement.querySelector(
+      'label[for="customer-status-1"]',
+    ) as HTMLElement;
+    label.click();
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it('asks first, then blocks optimistically and toasts', async () => {
     const row = component.items()![0];
 

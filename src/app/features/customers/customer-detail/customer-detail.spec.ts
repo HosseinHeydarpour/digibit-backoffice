@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { ToastService } from '@core/services/toast';
 
 import type { Customer, CustomerOrderSummary } from '../models/customer.model';
 
@@ -49,7 +50,10 @@ describe('CustomerDetail (BO-I02)', () => {
   async function mount(result: CustomerDetailResult | null): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [CustomerDetail],
-      providers: [provideRouter([{ path: '**', children: [] }])],
+      providers: [
+        provideRouter([{ path: '**', children: [] }]),
+        { provide: ToastService, useValue: { success: vi.fn() } },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(CustomerDetail);
@@ -67,6 +71,31 @@ describe('CustomerDetail (BO-I02)', () => {
     expect(text).toContain('مسدود');
     expect(text).toContain('۲'); // order count
     expect(text).toContain('تومان'); // total spent
+  });
+
+  it('copies the phone and the email from the contact card', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    await mount(RESULT);
+
+    const phone = fixture.nativeElement.querySelector(
+      'button[aria-label^="کپی موبایل"]',
+    ) as HTMLButtonElement;
+    phone.click();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith('09121000003');
+
+    const email = fixture.nativeElement.querySelector(
+      'button[aria-label^="کپی ایمیل"]',
+    ) as HTMLButtonElement;
+    email.click();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith('customer3@example.com');
   });
 
   it('lists every saved address with its default marker', async () => {

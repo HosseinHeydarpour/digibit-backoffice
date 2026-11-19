@@ -292,6 +292,12 @@ const NOT_FOUND: MockResolution = {
   body: { error: { code: 'NOT_FOUND', message: 'موردی با این شناسه یافت نشد.' } },
 };
 
+/** A customer-specific 404, so the interceptor's toast names the missing record. */
+const CUSTOMER_NOT_FOUND: MockResolution = {
+  status: 404,
+  body: { error: { code: 'NOT_FOUND', message: 'کاربری با این شناسه دریافت نشد.' } },
+};
+
 /**
  * `POST /media` — the brand logo upload (BO-G06).
  *
@@ -794,7 +800,7 @@ function resolveCustomers(
   const found = CUSTOMERS.find((customer) => customer.id === id);
 
   if (!found) {
-    return NOT_FOUND;
+    return CUSTOMER_NOT_FOUND;
   }
 
   if (method === 'PATCH' && sub === 'status') {
@@ -810,7 +816,7 @@ function resolveCustomers(
   }
 
   if (method !== 'GET') {
-    return NOT_FOUND;
+    return CUSTOMER_NOT_FOUND;
   }
 
   return ok(found);

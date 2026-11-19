@@ -195,7 +195,9 @@ function buildHistory(
 
 function buildOrder(i: number): MockOrder {
   const id = String(i + 1);
-  const customerIndex = i % CUSTOMERS.length;
+  // Orders 25..28 return to the first shopper, so the profile's five-row limit
+  // has a customer with more than five orders to demonstrate.
+  const customerIndex = i >= 24 ? 0 : i % CUSTOMERS.length;
   const customerName = CUSTOMERS[customerIndex];
   const status = STATUS_CYCLE[i % STATUS_CYCLE.length];
   const createdAt = FIXTURE_NOW - (i * 9 + 14) * HOUR;

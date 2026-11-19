@@ -22,13 +22,35 @@
         <div>
           <dt class="text-xs text-gray-500 dark:text-gray-400">موبایل</dt>
           <dd class="mt-1 text-sm text-gray-900 dark:text-white">
-            <bdi class="font-mono" dir="ltr">{{ account.phone }}</bdi>
+            <button
+              type="button"
+              (click)="copyPhone(account.phone)"
+              [attr.aria-label]="'کپی موبایل ' + account.phone"
+              class="inline-flex items-center gap-1.5 rounded font-mono text-sm text-gray-900 transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-white dark:hover:text-primary-light"
+            >
+              <bdi dir="ltr">{{ account.phone }}</bdi>
+              <i
+                class="pi pi-copy text-[11px] text-gray-400 dark:text-gray-500"
+                aria-hidden="true"
+              ></i>
+            </button>
           </dd>
         </div>
         <div>
           <dt class="text-xs text-gray-500 dark:text-gray-400">ایمیل</dt>
-          <dd class="mt-1 truncate text-sm text-gray-900 dark:text-white" [title]="account.email">
-            <bdi dir="ltr">{{ account.email }}</bdi>
+          <dd class="mt-1 text-sm text-gray-900 dark:text-white" [title]="account.email">
+            <button
+              type="button"
+              (click)="copyEmail(account.email)"
+              [attr.aria-label]="'کپی ایمیل ' + account.email"
+              class="flex max-w-full items-center gap-1.5 rounded text-sm text-gray-900 transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-white dark:hover:text-primary-light"
+            >
+              <bdi dir="ltr" class="min-w-0 truncate">{{ account.email }}</bdi>
+              <i
+                class="pi pi-copy shrink-0 text-[11px] text-gray-400 dark:text-gray-500"
+                aria-hidden="true"
+              ></i>
+            </button>
           </dd>
         </div>
         <div>
