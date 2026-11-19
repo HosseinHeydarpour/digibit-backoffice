@@ -57,8 +57,10 @@ export interface DashboardSummary {
    * Orders in the period, in any status.
    *
    * Distinct from `pendingOrders`, which is the actionable subset. The tile
-   * prints the pending count and says «از ۳۴۲ سفارش ثبت‌شده» underneath it, so
-   * the pair reads as "23 of 342" rather than repeating one number twice.
+   * prints the pending count and says «از N سفارش ثبت‌شده» underneath it, so
+   * the pair reads as "N pending of M total" rather than repeating one number
+   * twice. The mock derives both from the orders fixture, so the tile and the
+   * orders list can never disagree about the size of the shop.
    */
   readonly orderCount: number;
 

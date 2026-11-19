@@ -17,9 +17,9 @@
 // THE FOUR KPI TILES (BO-E02)
 // ---------------------------
 //   1. فروش امروز       ← totalSales     + the trend pill (tc 4)
-//   2. سفارش‌های جدید    ← pendingOrders  + «از ۳۴۲ سفارش ثبت‌شده»
+//   2. سفارش‌های جدید    ← pendingOrders  + «از {orderCount} سفارش ثبت‌شده»
 //   3. کاربران          ← customerCount
-//   4. کم‌موجودی         ← lowStockCount  + «از ۹۶ محصول», red while it is non-zero (tc 5)
+//   4. کم‌موجودی         ← lowStockCount  + «از {productCount} محصول», red while it is non-zero (tc 5)
 //
 // EVERY TILE IS THE LINK (tc 10)
 // ------------------------------

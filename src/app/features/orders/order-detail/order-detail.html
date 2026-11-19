@@ -1,0 +1,376 @@
+<app-page-header title="جزئیات سفارش" [description]="pageDescription()">
+  <a
+    page-header-actions
+    routerLink="/orders"
+    class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+  >
+    <i class="pi pi-arrow-right" aria-hidden="true"></i>
+    بازگشت به سفارش‌ها
+  </a>
+</app-page-header>
+
+@if (loadError(); as message) {
+  <!--
+    FAILED LOAD — a non-404 failure keeps the user here with a retry, because a
+    dead connection is not a missing order. A 404 never reaches this branch: the
+    resolver already redirected to the 404 page.
+  -->
+  <div
+    class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+  >
+    <app-error-state
+      [title]="message"
+      [description]="'لطفاً دوباره تلاش کنید.'"
+      (retry)="reload()"
+    />
+  </div>
+} @else if (order(); as order) {
+  <!-- Three info cards: the order itself, the customer/address, the payment. -->
+  <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+    <!-- اطلاعات سفارش -->
+    <section
+      class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+      aria-labelledby="order-info-title"
+    >
+      <h2
+        id="order-info-title"
+        class="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white"
+      >
+        <i class="pi pi-receipt text-primary" aria-hidden="true"></i>
+        اطلاعات سفارش
+      </h2>
+
+      <dl class="space-y-3 text-sm">
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">کد سفارش</dt>
+          <dd class="font-medium text-gray-900 dark:text-white">
+            <bdi class="font-mono">#{{ order.code | persianDigits }}</bdi>
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">وضعیت</dt>
+          <dd>
+            <span
+              class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+              [class]="statusBadgeClass(order.status)"
+            >
+              {{ statusLabel(order.status) }}
+            </span>
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">تاریخ ثبت</dt>
+          <dd class="text-gray-900 dark:text-white">
+            {{ order.createdAt | persianDate: 'long' }}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">تعداد اقلام</dt>
+          <dd class="tabular-nums text-gray-900 dark:text-white">
+            {{ order.itemCount | persianDigits }}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">روش ارسال</dt>
+          <dd class="text-gray-900 dark:text-white">{{ order.shippingMethod }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- مشتری و آدرس تحویل -->
+    <section
+      class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+      aria-labelledby="order-customer-title"
+    >
+      <h2
+        id="order-customer-title"
+        class="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white"
+      >
+        <i class="pi pi-map-marker text-primary" aria-hidden="true"></i>
+        مشتری و آدرس تحویل
+      </h2>
+
+      <dl class="space-y-3 text-sm">
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">گیرنده</dt>
+          <dd class="font-medium text-gray-900 dark:text-white">{{ order.address.fullName }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">تلفن</dt>
+          <dd class="tabular-nums text-gray-900 dark:text-white">
+            <bdi>{{ order.address.phone | persianDigits }}</bdi>
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">استان / شهر</dt>
+          <dd class="text-gray-900 dark:text-white">
+            {{ order.address.province }} / {{ order.address.city }}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">کد پستی</dt>
+          <dd class="tabular-nums text-gray-900 dark:text-white">
+            <bdi>{{ order.address.postalCode | persianDigits }}</bdi>
+          </dd>
+        </div>
+        <div>
+          <dt class="mb-1 text-gray-500 dark:text-gray-400">نشانی</dt>
+          <dd class="leading-6 text-gray-900 dark:text-white">{{ order.address.address }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- پرداخت -->
+    <section
+      class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+      aria-labelledby="order-payment-title"
+    >
+      <h2
+        id="order-payment-title"
+        class="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white"
+      >
+        <i class="pi pi-credit-card text-primary" aria-hidden="true"></i>
+        پرداخت
+      </h2>
+
+      <dl class="space-y-3 text-sm">
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">روش پرداخت</dt>
+          <dd class="text-gray-900 dark:text-white">{{ order.payment.method }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">درگاه</dt>
+          <dd class="text-gray-900 dark:text-white">{{ order.payment.gateway ?? '—' }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">کد رهگیری</dt>
+          <dd class="tabular-nums text-gray-900 dark:text-white">
+            @if (order.payment.trackingCode) {
+              <bdi class="font-mono">{{ order.payment.trackingCode | persianDigits }}</bdi>
+            } @else {
+              —
+            }
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">تاریخ پرداخت</dt>
+          <dd>
+            @if (order.payment.paidAt !== null) {
+              <span class="text-gray-900 dark:text-white">
+                {{ order.payment.paidAt | persianDate: 'long' }}
+              </span>
+            } @else {
+              <!-- «پرداخت نشده» is a STATE (pending/cancelled), not a missing value. -->
+              <span
+                class="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium leading-5 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+              >
+                پرداخت نشده
+              </span>
+            }
+          </dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+
+  <!-- اقلام سفارش -->
+  <section
+    class="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+    aria-labelledby="order-items-title"
+  >
+    <h2
+      id="order-items-title"
+      class="flex items-center gap-2 border-b border-gray-200 px-6 py-4 text-sm font-bold text-gray-900 dark:border-gray-700 dark:text-white"
+    >
+      <i class="pi pi-box text-primary" aria-hidden="true"></i>
+      اقلام سفارش
+    </h2>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-700/50">
+          <tr>
+            <th
+              scope="col"
+              class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            >
+              ردیف
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            >
+              محصول
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 tabular-nums dark:text-gray-400"
+            >
+              تعداد
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 tabular-nums dark:text-gray-400"
+            >
+              قیمت واحد
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 tabular-nums dark:text-gray-400"
+            >
+              جمع
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+          @for (item of order.items; track item.id) {
+            <tr>
+              <td
+                class="whitespace-nowrap px-6 py-4 text-start text-sm tabular-nums text-gray-500 dark:text-gray-400"
+              >
+                {{ $index + 1 | persianDigits }}
+              </td>
+              <td class="px-6 py-4 text-start">
+                <div class="flex items-center gap-3">
+                  @if (item.productImage) {
+                    <img
+                      [src]="item.productImage"
+                      [alt]="item.productName"
+                      class="h-10 w-10 shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-700"
+                    />
+                  } @else {
+                    <span
+                      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-700"
+                      aria-hidden="true"
+                    >
+                      <i class="pi pi-image"></i>
+                    </span>
+                  }
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                      {{ item.productName }}
+                    </p>
+                    @if (item.variantName) {
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ item.variantName }}
+                      </p>
+                    }
+                  </div>
+                </div>
+              </td>
+              <td
+                class="whitespace-nowrap px-6 py-4 text-start text-sm tabular-nums text-gray-900 dark:text-white"
+              >
+                {{ item.quantity | persianDigits }}
+              </td>
+              <td
+                class="whitespace-nowrap px-6 py-4 text-start text-sm tabular-nums text-gray-500 dark:text-gray-400"
+              >
+                {{ item.unitPrice | toman }}
+              </td>
+              <td
+                class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium tabular-nums text-gray-900 dark:text-white"
+              >
+                {{ item.totalPrice | toman }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <!-- جمع‌بندی مالی — the four numbers obey total = subtotal − discount + shipping. -->
+    <section
+      class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+      aria-labelledby="order-totals-title"
+    >
+      <h2
+        id="order-totals-title"
+        class="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white"
+      >
+        <i class="pi pi-wallet text-primary" aria-hidden="true"></i>
+        جمع‌بندی مالی
+      </h2>
+
+      <dl class="space-y-3 text-sm">
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">جمع اقلام</dt>
+          <dd class="tabular-nums text-gray-900 dark:text-white">{{ order.subtotal | toman }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">تخفیف</dt>
+          <dd
+            class="tabular-nums"
+            [class]="
+              order.discount > 0
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-900 dark:text-white'
+            "
+          >
+            {{ order.discount | toman }}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <dt class="text-gray-500 dark:text-gray-400">هزینه ارسال</dt>
+          <dd class="tabular-nums text-gray-900 dark:text-white">
+            @if (order.shippingCost === 0) {
+              <span class="text-green-600 dark:text-green-400">رایگان</span>
+            } @else {
+              {{ order.shippingCost | toman }}
+            }
+          </dd>
+        </div>
+        <div
+          class="flex items-center justify-between gap-3 border-t border-gray-200 pt-3 dark:border-gray-700"
+        >
+          <dt class="font-bold text-gray-900 dark:text-white">مبلغ کل</dt>
+          <dd class="text-base font-bold tabular-nums text-primary dark:text-primary-light">
+            {{ order.total | toman }}
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <!--
+      تاریخچه وضعیت — the plain list BO-H05's timeline component will replace.
+      Oldest first, so the flow reads top to bottom like the order lived it.
+    -->
+    <section
+      class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+      aria-labelledby="order-history-title"
+    >
+      <h2
+        id="order-history-title"
+        class="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white"
+      >
+        <i class="pi pi-history text-primary" aria-hidden="true"></i>
+        تاریخچه وضعیت
+      </h2>
+
+      <ol class="space-y-4">
+        @for (entry of order.statusHistory; track entry.id) {
+          <li class="flex items-start justify-between gap-3 text-sm">
+            <div class="min-w-0">
+              <span
+                class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+                [class]="statusBadgeClass(entry.status)"
+              >
+                {{ statusLabel(entry.status) }}
+              </span>
+              @if (entry.note) {
+                <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  {{ entry.note }}
+                </p>
+              }
+            </div>
+            <span class="shrink-0 tabular-nums text-xs text-gray-500 dark:text-gray-400">
+              {{ entry.createdAt | persianDate }}
+            </span>
+          </li>
+        }
+      </ol>
+    </section>
+  </div>
+}

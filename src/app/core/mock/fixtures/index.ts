@@ -1,9 +1,12 @@
 import type { SessionUser } from '@shared/models/session.model';
 
+import { MOCK_ORDER_DETAILS } from './orders.fixture';
 import { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
 
 export { FIXTURE_NOW, MOCK_BRANDS, MOCK_PRODUCTS } from './products.fixture';
 export type { MockProduct, MockProductStatus } from './products.fixture';
+export { MOCK_ORDERS, MOCK_ORDER_DETAILS } from './orders.fixture';
+export type { MockOrder } from './orders.fixture';
 export type { SessionUser } from '@shared/models/session.model';
 
 /** 12 modules, matching the 12 feature folders. */
@@ -155,26 +158,6 @@ export const MOCK_CATEGORIES = [
     isActive: true,
   },
 ];
-
-export const MOCK_ORDERS = makeList(18, (i) => ({
-  id: pad(i + 1),
-  code: `ORD-${14000 + i}`,
-  customerId: pad((i % 8) + 1),
-  customerName: [
-    'زهرا محمدی',
-    'علی رضایی',
-    'مریم حسینی',
-    'رضا کریمی',
-    'سارا احمدی',
-    'محمد نوری',
-    'نگار شریفی',
-    'امیر صادقی',
-  ][i % 8],
-  status: ['pending', 'paid', 'processing', 'shipped', 'delivered', 'cancelled'][i % 6],
-  total: 480_000 + i * 92_000,
-  itemCount: (i % 4) + 1,
-  createdAt: now - i * 3_600_000,
-}));
 
 export const MOCK_CUSTOMERS = makeList(8, (i) => ({
   id: pad(i + 1),
@@ -345,11 +328,11 @@ export const MOCK_LOW_STOCK = MOCK_PRODUCTS.filter((p) => p.stock <= MOCK_LOW_ST
 
 export const MOCK_DASHBOARD_SUMMARY = {
   totalSales: TODAY_SALES,
-  orderCount: 342,
+  orderCount: MOCK_ORDER_DETAILS.length,
   customerCount: 187,
   productCount: MOCK_PRODUCTS.length,
   salesChangePercent: Math.round(((TODAY_SALES - YESTERDAY_SALES) / YESTERDAY_SALES) * 1000) / 10,
-  pendingOrders: 23,
+  pendingOrders: MOCK_ORDER_DETAILS.filter((order) => order.status === 'pending').length,
   lowStockCount: MOCK_LOW_STOCK.length,
   newComments: 5,
 };

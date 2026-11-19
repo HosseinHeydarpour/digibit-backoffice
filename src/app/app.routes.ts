@@ -78,11 +78,12 @@ export const routes: Routes = [
         title: 'برندها',
         loadChildren: () => import('@features/brands/brands.routes').then((m) => m.BRANDS_ROUTES),
       },
+      // Orders owns its routes the same way (BO-H01): the list and the detail
+      // page (plus resolver and `data`) live in `features/orders/` and arrive
+      // as one lazy chunk.
       {
         path: 'orders',
-        data: { title: 'سفارش‌ها', breadcrumb: 'سفارش‌ها' },
-        title: 'سفارش‌ها',
-        children: [],
+        loadChildren: () => import('@features/orders/orders.routes').then((m) => m.ORDERS_ROUTES),
       },
       {
         path: 'customers',

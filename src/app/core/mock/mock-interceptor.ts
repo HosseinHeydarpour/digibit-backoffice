@@ -386,8 +386,11 @@ function resolve(
       return paged(fixtures.MOCK_BANNERS, page, pageSize);
 
     case 'orders': {
-      if (!id) return paged(fixtures.MOCK_ORDERS, page, pageSize);
-      const found = byId(fixtures.MOCK_ORDERS, id);
+      if (!id) return paged(filterOrders(params), page, pageSize);
+      // The detail answers the FULL record (items/address/payment/history);
+      // the list rows are a projection of the same fixture, so the two screens
+      // cannot disagree about one order.
+      const found = fixtures.MOCK_ORDER_DETAILS.find((order) => order.id === id);
       return found ? ok(found) : NOT_FOUND;
     }
 
@@ -537,6 +540,61 @@ function filterProducts(params: ParamReader): Record<string, unknown>[] {
   }
 
   return rows.map(toListItem);
+}
+
+type OrderSortKey = 'createdAt' | 'total';
+
+function isOrderSortKey(value: string | null): value is OrderSortKey {
+  return value === 'createdAt' || value === 'total';
+}
+
+/** `from`/`to` are UTC millis; absent or unparseable means "no bound". */
+function millis(params: ParamReader, key: string): number | null {
+  const raw = params.get(key);
+  if (raw === null) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * The orders list the way the real API answers it (BO-H01; BO-H02's filter bar
+ * drives the same parameters): free text over code + customer name, an exact
+ * status, an inclusive createdAt range, then a NUMERIC sort before the slice.
+ * Sorting `total` as a string would put 900,000 after 1,000,000 — the same bug
+ * the products filter guards against.
+ *
+ * TRACE: `GET /orders?query=علی&status=paid&from=1729000000000&page=2&pageSize=10&sort=total&dir=desc`
+ *   → rows whose "code customerName" contains «علی» AND status is paid AND
+ *     createdAt >= from (8 of 28 in the fixture),
+ *   → sorted by `total` descending as numbers,
+ *   → `paged(...)` slices rows 11-18 and answers `total: 8`, so the table's
+ *     footer says «۱۱ تا ۸» only if page 2 still exists; a stale page renders
+ *     the empty-page state instead of pretending the shop has no orders.
+ */
+function filterOrders(params: ParamReader): Record<string, unknown>[] {
+  const text = (params.get('query') ?? '').trim().toLowerCase();
+  const status = params.get('status');
+  const from = millis(params, 'from');
+  const to = millis(params, 'to');
+  const sort = params.get('sort');
+  const direction = params.get('dir') === 'desc' ? -1 : 1;
+
+  let rows = fixtures.MOCK_ORDERS.filter((order) => {
+    const haystack = `${order.code} ${order.customerName}`.toLowerCase();
+
+    return (
+      (text === '' || haystack.includes(text)) &&
+      (status === null || order.status === status) &&
+      (from === null || order.createdAt >= from) &&
+      (to === null || order.createdAt <= to)
+    );
+  });
+
+  if (isOrderSortKey(sort)) {
+    rows = [...rows].sort((a, b) => (a[sort] - b[sort]) * direction);
+  }
+
+  return rows;
 }
 
 function categoryName(id: string): string {

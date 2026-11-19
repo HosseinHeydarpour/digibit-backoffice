@@ -1,0 +1,122 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as OrderDetailStories from '../app/features/orders/order-detail/order-detail.stories';
+import * as OrderListStories from '../app/features/orders/order-list/order-list.stories';
+
+<Meta title="Features/Orders" />
+
+# سفارش‌ها / Orders
+
+صفحهٔ سفارش‌ها (BO-H01): لیست صفحه‌بندی‌شده با کد سفارش، مشتری، تعداد اقلام، مبلغ، پیل وضعیت و
+تاریخ جلالی، به‌همراه صفحهٔ جزئیات فقط‌خواندنی — همان جدول قالب Arino، بدون دکمهٔ ایجاد؛
+سفارش از چک‌اوت می‌آید، نه از بک‌آفیس.
+
+The orders screen (BO-H01): a paged list with order code, customer, item count, total, status pill
+and Solar date, plus a read-only detail page — the Arino table without a create button, because
+orders come from checkout, not from the back office.
+
+## کاربرد / Use case
+
+وقتی پشتیبانی باید سفارش را پیدا کند، وضعیتش را ببیند و به سؤال «چی خریدم، چقدر دادم، کجا
+می‌رود؟» پاسخ دهد. لیست برای چند هزار سفارش طراحی شده: صفحه‌بندی و مرتب‌سازی سمت سرور است و
+ردیف‌ها فقط شش ستون سبک را دانلود می‌کنند، نه کل تاریخچهٔ فروشگاه را.
+
+Use it when support needs to find an order, read its status and answer “what was bought, what was
+paid, where is it going?”. The list is built for thousands of orders: paging and sorting happen on
+the server, and each row downloads six light columns — not the shop's entire order history.
+
+## رفتارها / Behaviour
+
+- **صفحه‌بندی و مرتب‌سازی در URL است.** `?page=&size=&sort=&dir=`؛ رفرش یا لینک اشتراکی همان
+  نما را برمی‌گرداند و Back/Forward کار می‌کند. اندازهٔ صفحه ۱۰/۲۰/۵۰ است و تغییر آن به صفحهٔ ۱
+  برمی‌گردد. کلیک روی «مبلغ کل» یا «تاریخ ثبت» صعودی/نزولی می‌کند؛ mock عددها را عددی مرتب
+  می‌کند، نه رشته‌ای.
+- **کلیک سریع صفحه‌ها امن است.** `switchMap` درخواست قبلی را لغو می‌کند؛ پاسخ کند صفحهٔ ۲ هرگز
+  روی صفحهٔ ۳ نمی‌نشیند. نوار باریک پیشرفت هنگام تعویض صفحه/مرتب‌سازی دیده می‌شود و ردیف‌های
+  قبلی تا پاسخ تازه روی صفحه می‌مانند.
+- **یک `state()` با چهار پایان (BO-E07).** اولویت `error > loading > empty > data`؛ درخواست
+  شکست‌خورده هرگز شبیه «سفارشی نیست» یا «در حال بارگذاری» رندر نمی‌شود — بلوک خطای مشترک با
+  «تلاش دوباره» که همان درخواست را دوباره می‌زند.
+- **صفحهٔ خالیِ بالای صفحهٔ ۱، بوک‌مارک کهنه است.** پیام «سفارشی در این صفحه نیست» با دکمهٔ
+  «بازگشت به صفحهٔ اول»؛ فروشگاه‌ای که سفارش دارد نباید «هنوز سفارشی ثبت نشده» نشان دهد.
+- **کلیک ردیف = جزئیات (tc 10).** کل ردیف کلیک‌پذیر است و لینک «جزئیات» داخل ردیف
+  `stopPropagation` دارد؛ یک کلیک، یک ناوبری، و ctrl/کلیک وسط هنوز تب تازه باز می‌کند.
+- **موبایل ستون کم‌اهمیت را پنهان می‌کند (tc 9).** تعداد اقلام زیر `sm` و تاریخ زیر `md`
+  می‌روند؛ کد، مشتری، مبلغ، وضعیت و عملیات در هر عرضی می‌مانند.
+
+- **Paging and sort live in the URL** (`?page=&size=&sort=&dir=`): refresh or a shared link restores
+  the same view and Back/Forward work. Sizes are 10/20/50 and changing size returns to page 1.
+  Clicking total or date toggles asc/desc; the mock sorts numbers as numbers, never as strings.
+- **Rapid page clicks are safe.** `switchMap` cancels the previous request, so a slow page 2 can
+  never overwrite page 3; a thin progress bar shows while the previous rows stay on screen.
+- **One `state()`, four outcomes (BO-E07):** `error > loading > empty > data`. A failed fetch
+  renders the shared retry block, never a fake empty shop.
+- **An empty page above page 1 is a stale bookmark** — it offers the way back to page 1.
+- **Row click opens the detail** (tc 10); the inner link stops propagation, so one click is one
+  navigation and ctrl/middle-click still opens a new tab.
+- **Mobile hides the light columns** (tc 9): item count below `sm`, date below `md`.
+
+## منطق صفحهٔ جزئیات / Detail page logic
+
+1. **resolver یک سفارش کامل می‌دهد.** اولین paint همان داده است؛ کارت‌ها بعداً پر نمی‌شوند.
+   نتیجه یک پوشش است: `{ order }` کارت‌ها، `{ error }` بلوک تلاش دوباره، و 404 اصلاً به این
+   کامپوننت نمی‌رسد (`RedirectCommand` به `/404`).
+2. **تلاش دوباره هر دو نیمه را لازم دارد.** `onSameUrlNavigation: 'reload'` در کامپوننت و
+   `runGuardsAndResolvers: 'always'` در route؛ وگرنه روتر همان `{ error }` کش‌شده را تا ابد
+   پخش می‌کند.
+3. **null صادقانه است.** سفارش pending/cancelled درگاه، کد رهگیری و `paidAt` ندارد؛ کارت پرداخت
+   «پرداخت نشده» نشان می‌دهد، نه مقدار ساختگی. ارسال صفر «رایگان» است و تخفیف فقط وقتی واقعی
+   باشد چاپ می‌شود.
+4. **قانون واحد پول.** `total = subtotal − discount + shippingCost` و `subtotal = Σ خطوط`؛
+   fixtureها این را مشتق می‌کنند و API واقعی هم باید مشتق کند، وگرنه کارت جمع‌بندی عددی چاپ
+   می‌کند که جدول اقلام تکذیبش می‌کند.
+5. **این صفحه فقط‌خواندنی است.** تغییر وضعیت (BO-H04)، تایم‌لاین (BO-H05) و فاکتور (BO-H06)
+   تسک‌های بعدی‌اند؛ اینجا هیچ دکمه‌ای ادای آن‌ها را درنمی‌آورد.
+
+**English**
+
+1. **The resolver hands over a complete order** — first paint is the data. The result is a wrapper:
+   `{ order }` renders cards, `{ error }` the retry block, and a 404 redirects to `/404` before the
+   component ever sees it.
+2. **Retry needs both halves:** `onSameUrlNavigation: 'reload'` on the component and
+   `runGuardsAndResolvers: 'always'` on the route, or the router replays the cached error forever.
+3. **Honest nulls:** unpaid orders have no gateway/tracking/paidAt and print «پرداخت نشده»; zero
+   shipping prints «رایگان»; a discount prints only when real.
+4. **One money rule:** `total = subtotal − discount + shippingCost`, `subtotal = Σ lines`. The
+   fixtures derive it and the real API must too.
+5. **Read-only on purpose:** status change (BO-H04), timeline (BO-H05) and invoice (BO-H06) are
+   later tasks; nothing here pretends they exist.
+
+## پیش‌نمایش لیست / List preview
+
+<Canvas of={OrderListStories.Default} />
+
+<Canvas of={OrderListStories.Paginated} />
+
+## حالت‌های لیست / List states
+
+بارگذاری، فروشگاه خالی، خطای درخواست و بوک‌مارک کهنه.
+
+Loading, an empty shop, a failed request and a stale bookmark.
+
+<Canvas of={OrderListStories.Loading} />
+
+<Canvas of={OrderListStories.Empty} />
+
+<Canvas of={OrderListStories.RequestFailed} />
+
+<Canvas of={OrderListStories.StalePage} />
+
+## جزئیات سفارش / Order detail
+
+<Canvas of={OrderDetailStories.Delivered} />
+
+<Canvas of={OrderDetailStories.PendingUnpaid} />
+
+<Canvas of={OrderDetailStories.Cancelled} />
+
+<Canvas of={OrderDetailStories.Returned} />
+
+<Canvas of={OrderDetailStories.FreeShipping} />
+
+<Canvas of={OrderDetailStories.LoadFailed} />

@@ -14,6 +14,8 @@ import { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
 import {
   MOCK_DASHBOARD_SUMMARY,
   MOCK_LOW_STOCK,
+  MOCK_ORDERS,
+  MOCK_ORDER_DETAILS,
   MOCK_SALES_CHART,
   getMockSalesChart,
 } from './index';
@@ -114,5 +116,105 @@ describe('dashboard fixtures', () => {
     it('productCount is the size of the catalogue', () => {
       expect(MOCK_DASHBOARD_SUMMARY.productCount).toBe(MOCK_PRODUCTS.length);
     });
+  });
+});
+
+describe('orders fixtures (BO-H01)', () => {
+  it('has more rows than the default page, so the paginator has a page 2', () => {
+    expect(MOCK_ORDER_DETAILS.length).toBe(28);
+    expect(MOCK_ORDER_DETAILS.length).toBeGreaterThan(20);
+  });
+
+  it('cycles all seven statuses, including returned', () => {
+    const statuses = new Set(MOCK_ORDER_DETAILS.map((order) => order.status));
+    expect([...statuses].sort()).toEqual(
+      ['cancelled', 'delivered', 'paid', 'pending', 'processing', 'returned', 'shipped'].sort(),
+    );
+  });
+
+  it('derives every money number: total = subtotal − discount + shipping, subtotal = Σ lines', () => {
+    for (const order of MOCK_ORDER_DETAILS) {
+      const lineSum = order.items.reduce((sum, item) => sum + item.totalPrice, 0);
+      expect(order.subtotal, `subtotal of ${order.code}`).toBe(lineSum);
+      expect(order.total, `total of ${order.code}`).toBe(
+        order.subtotal - order.discount + order.shippingCost,
+      );
+      for (const item of order.items) {
+        expect(item.totalPrice).toBe(item.unitPrice * item.quantity);
+      }
+    }
+  });
+
+  it('derives itemCount from the item quantities, never hand-written', () => {
+    for (const order of MOCK_ORDER_DETAILS) {
+      const units = order.items.reduce((sum, item) => sum + item.quantity, 0);
+      expect(order.itemCount, `itemCount of ${order.code}`).toBe(units);
+    }
+  });
+
+  it('projects the list rows from the details, so the two screens agree', () => {
+    expect(MOCK_ORDERS.length).toBe(MOCK_ORDER_DETAILS.length);
+    MOCK_ORDERS.forEach((row, index) => {
+      const detail = MOCK_ORDER_DETAILS[index];
+      expect(row).toEqual({
+        id: detail.id,
+        code: detail.code,
+        customerId: detail.customerId,
+        customerName: detail.customerName,
+        status: detail.status,
+        total: detail.total,
+        itemCount: detail.itemCount,
+        createdAt: detail.createdAt,
+      });
+    });
+  });
+
+  it('keeps every history timestamp at or before the fixture clock', () => {
+    for (const order of MOCK_ORDER_DETAILS) {
+      expect(order.createdAt).toBeLessThanOrEqual(FIXTURE_NOW);
+      for (const entry of order.statusHistory) {
+        expect(entry.createdAt, `${order.code} history`).toBeLessThanOrEqual(FIXTURE_NOW);
+      }
+      // The history ends at the order's own status — the badge and the last
+      // timeline entry can never disagree.
+      expect(order.statusHistory[order.statusHistory.length - 1].status).toBe(order.status);
+    }
+  });
+
+  it('marks unpaid orders honestly: no gateway, no tracking, no paidAt', () => {
+    for (const order of MOCK_ORDER_DETAILS) {
+      if (order.status === 'pending' || order.status === 'cancelled') {
+        expect(order.payment.paidAt).toBeNull();
+        expect(order.payment.gateway).toBeNull();
+        expect(order.payment.trackingCode).toBeNull();
+      } else {
+        expect(order.payment.paidAt).toBeGreaterThan(order.createdAt);
+      }
+    }
+  });
+
+  it('has a discounted order and a free-shipping order on page 1', () => {
+    const firstPage = MOCK_ORDER_DETAILS.slice(0, 20);
+    expect(firstPage.some((order) => order.discount > 0)).toBe(true);
+    expect(firstPage.some((order) => order.shippingCost === 0)).toBe(true);
+  });
+
+  it('feeds the dashboard tile from these same rows, not a hand-written pair', () => {
+    // «سفارش‌های جدید» prints pendingOrders over orderCount; the orders list
+    // prints MOCK_ORDER_DETAILS.length. Two sources for one shop would let the
+    // tile say 342 while the list a click away says 28.
+    expect(MOCK_DASHBOARD_SUMMARY.orderCount).toBe(MOCK_ORDER_DETAILS.length);
+    expect(MOCK_DASHBOARD_SUMMARY.pendingOrders).toBe(
+      MOCK_ORDER_DETAILS.filter((order) => order.status === 'pending').length,
+    );
+  });
+
+  it('hangs items off real catalogue rows', () => {
+    const ids = new Set(MOCK_PRODUCTS.map((product) => product.id));
+    for (const order of MOCK_ORDER_DETAILS) {
+      for (const item of order.items) {
+        expect(ids.has(item.productId), `${item.productName} exists`).toBe(true);
+      }
+    }
   });
 });

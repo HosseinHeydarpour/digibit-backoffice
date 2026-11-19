@@ -1068,6 +1068,151 @@ describe('mockInterceptor', () => {
     expect(brands.data.map((brand) => brand.id)).not.toContain('6');
   });
 
+  // ─── BO-H01: the orders list and detail ────────────────────────────────────
+
+  it('orders: paginates with the envelope meta (BO-H01 tc 1)', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { page: 2, pageSize: 10 },
+      }),
+    );
+
+    expect(body.data.length).toBe(10);
+    expect(body.data[0].id).toBe('11');
+    expect(body.meta).toEqual({ page: 2, pageSize: 10, total: 28 });
+  });
+
+  it('orders: searches by customer name and by order code', async () => {
+    const byName = await firstValueFrom(
+      http.get<ApiResponse<{ customerName: string }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { query: 'رضایی', pageSize: 100 },
+      }),
+    );
+    expect(byName.data.length).toBeGreaterThan(0);
+    for (const row of byName.data) {
+      expect(row.customerName).toContain('رضایی');
+    }
+
+    const byCode = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; code: string }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { query: 'ORD-14003' },
+      }),
+    );
+    expect(byCode.data.length).toBe(1);
+    expect(byCode.data[0].id).toBe('4');
+  });
+
+  it('orders: filters by status, including returned', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ status: string }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { status: 'returned', pageSize: 100 },
+      }),
+    );
+
+    expect(body.data.length).toBe(4);
+    for (const row of body.data) {
+      expect(row.status).toBe('returned');
+    }
+  });
+
+  it('orders: cuts an inclusive createdAt range (BO-H02 will drive it)', async () => {
+    const all = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; createdAt: number }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 100 },
+      }),
+    );
+
+    // Rows are newest-first; rows[2]..rows[5] is the inclusive window.
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ id: string }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: {
+          from: all.data[5].createdAt,
+          to: all.data[2].createdAt,
+          pageSize: 100,
+        },
+      }),
+    );
+
+    expect(body.data.map((row) => row.id)).toEqual(all.data.slice(2, 6).map((row) => row.id));
+  });
+
+  it('orders: sorts total and createdAt as numbers, both directions', async () => {
+    const byTotal = await firstValueFrom(
+      http.get<ApiResponse<{ total: number }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { sort: 'total', dir: 'desc', pageSize: 100 },
+      }),
+    );
+    for (let index = 1; index < byTotal.data.length; index += 1) {
+      expect(byTotal.data[index - 1].total).toBeGreaterThanOrEqual(byTotal.data[index].total);
+    }
+
+    const byDate = await firstValueFrom(
+      http.get<ApiResponse<{ createdAt: number }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { sort: 'createdAt', dir: 'asc', pageSize: 100 },
+      }),
+    );
+    for (let index = 1; index < byDate.data.length; index += 1) {
+      expect(byDate.data[index - 1].createdAt).toBeLessThanOrEqual(byDate.data[index].createdAt);
+    }
+  });
+
+  it('orders: the detail answers the full record with derived totals', async () => {
+    const body = await firstValueFrom(
+      http.get<
+        ApiResponse<{
+          items: { totalPrice: number }[];
+          subtotal: number;
+          discount: number;
+          shippingCost: number;
+          total: number;
+          address: { city: string };
+          payment: { method: string };
+          statusHistory: { status: string }[];
+        }>
+      >('/api/v1/orders/1', { headers: { [MOCK_HEADER]: '1' } }),
+    );
+
+    const order = body.data;
+    expect(order.items.length).toBeGreaterThan(0);
+    expect(order.subtotal).toBe(order.items.reduce((sum, item) => sum + item.totalPrice, 0));
+    expect(order.total).toBe(order.subtotal - order.discount + order.shippingCost);
+    expect(order.address.city).toBeTruthy();
+    expect(order.payment.method).toBeTruthy();
+    expect(order.statusHistory[0].status).toBe('pending');
+  });
+
+  it('orders: an unknown id is a 404 with the error envelope', async () => {
+    const error = await firstValueFrom(
+      http
+        .get<HttpErrorResponse>('/api/v1/orders/9999', { headers: { [MOCK_HEADER]: '1' } })
+        .pipe(catchError((e) => of<HttpErrorResponse>(e as HttpErrorResponse))),
+    );
+
+    expect(error.status).toBe(404);
+  });
+
+  it('orders: the dashboard recent-orders widget keeps working', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; code: string; total: number }[]>>(
+        '/api/v1/dashboard/recent-orders',
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(body.data.length).toBe(8);
+    expect(body.data[0].id).toBe('1');
+    expect(body.data[0].code).toBe('ORD-14000');
+    expect(body.data[0].total).toBeGreaterThan(0);
+  });
+
   /** `POST /categories` with only the fields the mock needs. */
   async function createCategory(name: string, slug: string, parentId?: string): Promise<string> {
     const created = await firstValueFrom(

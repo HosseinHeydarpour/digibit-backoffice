@@ -878,6 +878,59 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   `products.service.spec.ts` asserts it; the toggle does not duplicate that test. It is the same
   lookup rule a deactivated brand relies on to leave the product form.
 
+### Orders list and read-only detail (BO-H01)
+
+- **Scope is the table plus a real destination.** `/orders` is the Arino list (code, customer,
+  item count, total, status pill, Solar date, details action) and `/orders/:id` is a READ-ONLY
+  detail page — info/address/payment cards, items table, financial summary, plain history list.
+  That page is tc 10's destination and fixes the dashboard's formerly dead `/orders/:id` links.
+  BO-H02 adds the filter bar, BO-H04 the status change, BO-H05 the timeline, BO-H06 the invoice;
+  nothing renders a disabled shell of those. There is no create button: orders come from checkout.
+- **Orders owns its paging module.** `order-list/order-paging.ts` mirrors the product one
+  (10/20/50, URL `page/size/sort/dir`, `pageWindow`, `pagingEqual`). Features never import each
+  other, and two copies is not yet an abstraction — lift a shared paginator when a THIRD list
+  needs it, not before. Sortable fields are the closed union `createdAt | total`.
+- **One write path: state → stream → URL.** `state$` (a `BehaviorSubject` seeded from the URL)
+  plus `reload$` feed `combineLatest → switchMap → toSignal`; `writeState` navigates with
+  `replaceUrl: true` and `queryParamsHandling: 'merge'` (H02's future filters survive paging).
+  The constructor mirrors `queryParamMap` back for Back/Forward, guarded by `pagingEqual` so our
+  own navigation is a no-op. `itemsError` is declared BEFORE `page`: `toSignal` subscribes
+  synchronously and a throwing stub's error handler runs inside `page`'s own initialiser.
+- **A stale page is not an empty shop.** Empty items with `page > 1` render «سفارشی در این صفحه
+  نیست» + «بازگشت به صفحهٔ اول»; only page 1 may say «هنوز سفارشی ثبت نشده». `state()` keeps the
+  BO-E07 priority `error > loading > empty > data`, and `null` rows are loading, never empty.
+- **Row click is one navigation.** `<tr (click)="openOrder(id)">` plus an inner `routerLink`
+  «جزئیات» with `$event.stopPropagation()` — one click navigates once, ctrl/middle-click still
+  opens a new tab. Specs spy on `router.navigate` with a catch-all route so the click resolves
+  without an outlet.
+- **The detail resolver hands a wrapper, not a maybe.** `OrderDetailResult = { order } | { error }`;
+  a 404 becomes `RedirectCommand(router.parseUrl('/404'))` and never reaches the component.
+  Retry needs BOTH halves: `navigateByUrl(router.url, { onSameUrlNavigation: 'reload' })` in the
+  component AND `runGuardsAndResolvers: 'always'` on the route, or the cached `{ error }` replays
+  forever. `withComponentInputBinding()` writes `resolve.detail` straight into the `detail` input.
+- **The fixture is one number, projected twice.** `orders.fixture.ts` builds 28 details
+  (> the default page, all seven statuses, discount every 5th row, free shipping every 6th —
+  both on page 1) and PROJECTS `MOCK_ORDERS` from them, so the dashboard widget and the orders
+  table can never disagree. Money obeys `total = subtotal − discount + shippingCost`,
+  `subtotal = Σ lines`, `itemCount = Σ quantities`; history steps 2h and never passes
+  `FIXTURE_NOW`, and its last entry always equals the order's own status. Unpaid orders carry
+  `null` gateway/tracking/paidAt — «پرداخت نشده» is a state, not a missing value.
+- **The dashboard's order tile derives from the same rows.** `MOCK_DASHBOARD_SUMMARY.orderCount`
+  and `.pendingOrders` were hand-written (342 / 23) until the orders list existed to contradict
+  them; both now come from `MOCK_ORDER_DETAILS` (length / pending count), and `fixtures.spec.ts`
+  pins the pair. A KPI tile and the list one click away are the same question — one source.
+- **The mock filters and sorts like the real contract.** `filterOrders` matches code+customer
+  text, exact status and INCLUSIVE `from`/`to` millis, then sorts `total`/`createdAt` as numbers
+  BEFORE the page slice. `OrderQuery` already carries `query/status/from/to` so H02 only converts
+  Jalali dates and calls — the wire shape does not change. Detail lookup uses `.find` directly:
+  `MOCK_ORDER_DETAILS` is readonly and `byId()` wants a mutable array.
+- **One status vocabulary.** `OrderStatus` stays the shared union in
+  `@shared/models/status-badge.model.ts`; `features/orders/order-status.ts` is the single
+  label/badge source for BOTH the list and the detail. `models/order.model.ts` remains types-only
+  (COLUMNS lives in the component, `PAGE_SIZE_OPTIONS` is read through getters — the lazy-chunk
+  init hazards), and the detail's money cards print «رایگان» for zero shipping and a discount
+  line only when the discount is real.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`
