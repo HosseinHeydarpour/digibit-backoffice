@@ -127,7 +127,16 @@
     }
 
     @case ('empty') {
-      @if (listState().page > 1) {
+      @if (hasFilters()) {
+        <!-- A search with no hits is not an empty shop (BO-I05 tc 1, tc 3). -->
+        <app-empty-state
+          icon="pi pi-search"
+          title="مشتری‌ای با این مشخصات پیدا نشد"
+          description="جستجو را کوتاه‌تر کنید یا فیلتر وضعیت را بردارید."
+          actionLabel="پاک کردن فیلترها"
+          (action)="clearFilters()"
+        />
+      } @else if (listState().page > 1) {
         <app-empty-state
           icon="pi pi-inbox"
           title="مشتری‌ای در این صفحه نیست"

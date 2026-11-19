@@ -100,6 +100,18 @@ class StalePageHost {
   }
 }
 
+/** A status filter that matches nobody: the filtered empty state (BO-I05). */
+@Component({
+  selector: 'app-customers-filtered-host',
+  imports: [CustomerList],
+  template: '<app-customer-list />',
+})
+class FilteredEmptyHost {
+  constructor() {
+    void inject(Router).navigate([], { queryParams: { status: 'blocked' }, replaceUrl: true });
+  }
+}
+
 const meta: Meta<CustomerList> = {
   title: 'Features/Customers',
   component: CustomerList,
@@ -185,6 +197,22 @@ export const RequestFailed: Story = {
     template: '<app-customer-list />',
     moduleMetadata: {
       providers: [{ provide: CustomersService, useValue: new FlakyCustomersService() }],
+    },
+  }),
+};
+
+/** A filtered search with no hits (BO-I05): different sentence, different way out. */
+export const FilteredEmpty: Story = {
+  render: () => ({
+    template: '<app-customers-filtered-host />',
+    moduleMetadata: {
+      imports: [FilteredEmptyHost],
+      providers: [
+        {
+          provide: CustomersService,
+          useValue: { list: () => of({ items: [], total: 0, page: 1, pageSize: 20 }) },
+        },
+      ],
     },
   }),
 };

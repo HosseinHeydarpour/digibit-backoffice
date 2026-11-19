@@ -40,6 +40,7 @@ import { CustomersService } from '../services/customers.service';
 import {
   DEFAULT_CUSTOMER_STATE,
   PAGE_SIZE_OPTIONS,
+  hasActiveFilters,
   isPageSize,
   pageWindow as buildPageWindow,
   stateEqual,
@@ -218,6 +219,12 @@ export class CustomerList {
   );
 
   readonly pageWindow = computed(() => buildPageWindow(this.listState().page, this.totalPages()));
+
+  /**
+   * True when the empty table is the RESULT of a search, not an empty shop
+   * (BO-I05): the two states need different sentences and different ways out.
+   */
+  readonly hasFilters = computed(() => hasActiveFilters(this.listState()));
 
   /** «فعال» / «مسدود» / «همه» — a mutable array, as PrimeNG's `[options]` wants. */
   get statusSelectOptions(): SelectOption<CustomerStatus | ''>[] {

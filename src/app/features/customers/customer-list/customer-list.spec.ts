@@ -200,6 +200,28 @@ describe('CustomerList (BO-I01)', () => {
     await mount();
 
     expect(fixture.nativeElement.textContent).toContain('هنوز مشتری‌ای ثبت نشده');
+    expect(fixture.nativeElement.querySelector('app-empty-state button')).toBeNull();
+  });
+
+  it('tells a filtered empty apart and clears the filters on request', async () => {
+    service.rows = [];
+    service.total = 0;
+    await mount();
+
+    component.onStatusChange('blocked');
+    await settle(fixture);
+
+    expect(fixture.nativeElement.textContent).toContain('مشتری‌ای با این مشخصات پیدا نشد');
+
+    const clear = fixture.nativeElement.querySelector(
+      'app-empty-state button',
+    ) as HTMLButtonElement;
+    clear.click();
+    await settle(fixture);
+
+    expect(service.queries.at(-1)).toEqual(
+      expect.objectContaining({ query: undefined, status: undefined, page: 1 }),
+    );
   });
 
   it('shows the skeleton while the request is in flight', async () => {
