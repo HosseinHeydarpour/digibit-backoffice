@@ -13,7 +13,7 @@ import { ApiService } from '@core/services/api';
 import type { EntityId, Page } from '@shared/models';
 import { Observable } from 'rxjs';
 
-import type { Coupon, CouponInput, CouponQuery } from '../models/coupon.model';
+import type { Coupon, CouponDeleteResult, CouponInput, CouponQuery } from '../models/coupon.model';
 
 const COUPONS_PATH = '/coupons';
 
@@ -78,6 +78,15 @@ export class CouponsService {
   /** `PUT /coupons/:id` → the updated row; usage counters stay server-owned. */
   update(id: EntityId, input: CouponInput): Observable<Coupon> {
     return this.api.put<Coupon>(`${COUPONS_PATH}/${encodeURIComponent(id)}`, input);
+  }
+
+  /**
+   * `DELETE /coupons/:id` → either `{ deleted: true }` (unused coupon removed)
+   * or `{ deleted: false, coupon }` where the used coupon was switched off.
+   * The server decides, because only it knows the redemption count.
+   */
+  remove(id: EntityId): Observable<CouponDeleteResult> {
+    return this.api.delete<CouponDeleteResult>(`${COUPONS_PATH}/${encodeURIComponent(id)}`);
   }
 
   /**

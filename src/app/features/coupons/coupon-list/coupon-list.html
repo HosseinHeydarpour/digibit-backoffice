@@ -215,18 +215,40 @@
                   {{ coupon.to | persianDate: 'dayMonth' }}
                 </td>
 
-                <!-- استفاده — a real progress element, so a screen reader can read it. -->
+                <!-- استفاده — a real progress element, so a screen reader can read it.
+                     Unlimited coupons print «نامحدود» instead of a bar (BO-J05). -->
                 <td class="whitespace-nowrap px-6 py-4 text-start">
-                  <div class="flex items-center gap-2">
-                    <progress
-                      class="h-2 w-16 accent-primary"
-                      [value]="coupon.usedCount"
-                      [max]="coupon.maxUses"
-                      [attr.aria-label]="'استفاده از کوپن ' + coupon.code"
-                    ></progress>
-                    <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
-                      {{ coupon.usedCount | persianDigits }} از
-                      {{ coupon.maxUses | persianDigits }}
+                  <div class="flex flex-col gap-1">
+                    @if (isUnlimited(coupon)) {
+                      <span class="text-xs text-gray-500 dark:text-gray-400">
+                        استفاده: نامحدود
+                      </span>
+                    } @else {
+                      <div class="flex items-center gap-2">
+                        <progress
+                          class="h-2 w-16"
+                          [class]="usageToneClass(coupon)"
+                          [value]="coupon.usedCount"
+                          [max]="coupon.maxUses"
+                          [attr.aria-label]="'استفاده از کوپن ' + coupon.code"
+                        ></progress>
+                        <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                          {{ coupon.usedCount | persianDigits }} از
+                          {{ coupon.maxUses | persianDigits }}
+                        </span>
+                      </div>
+                      @if (usageNotice(coupon); as warning) {
+                        <span class="text-[11px] text-amber-600 dark:text-amber-400">
+                          {{ warning }}
+                        </span>
+                      }
+                    }
+                    <span class="text-[11px] text-gray-500 dark:text-gray-400">
+                      @if (coupon.maxUsesPerUser !== null) {
+                        {{ coupon.maxUsesPerUser | persianDigits }} بار برای هر کاربر
+                      } @else {
+                        بدون سقف کاربر
+                      }
                     </span>
                   </div>
                 </td>
@@ -271,16 +293,28 @@
 
                 @if (canManage()) {
                   <td class="whitespace-nowrap px-6 py-4 text-start">
-                    <button
-                      type="button"
-                      (click)="openEdit(coupon)"
-                      [attr.aria-label]="'ویرایش کوپن ' + coupon.code"
-                      [attr.data-edit-coupon]="coupon.id"
-                      class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-primary transition hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
-                      ویرایش
-                    </button>
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        (click)="openEdit(coupon)"
+                        [attr.aria-label]="'ویرایش کوپن ' + coupon.code"
+                        [attr.data-edit-coupon]="coupon.id"
+                        class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-primary transition hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+                        ویرایش
+                      </button>
+                      <button
+                        type="button"
+                        (click)="removeCoupon(coupon)"
+                        [attr.aria-label]="'حذف کوپن ' + coupon.code"
+                        [attr.data-delete-coupon]="coupon.id"
+                        class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-red-600 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:bg-red-900/20"
+                      >
+                        <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+                        حذف
+                      </button>
+                    </div>
                   </td>
                 }
               </tr>

@@ -26,7 +26,7 @@ export interface Coupon {
   readonly value: number;
   /** Minimum cart in Toman; 0 means no floor. */
   readonly minCart: number;
-  /** Total redemptions allowed across all customers. */
+  /** Total redemptions allowed across all customers; `0` means unlimited. */
   readonly maxUses: number;
   /** Redemptions allowed per customer; `null` means no cap. */
   readonly maxUsesPerUser: number | null;
@@ -51,6 +51,12 @@ export interface CouponInput {
   readonly from: number;
   readonly to: number;
   readonly description: string;
+}
+
+/** The delete answer: a used coupon is switched off instead of removed (BO-J06). */
+export interface CouponDeleteResult {
+  readonly deleted: boolean;
+  readonly coupon?: Coupon;
 }
 
 /** The list request. */

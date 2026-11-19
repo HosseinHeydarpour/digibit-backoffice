@@ -168,6 +168,23 @@
     </p>
   }
 
+  @if (coupon(); as editing) {
+    <p class="text-xs text-gray-500 dark:text-gray-400">
+      استفاده: {{ editing.usedCount | persianDigits }} از
+      @if (editing.maxUses > 0) {
+        {{ editing.maxUses | persianDigits }}
+      } @else {
+        نامحدود
+      }
+      · سقف هر کاربر:
+      @if (editing.maxUsesPerUser !== null) {
+        {{ editing.maxUsesPerUser | persianDigits }}
+      } @else {
+        بدون محدودیت
+      }
+    </p>
+  }
+
   <div
     class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end dark:border-gray-700"
   >

@@ -894,6 +894,21 @@ function resolveCoupons(
     return ok(next, isActive ? 'کوپن فعال شد.' : 'کوپن غیرفعال شد.');
   }
 
+  if (method === 'DELETE') {
+    // A redeemed coupon is history: switch it off, never erase the redemptions
+    // it represents (BO-J06 tc 3). An unused one is safe to remove.
+    if (found.usedCount > 0) {
+      const next: fixtures.MockCoupon = { ...found, isActive: false };
+      COUPONS = COUPONS.map((coupon) => (coupon.id === id ? next : coupon));
+
+      return ok({ deleted: false, coupon: next }, 'کوپن استفاده‌شده غیرفعال شد و حذف نشد.');
+    }
+
+    COUPONS = COUPONS.filter((coupon) => coupon.id !== id);
+
+    return ok({ deleted: true }, 'کوپن حذف شد.');
+  }
+
   if (method === 'PUT') {
     const input = toCouponBody(body);
     const fields = validateCoupon(input, id);

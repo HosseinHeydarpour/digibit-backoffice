@@ -1426,6 +1426,39 @@ describe('mockInterceptor', () => {
     expect(error.status).toBe(409);
   });
 
+  it('coupons: an unused coupon is deleted, a used one is only switched off', async () => {
+    const unused = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; usedCount: number }[]>>('/api/v1/coupons', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { query: 'UNLIMITED', pageSize: 10 },
+      }),
+    );
+
+    const removed = await firstValueFrom(
+      http.delete<ApiResponse<{ deleted: boolean }>>(`/api/v1/coupons/${unused.data[0].id}`, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(removed.data.deleted).toBe(true);
+
+    const used = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; usedCount: number }[]>>('/api/v1/coupons', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 100 },
+      }),
+    );
+    const redeemed = used.data.find((coupon) => coupon.usedCount > 0)!;
+
+    const soft = await firstValueFrom(
+      http.delete<ApiResponse<{ deleted: boolean }>>(`/api/v1/coupons/${redeemed.id}`, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(soft.data.deleted).toBe(false);
+  });
+
   /** `POST /categories` with only the fields the mock needs. */
   async function createCategory(name: string, slug: string, parentId?: string): Promise<string> {
     const created = await firstValueFrom(

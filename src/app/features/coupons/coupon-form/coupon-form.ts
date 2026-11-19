@@ -15,6 +15,7 @@ import { FormField } from '@shared/components/form-field/form-field';
 import { JalaliDatepicker } from '@shared/components/jalali-datepicker/jalali-datepicker';
 import { LoadingDirective } from '@shared/directives/loading.directive';
 import { ApiError } from '@shared/models';
+import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { ButtonDirective } from 'primeng/button';
 import { InputNumber } from 'primeng/inputnumber';
 import { InputText } from 'primeng/inputtext';
@@ -92,6 +93,7 @@ function toEndOfDay(value: string | null): number {
     InputText,
     Select,
     Textarea,
+    PersianDigitsPipe,
   ],
   templateUrl: './coupon-form.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

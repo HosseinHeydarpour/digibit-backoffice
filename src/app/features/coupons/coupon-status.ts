@@ -62,11 +62,39 @@ export function couponTypeLabel(type: Coupon['type']): string {
   return type === 'percent' ? 'درصدی' : 'مبلغی';
 }
 
-/** How much of the total allowance is used, clamped to 0..100. */
+/** One spelling of the type check, so templates and validators agree. */
+export function isPercent(type: Coupon['type']): boolean {
+  return type === 'percent';
+}
+
+/** `maxUses <= 0` means "no total cap": the mock seeds one, the form never creates one. */
+export function isUnlimited(coupon: Coupon): boolean {
+  return coupon.maxUses <= 0;
+}
+
+/** How much of the total allowance is used, clamped to 0..100 (0 for unlimited). */
 export function usagePercent(used: number, max: number): number {
   if (max <= 0) {
-    return 100;
+    return 0;
   }
 
   return Math.min(100, Math.max(0, Math.round((used / max) * 100)));
+}
+
+/**
+ * The usage bar's tone (BO-J05 tc 3): normal under 80%, warning above it, full
+ * at the cap. The number itself is the authority; this only colours it.
+ */
+export type UsageTone = 'ok' | 'warn' | 'full';
+
+export function usageTone(coupon: Coupon): UsageTone {
+  if (isUnlimited(coupon)) {
+    return 'ok';
+  }
+
+  if (coupon.usedCount >= coupon.maxUses) {
+    return 'full';
+  }
+
+  return usagePercent(coupon.usedCount, coupon.maxUses) > 80 ? 'warn' : 'ok';
 }

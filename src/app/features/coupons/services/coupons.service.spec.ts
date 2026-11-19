@@ -115,4 +115,21 @@ describe('CouponsService (BO-J01)', () => {
 
     expect((await promise).isActive).toBe(false);
   });
+
+  it('deletes and returns the server decision (BO-J06)', async () => {
+    const promise = firstValueFrom(service.remove('1'));
+
+    const request = http.expectOne(`${environment.API_BASE_URL}/coupons/1`);
+    expect(request.request.method).toBe('DELETE');
+
+    request.flush({
+      data: { deleted: false, coupon: { ...COUPON, isActive: false } },
+      message: '',
+    });
+
+    const result = await promise;
+
+    expect(result.deleted).toBe(false);
+    expect(result.coupon?.isActive).toBe(false);
+  });
 });

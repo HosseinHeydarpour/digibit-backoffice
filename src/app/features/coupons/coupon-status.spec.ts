@@ -3,7 +3,10 @@ import {
   couponStatusBadgeClass,
   couponStatusLabel,
   couponTypeLabel,
+  isPercent,
+  isUnlimited,
   usagePercent,
+  usageTone,
 } from './coupon-status';
 import type { Coupon } from './models/coupon.model';
 
@@ -69,6 +72,20 @@ describe('coupon state (BO-J01)', () => {
     expect(usagePercent(30, 100)).toBe(30);
     expect(usagePercent(120, 100)).toBe(100);
     expect(usagePercent(-5, 100)).toBe(0);
-    expect(usagePercent(1, 0)).toBe(100);
+    expect(usagePercent(1, 0)).toBe(0);
+  });
+
+  it('tones the bar: normal, warning above 80%, red at the cap', () => {
+    expect(usageTone(coupon({ usedCount: 80, maxUses: 100 }))).toBe('ok');
+    expect(usageTone(coupon({ usedCount: 81, maxUses: 100 }))).toBe('warn');
+    expect(usageTone(coupon({ usedCount: 100, maxUses: 100 }))).toBe('full');
+    expect(usageTone(coupon({ maxUses: 0, usedCount: 500 }))).toBe('ok');
+  });
+
+  it('knows an unlimited coupon and the percent type', () => {
+    expect(isUnlimited(coupon({ maxUses: 0 }))).toBe(true);
+    expect(isUnlimited(coupon({ maxUses: 10 }))).toBe(false);
+    expect(isPercent('percent')).toBe(true);
+    expect(isPercent('amount')).toBe(false);
   });
 });

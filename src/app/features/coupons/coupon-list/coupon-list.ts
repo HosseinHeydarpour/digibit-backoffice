@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { PERMISSIONS } from '@core/auth/permissions.token';
+import { ConfirmService } from '@core/services/confirm';
 import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
@@ -24,7 +25,9 @@ import {
   couponStatusBadgeClass,
   couponStatusLabel,
   couponTypeLabel,
+  isUnlimited as isUnlimitedCoupon,
   usagePercent,
+  usageTone,
 } from '../coupon-status';
 import type { Coupon, CouponStatus } from '../models/coupon.model';
 import { CouponsService } from '../services/coupons.service';
@@ -83,6 +86,8 @@ export class CouponList {
 
   private readonly toast = inject(ToastService);
 
+  private readonly confirm = inject(ConfirmService);
+
   private readonly permissions = inject(PERMISSIONS);
 
   private readonly reload$ = new BehaviorSubject<void>(undefined);
@@ -114,6 +119,9 @@ export class CouponList {
    */
   private readonly statusOverrides = signal<ReadonlyMap<EntityId, boolean>>(new Map());
 
+  /** Rows removed optimistically while the delete request is in flight. */
+  private readonly removedIds = signal<ReadonlySet<EntityId>>(new Set());
+
   readonly pageResult = toSignal<Page<Coupon> | null>(
     combineLatest([this.reload$, this.state$]).pipe(
       tap(() => {
@@ -127,6 +135,7 @@ export class CouponList {
               this.listError.set(null);
               this.isFetching.set(false);
               this.reconcileOverrides();
+              this.reconcileRemoved();
             },
             error: () => {
               this.listError.set('دریافت کوپن‌ها ناموفق بود');
@@ -148,16 +157,17 @@ export class CouponList {
     }
 
     const overrides = this.statusOverrides();
+    const removed = this.removedIds();
 
-    return overrides.size === 0
-      ? rows
-      : rows.map((coupon) => {
-          const isActive = overrides.get(coupon.id);
+    return rows
+      .filter((coupon) => !removed.has(coupon.id))
+      .map((coupon) => {
+        const isActive = overrides.get(coupon.id);
 
-          return isActive === undefined || isActive === coupon.isActive
-            ? coupon
-            : { ...coupon, isActive };
-        });
+        return isActive === undefined || isActive === coupon.isActive
+          ? coupon
+          : { ...coupon, isActive };
+      });
   });
 
   readonly viewState = computed<CouponListView>(() => {
@@ -216,6 +226,34 @@ export class CouponList {
 
   usage(coupon: Coupon): number {
     return usagePercent(coupon.usedCount, coupon.maxUses);
+  }
+
+  /** `maxUses <= 0` prints «نامحدود» and hides the bar (BO-J05 tc 4). */
+  isUnlimited(coupon: Coupon): boolean {
+    return isUnlimitedCoupon(coupon);
+  }
+
+  /** The bar's colour: normal, warning above 80%, red at the cap (tc 3). */
+  usageToneClass(coupon: Coupon): string {
+    switch (usageTone(coupon)) {
+      case 'warn':
+        return 'accent-amber-500';
+      case 'full':
+        return 'accent-red-500';
+      default:
+        return 'accent-primary';
+    }
+  }
+
+  usageNotice(coupon: Coupon): string | null {
+    switch (usageTone(coupon)) {
+      case 'warn':
+        return 'نزدیک به پایان سقف';
+      case 'full':
+        return 'سقف استفاده پر شده';
+      default:
+        return null;
+    }
   }
 
   /** An expired or exhausted coupon cannot be re-enabled (BO-J04 tc 10). */
@@ -401,5 +439,75 @@ export class CouponList {
     if (next.size !== current.size) {
       this.statusOverrides.set(next);
     }
+  }
+
+  /** Drop an optimistic removal once the server's page no longer contains it. */
+  private reconcileRemoved(): void {
+    const current = this.removedIds();
+
+    if (current.size === 0) {
+      return;
+    }
+
+    const present = new Set((this.pageResult()?.items ?? []).map((coupon) => coupon.id));
+    const next = new Set([...current].filter((id) => present.has(id)));
+
+    if (next.size !== current.size) {
+      this.removedIds.set(next);
+    }
+  }
+
+  /**
+   * Delete a coupon (BO-J06). A used coupon is only switched off — the server
+   * decides, and the answer says which happened. The row leaves optimistically;
+   * a failure puts it back, and the interceptor already toasted the reason.
+   */
+  async removeCoupon(coupon: Coupon): Promise<void> {
+    if (!this.canManage()) {
+      return;
+    }
+
+    const used = coupon.usedCount > 0;
+    const confirmed = await this.confirm.confirm({
+      message: used
+        ? `کوپن «${coupon.code}» استفاده شده است؛ به‌جای حذف فقط غیرفعال می‌شود. ادامه می‌دهی؟`
+        : `آیا از حذف کوپن «${coupon.code}» مطمئن هستی؟`,
+      header: used ? 'غیرفعال کردن کوپن' : 'حذف کوپن',
+      acceptLabel: used ? 'غیرفعال کن' : 'حذف',
+      danger: !used,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.removedIds.update((ids) => new Set(ids).add(coupon.id));
+
+    this.coupons.remove(coupon.id).subscribe({
+      next: (result) => {
+        if (result.deleted) {
+          this.toast.success('کوپن حذف شد.');
+          this.reload$.next();
+          return;
+        }
+
+        this.removedIds.update((ids) => {
+          const next = new Set(ids);
+          next.delete(coupon.id);
+
+          return next;
+        });
+        this.setOverride(coupon.id, false);
+        this.toast.success('کوپن استفاده‌شده غیرفعال شد.');
+      },
+      error: () => {
+        this.removedIds.update((ids) => {
+          const next = new Set(ids);
+          next.delete(coupon.id);
+
+          return next;
+        });
+      },
+    });
   }
 }

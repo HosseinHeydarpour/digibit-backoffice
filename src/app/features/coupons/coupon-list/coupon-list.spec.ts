@@ -1,12 +1,13 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PERMISSIONS } from '@core/auth/permissions.token';
+import { ConfirmService } from '@core/services/confirm';
 import { ToastService } from '@core/services/toast';
 import type { Page } from '@shared/models';
 import type { ToggleSwitch } from 'primeng/toggleswitch';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
-import type { Coupon, CouponQuery } from '../models/coupon.model';
+import type { Coupon, CouponDeleteResult, CouponQuery } from '../models/coupon.model';
 import { CouponsService } from '../services/coupons.service';
 
 import { CouponList } from './coupon-list';
@@ -38,6 +39,7 @@ const COUPONS: readonly Coupon[] = [
   coupon({ id: '2', code: 'CASH50', type: 'amount', value: 50_000, usedCount: 90 }),
   coupon({ id: '3', code: 'OLD5', to: NOW - DAY, isActive: false }),
   coupon({ id: '4', code: 'BULK200', usedCount: 100 }),
+  coupon({ id: '5', code: 'SPRING25', value: 25, usedCount: 0 }),
 ];
 
 class CouponsServiceStub {
@@ -74,6 +76,26 @@ class CouponsServiceStub {
       ? throwError(() => new Error('toggle failed'))
       : of({ ...COUPONS[0], id, isActive });
   }
+
+  removeCalls: string[] = [];
+
+  removeResult: 'deleted' | 'deactivated' | 'fail' = 'deleted';
+
+  remove(id: string): Observable<CouponDeleteResult> {
+    this.removeCalls.push(id);
+
+    if (this.removeResult === 'fail') {
+      return throwError(() => new Error('delete failed'));
+    }
+
+    if (this.removeResult === 'deactivated') {
+      return of({ deleted: false, coupon: { ...COUPONS[0], id, isActive: false } });
+    }
+
+    this.rows = this.rows.filter((coupon) => coupon.id !== id);
+
+    return of({ deleted: true });
+  }
 }
 
 async function settle(fixture: ComponentFixture<CouponList>): Promise<void> {
@@ -94,6 +116,7 @@ describe('CouponList (BO-J01)', () => {
       providers: [
         { provide: CouponsService, useValue: service },
         { provide: ToastService, useValue: { success: vi.fn() } },
+        { provide: ConfirmService, useValue: { confirm: vi.fn().mockResolvedValue(true) } },
       ],
     }).compileComponents();
   });
@@ -112,7 +135,7 @@ describe('CouponList (BO-J01)', () => {
     await mount();
 
     expect(service.queries.length).toBe(1);
-    expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(4);
+    expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(5);
     expect(fixture.nativeElement.textContent).toContain('WELCOME10');
   });
 
@@ -207,7 +230,7 @@ describe('CouponList (BO-J01)', () => {
     retry.click();
     await settle(fixture);
 
-    expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(4);
+    expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(5);
   });
 });
 
@@ -230,6 +253,7 @@ describe('CouponList create/edit (BO-J02)', () => {
       providers: [
         { provide: CouponsService, useValue: service },
         { provide: ToastService, useValue: toast },
+        { provide: ConfirmService, useValue: { confirm: vi.fn().mockResolvedValue(true) } },
         {
           provide: PERMISSIONS,
           useValue: signal(['coupons.view', 'coupons.manage']),
@@ -285,6 +309,7 @@ describe('CouponList create/edit (BO-J02)', () => {
       providers: [
         { provide: CouponsService, useValue: new CouponsServiceStub() },
         { provide: ToastService, useValue: { success: vi.fn() } },
+        { provide: ConfirmService, useValue: { confirm: vi.fn() } },
         { provide: PERMISSIONS, useValue: signal(['coupons.view']) },
       ],
     }).compileComponents();
@@ -294,6 +319,7 @@ describe('CouponList create/edit (BO-J02)', () => {
 
     expect(restricted.nativeElement.textContent).not.toContain('ایجاد کوپن');
     expect(restricted.nativeElement.querySelector('[data-edit-coupon]')).toBeNull();
+    expect(restricted.nativeElement.querySelector('[data-delete-coupon]')).toBeNull();
   });
 
   it('renders the switch for a manager (BO-J04)', () => {
@@ -332,5 +358,105 @@ describe('CouponList create/edit (BO-J02)', () => {
     expect(control.writeValue).toHaveBeenCalledWith(false);
     expect(service.setStatusCalls).toEqual([]);
     expect(toast.warning).toHaveBeenCalled();
+  });
+});
+
+describe('CouponList usage and delete (BO-J05/J06)', () => {
+  let fixture: ComponentFixture<CouponList>;
+  let component: CouponList;
+  let service: CouponsServiceStub;
+  let toast: { success: ReturnType<typeof vi.fn>; warning: ReturnType<typeof vi.fn> };
+  let confirm: { confirm: ReturnType<typeof vi.fn> };
+
+  beforeEach(async () => {
+    service = new CouponsServiceStub();
+    toast = { success: vi.fn(), warning: vi.fn() };
+    confirm = { confirm: vi.fn().mockResolvedValue(true) };
+
+    await TestBed.configureTestingModule({
+      imports: [CouponList],
+      providers: [
+        { provide: CouponsService, useValue: service },
+        { provide: ToastService, useValue: toast },
+        { provide: ConfirmService, useValue: confirm },
+        { provide: PERMISSIONS, useValue: signal(['coupons.view', 'coupons.manage']) },
+      ],
+    }).compileComponents();
+  });
+
+  async function mount(): Promise<void> {
+    fixture = TestBed.createComponent(CouponList);
+    component = fixture.componentInstance;
+    await settle(fixture);
+  }
+
+  it('marks a coupon past 80% with a warning tone, and the cap as full', async () => {
+    await mount();
+
+    const near = coupon({ id: 'n', usedCount: 90, maxUses: 100 });
+    const full = coupon({ id: 'f', usedCount: 100, maxUses: 100 });
+    const unlimited = coupon({ id: 'u', usedCount: 10, maxUses: 0 });
+
+    expect(component.usageNotice(near)).toBe('نزدیک به پایان سقف');
+    expect(component.usageToneClass(near)).toContain('amber');
+    expect(component.usageToneClass(full)).toContain('red');
+    expect(component.usageNotice(full)).toBe('سقف استفاده پر شده');
+    expect(component.isUnlimited(unlimited)).toBe(true);
+  });
+
+  it('prints «نامحدود» and the per-user cap for an unlimited coupon', async () => {
+    service.rows = [coupon({ id: 'u', code: 'UNLIMITED', maxUses: 0, maxUsesPerUser: 2 })];
+    service.total = 1;
+    await mount();
+
+    expect(fixture.nativeElement.textContent).toContain('نامحدود');
+    expect(fixture.nativeElement.textContent).toContain('۲ بار برای هر کاربر');
+  });
+
+  it('deletes an unused coupon after confirmation and removes the row', async () => {
+    await mount();
+    const row = component.items()!.find((item) => item.usedCount === 0)!;
+
+    await component.removeCoupon(row);
+    await settle(fixture);
+
+    expect(service.removeCalls).toEqual([row.id]);
+    expect(component.items()!.some((item) => item.id === row.id)).toBe(false);
+    expect(toast.success).toHaveBeenCalledWith('کوپن حذف شد.');
+  });
+
+  it('switches a used coupon off instead of removing it', async () => {
+    service.removeResult = 'deactivated';
+    await mount();
+    const row = component.items()!.find((item) => item.usedCount > 0)!;
+
+    await component.removeCoupon(row);
+    await settle(fixture);
+
+    expect(service.removeCalls).toEqual([row.id]);
+    expect(component.items()!.some((item) => item.id === row.id)).toBe(true);
+    expect(component.items()!.find((item) => item.id === row.id)!.isActive).toBe(false);
+    expect(toast.success).toHaveBeenCalledWith('کوپن استفاده‌شده غیرفعال شد.');
+  });
+
+  it('does nothing when the delete confirmation is cancelled (tc 2)', async () => {
+    confirm.confirm.mockResolvedValue(false);
+    await mount();
+    const row = component.items()![0];
+
+    await component.removeCoupon(row);
+
+    expect(service.removeCalls).toEqual([]);
+  });
+
+  it('restores the row when the delete request fails (tc 8)', async () => {
+    service.removeResult = 'fail';
+    await mount();
+    const row = component.items()![0];
+
+    await component.removeCoupon(row);
+    await settle(fixture);
+
+    expect(component.items()!.some((item) => item.id === row.id)).toBe(true);
   });
 });
