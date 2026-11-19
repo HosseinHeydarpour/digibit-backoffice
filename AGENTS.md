@@ -1010,8 +1010,8 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
 - **`setDefault` is its own endpoint.** `PATCH /shipping-methods/:id/default` clears the previous
   flag in the same request, so two rows can never both claim to be default.
 - **The free threshold has three real states:** `null` (no threshold), `0` (always free) and an
-  amount. `freeFromLabel` prints «—», «همیشه رایگان» and «از …»; collapsing them would hide which
-  promise the shop made.
+  amount. `freeFromLabel` prints «بدون آستانه», «همیشه رایگان» and «از …»; collapsing them would
+  hide which promise the shop made.
 - **A free threshold below the base cost is a warning, not an error.** The values save; a yellow
   line explains that no order actually ships free.
 - **The form is re-created per dialog open** (like coupons/brands), so a cancelled edit cannot

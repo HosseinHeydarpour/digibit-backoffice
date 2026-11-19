@@ -12,7 +12,7 @@ describe('shipping display (BO-K01)', () => {
   });
 
   it('keeps the three free-threshold states distinct', () => {
-    expect(freeFromLabel(null)).toBe('—');
+    expect(freeFromLabel(null)).toBe('بدون آستانه');
     expect(freeFromLabel(0)).toBe('همیشه رایگان');
     expect(freeFromLabel(1_000_000)).toContain('از');
   });

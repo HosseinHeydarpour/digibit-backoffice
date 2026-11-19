@@ -28,7 +28,7 @@ export function shippingCostLabel(method: Pick<ShippingMethod, 'cost'>): string 
  */
 export function freeFromLabel(freeFrom: number | null): string {
   if (freeFrom === null) {
-    return '—';
+    return 'بدون آستانه';
   }
 
   if (freeFrom === 0) {
