@@ -401,12 +401,14 @@ function resolve(
       return resolveCustomers(method, id, sub, params, body, page, pageSize);
 
     case 'comments':
-      return paged(fixtures.MOCK_COMMENTS, page, pageSize);
+      return resolveComments(method, id, sub, params, body, page, pageSize);
 
     case 'tickets': {
-      if (!id) return paged(fixtures.MOCK_TICKETS, page, pageSize);
-      const found = byId(fixtures.MOCK_TICKETS, id);
-      return found ? ok(found) : NOT_FOUND;
+      if (id) {
+        const found = byId(fixtures.MOCK_TICKETS, id);
+        return found ? ok(found) : NOT_FOUND;
+      }
+      return resolveTickets(params, page, pageSize);
     }
 
     case 'settings':
@@ -1549,8 +1551,91 @@ function resolveSettings(
   return ok(settingsResponse(), 'تنظیمات ذخیره شد.');
 }
 
+let COMMENTS: fixtures.MockComment[] = fixtures.MOCK_COMMENTS.map((comment) => ({ ...comment }));
+
+/** The four filters of BO-N01, applied together (status + product + rating + text). */
+function filterComments(params: ParamReader): fixtures.MockComment[] {
+  const status = params.get('status') ?? '';
+  const productId = params.get('productId') ?? '';
+  const rating = params.get('rating');
+  const text = (params.get('query') ?? '').trim().toLowerCase();
+
+  return COMMENTS.filter((comment) => {
+    if (status !== '' && comment.status !== status) return false;
+    if (productId !== '' && comment.productId !== productId) return false;
+    if (rating !== null && rating !== '' && String(comment.rating) !== rating) return false;
+    if (text !== '') {
+      const haystack = `${comment.body} ${comment.userName} ${comment.productName}`.toLowerCase();
+      if (!haystack.includes(text)) return false;
+    }
+    return true;
+  }).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/**
+ * `/comments` and `/comments/:id/moderate` (BO-N01..N05).
+ *
+ * TRACE — rejecting comment 3 with a note:
+ *   1. `POST /comments/3/moderate { approved: false, note: 'محتوای نامناسب' }`.
+ *   2. The row's status becomes `rejected` and the note is stored; the answer is
+ *      the updated row, so the list can reconcile its optimistic badge.
+ *   3. The next `GET /comments?status=rejected` includes it; `pending` no longer does.
+ */
+function resolveComments(
+  method: string,
+  id: string | undefined,
+  sub: string | undefined,
+  params: ParamReader,
+  body: unknown,
+  page: number,
+  pageSize: number,
+): MockResolution {
+  if (method === 'GET' && !id) {
+    return paged(filterComments(params), page, pageSize);
+  }
+
+  if (method === 'POST' && id !== undefined && sub === 'moderate') {
+    const current = COMMENTS.find((comment) => comment.id === id);
+
+    if (!current) return NOT_FOUND;
+
+    const data = asRecord(body);
+    const note = String(data['note'] ?? '').trim();
+    const updated: fixtures.MockComment = {
+      ...current,
+      status: data['approved'] === true ? 'approved' : 'rejected',
+      moderationNote: note === '' ? null : note,
+    };
+
+    COMMENTS = COMMENTS.map((comment) => (comment.id === id ? updated : comment));
+
+    return ok(updated, 'نظر بررسی شد.');
+  }
+
+  return NOT_FOUND;
+}
+
 function categoryName(id: string): string {
   return CATEGORIES.find((category) => category.id === id)?.name ?? '-';
+}
+
+/** `GET /tickets` — status + priority + text, newest last message first (BO-O01). */
+function resolveTickets(params: ParamReader, page: number, pageSize: number): MockResolution {
+  const status = params.get('status') ?? '';
+  const priority = params.get('priority') ?? '';
+  const text = (params.get('query') ?? '').trim().toLowerCase();
+
+  const rows = fixtures.MOCK_TICKETS.filter((ticket) => {
+    if (status !== '' && ticket.status !== status) return false;
+    if (priority !== '' && ticket.priority !== priority) return false;
+    if (text !== '') {
+      const haystack = `${ticket.subject} ${ticket.userName}`.toLowerCase();
+      if (!haystack.includes(text)) return false;
+    }
+    return true;
+  }).sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+
+  return paged(rows, page, pageSize);
 }
 
 function brandName(id: string): string {
@@ -2283,6 +2368,7 @@ export function resetMockState(): void {
   BANNERS = fixtures.MOCK_BANNERS.map((banner) => ({ ...banner }));
   PAGES = fixtures.MOCK_CONTENT_PAGES.map((page) => ({ ...page }));
   SETTINGS = cloneSettings();
+  COMMENTS = fixtures.MOCK_COMMENTS.map((comment) => ({ ...comment }));
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */

@@ -1,0 +1,413 @@
+<app-page-header
+  title="نظرات"
+  [description]="
+    'بررسی و تأیید نظرات محصولات · ' + (pendingCount() | persianDigits) + ' نظر در انتظار'
+  "
+/>
+
+@if (error(); as message) {
+  <div
+    class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+  >
+    <app-error-state [title]="message" (retry)="retry()" />
+  </div>
+} @else {
+  <div
+    class="rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+  >
+    <div
+      class="flex flex-col gap-3 border-b border-gray-200 p-4 dark:border-gray-700 lg:flex-row lg:items-center"
+    >
+      <p-iconfield class="w-full lg:max-w-sm">
+        <p-inputicon class="pi pi-search" />
+        <input
+          pInputText
+          [formControl]="queryControl"
+          class="w-full"
+          placeholder="جستجو در متن نظر، کاربر یا محصول"
+          aria-label="جستجوی نظرات"
+        />
+      </p-iconfield>
+
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:flex lg:flex-1">
+        <p-select
+          inputId="comments-status"
+          [ngModel]="status()"
+          (onChange)="onStatusChange($event.value)"
+          [options]="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          class="w-full"
+          styleClass="w-full"
+        />
+
+        <p-select
+          inputId="comments-product"
+          [ngModel]="productId()"
+          (onChange)="onProductChange($event.value)"
+          [options]="productOptions()"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [filter]="true"
+          filterBy="label"
+          class="w-full"
+          styleClass="w-full"
+        />
+
+        <p-select
+          inputId="comments-rating"
+          [ngModel]="rating()"
+          (onChange)="onRatingChange($event.value)"
+          [options]="ratingOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          class="w-full"
+          styleClass="w-full"
+        />
+      </div>
+
+      @if (hasFilters()) {
+        <button
+          type="button"
+          pButton
+          severity="secondary"
+          [text]="true"
+          (click)="clearFilters()"
+          class="min-h-10 shrink-0 max-sm:min-h-11"
+        >
+          <i class="pi pi-filter-slash text-xs" aria-hidden="true"></i>
+          پاک کردن فیلترها
+        </button>
+      }
+    </div>
+
+    @if (loading()) {
+      <div class="space-y-3 p-4" role="status" aria-busy="true" aria-label="در حال بارگذاری نظرات">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <div class="h-14 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700"></div>
+        }
+      </div>
+    } @else if (items().length === 0) {
+      @if (hasFilters()) {
+        <app-empty-state
+          icon="pi pi-filter"
+          title="نظری با این فیلترها پیدا نشد"
+          description="فیلترها را تغییر بده یا پاکشان کن."
+          actionLabel="پاک کردن فیلترها"
+          (action)="clearFilters()"
+        />
+      } @else {
+        <app-empty-state
+          icon="pi pi-comments"
+          title="هنوز نظری ثبت نشده"
+          description="نظرات کاربران بعد از اولین خرید اینجا می‌آیند."
+        />
+      }
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="hidden min-w-full divide-y divide-gray-200 dark:divide-gray-700 sm:table">
+          <thead class="bg-gray-50 dark:bg-gray-900/40">
+            <tr>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                محصول
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                کاربر
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                امتیاز
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                متن
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                وضعیت
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                تاریخ
+              </th>
+              @if (canModerate()) {
+                <th
+                  scope="col"
+                  class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+                >
+                  اقدام
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+            @for (comment of items(); track comment.id) {
+              <tr class="align-top transition hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                <td class="max-w-48 px-4 py-3">
+                  @if (canOpenProduct()) {
+                    <a
+                      [routerLink]="['/products', comment.productId, 'edit']"
+                      class="block truncate text-sm font-medium text-primary hover:underline"
+                      [title]="comment.productName"
+                    >
+                      {{ comment.productName }}
+                    </a>
+                  } @else {
+                    <span
+                      class="block truncate text-sm font-medium text-gray-700 dark:text-gray-300"
+                      [title]="comment.productName"
+                    >
+                      {{ comment.productName }}
+                    </span>
+                  }
+                  <a
+                    [href]="siteUrl(comment)"
+                    target="_blank"
+                    rel="noopener"
+                    class="mt-1 inline-flex min-h-6 items-center gap-1 text-[11px] text-gray-500 hover:text-primary dark:text-gray-400"
+                  >
+                    <i class="pi pi-external-link text-[10px]" aria-hidden="true"></i>
+                    مشاهده در سایت
+                  </a>
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                  {{ comment.userName }}
+                </td>
+                <td class="whitespace-nowrap px-4 py-3">
+                  <app-star-rating [rating]="comment.rating" />
+                </td>
+                <td class="max-w-72 px-4 py-3">
+                  <p
+                    class="line-clamp-2 text-sm text-gray-700 dark:text-gray-300"
+                    [title]="comment.body"
+                  >
+                    {{ comment.body }}
+                  </p>
+                  @if (comment.moderationNote) {
+                    <p class="mt-1 text-[11px] text-red-600 dark:text-red-400">
+                      یادداشت: {{ comment.moderationNote }}
+                    </p>
+                  }
+                </td>
+                <td class="whitespace-nowrap px-4 py-3">
+                  <p-tag
+                    [value]="meta(comment.status).label"
+                    [severity]="meta(comment.status).severity"
+                  />
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                  {{ comment.createdAt | persianDate }}
+                </td>
+                @if (canModerate()) {
+                  <td class="whitespace-nowrap px-4 py-3">
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        pButton
+                        [text]="true"
+                        severity="success"
+                        size="small"
+                        [disabled]="comment.status === 'approved'"
+                        (click)="approve(comment)"
+                        aria-label="تأیید نظر"
+                      >
+                        <i class="pi pi-check text-xs" aria-hidden="true"></i>
+                      </button>
+                      <button
+                        type="button"
+                        pButton
+                        [text]="true"
+                        severity="danger"
+                        size="small"
+                        [disabled]="comment.status === 'rejected'"
+                        (click)="openReject(comment)"
+                        aria-label="رد نظر"
+                      >
+                        <i class="pi pi-times text-xs" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="divide-y divide-gray-100 sm:hidden dark:divide-gray-700">
+        @for (comment of items(); track comment.id) {
+          <article class="space-y-2 p-4">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                @if (canOpenProduct()) {
+                  <a
+                    [routerLink]="['/products', comment.productId, 'edit']"
+                    class="block truncate text-sm font-medium text-primary"
+                    [title]="comment.productName"
+                  >
+                    {{ comment.productName }}
+                  </a>
+                } @else {
+                  <span
+                    class="block truncate text-sm font-medium text-gray-700 dark:text-gray-300"
+                    [title]="comment.productName"
+                  >
+                    {{ comment.productName }}
+                  </span>
+                }
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ comment.userName }}</p>
+              </div>
+              <p-tag
+                [value]="meta(comment.status).label"
+                [severity]="meta(comment.status).severity"
+              />
+            </div>
+
+            <app-star-rating [rating]="comment.rating" />
+
+            <p class="line-clamp-3 text-sm text-gray-700 dark:text-gray-300">{{ comment.body }}</p>
+
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <a
+                [href]="siteUrl(comment)"
+                target="_blank"
+                rel="noopener"
+                class="inline-flex min-h-11 items-center gap-1 text-xs text-primary"
+              >
+                <i class="pi pi-external-link text-[10px]" aria-hidden="true"></i>
+                مشاهده در سایت
+              </a>
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{
+                comment.createdAt | persianDate
+              }}</span>
+            </div>
+
+            @if (canModerate()) {
+              <div class="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  pButton
+                  size="small"
+                  severity="success"
+                  [outlined]="true"
+                  [disabled]="comment.status === 'approved'"
+                  (click)="approve(comment)"
+                  class="min-h-11 flex-1"
+                >
+                  تأیید
+                </button>
+                <button
+                  type="button"
+                  pButton
+                  size="small"
+                  severity="danger"
+                  [outlined]="true"
+                  [disabled]="comment.status === 'rejected'"
+                  (click)="openReject(comment)"
+                  class="min-h-11 flex-1"
+                >
+                  رد
+                </button>
+              </div>
+            }
+          </article>
+        }
+      </div>
+
+      <div
+        class="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <p class="text-xs" aria-live="polite">
+          {{ total() | persianDigits }} نظر · صفحهٔ {{ pageNumber() | persianDigits }} از
+          {{ totalPages() | persianDigits }}
+        </p>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            pButton
+            [text]="true"
+            size="small"
+            (click)="goToPage(pageNumber() - 1)"
+            [disabled]="pageNumber() === 1"
+            aria-label="صفحهٔ قبل"
+            class="min-h-10 max-sm:min-h-11"
+          >
+            <i class="pi pi-chevron-right text-xs" aria-hidden="true"></i>
+          </button>
+          <button
+            type="button"
+            pButton
+            [text]="true"
+            size="small"
+            (click)="goToPage(pageNumber() + 1)"
+            [disabled]="pageNumber() >= totalPages()"
+            aria-label="صفحهٔ بعد"
+            class="min-h-10 max-sm:min-h-11"
+          >
+            <i class="pi pi-chevron-left text-xs" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<p-dialog
+  [visible]="rejecting() !== null"
+  (visibleChange)="onRejectVisibility($event)"
+  header="رد نظر"
+  [modal]="true"
+  [style]="{ width: '95vw', maxWidth: '28rem' }"
+>
+  <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">
+    نظر «{{ rejecting()?.userName }}» رد می‌شود و در سایت نمایش داده نمی‌شود.
+  </p>
+  <label for="reject-note" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+    دلیل رد (اختیاری)
+  </label>
+  <textarea
+    id="reject-note"
+    pTextarea
+    rows="3"
+    [formControl]="rejectNote"
+    class="w-full"
+    placeholder="دلیل فقط برای تیم پشتیبانی ثبت می‌شود."
+  ></textarea>
+  <div class="mt-4 flex justify-end gap-2">
+    <button
+      type="button"
+      pButton
+      [text]="true"
+      (click)="onRejectVisibility(false)"
+      class="min-h-10 max-sm:min-h-11"
+    >
+      انصراف
+    </button>
+    <button
+      type="button"
+      pButton
+      severity="danger"
+      (click)="confirmReject()"
+      class="min-h-10 max-sm:min-h-11"
+    >
+      رد نظر
+    </button>
+  </div>
+</p-dialog>

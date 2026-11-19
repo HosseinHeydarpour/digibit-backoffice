@@ -18,6 +18,7 @@ export type Permission =
   | 'content.view'
   | 'content.manage'
   | 'comments.view'
+  | 'comments.moderate'
   | 'tickets.view'
   | 'settings.write';
 

@@ -1759,4 +1759,141 @@ describe('mockInterceptor', () => {
 
     expect((await getSettings()).store['name']).toBe('دیجی‌بیت مارکت');
   });
+
+  // --- BO-N01..N05: comments ---------------------------------------------------
+
+  interface CommentRow {
+    id: string;
+    productId: string;
+    status: string;
+    rating: number | null;
+    body: string;
+    moderationNote: string | null;
+  }
+
+  async function comments(params: Record<string, string | number> = {}): Promise<CommentRow[]> {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<CommentRow[]>>('/api/v1/comments', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 100, ...params },
+      }),
+    );
+
+    return body.data;
+  }
+
+  it('comments: filters by status, product and rating together', async () => {
+    const pending = await comments({ status: 'pending' });
+    const target = pending.find((row) => row.rating !== null)!;
+
+    const rows = await comments({
+      status: 'pending',
+      productId: target.productId,
+      rating: target.rating ?? 0,
+    });
+
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.status === 'pending')).toBe(true);
+    expect(rows.every((row) => row.productId === target.productId)).toBe(true);
+    expect(rows.every((row) => row.rating === target.rating)).toBe(true);
+  });
+
+  it('comments: searches the body and sorts newest first', async () => {
+    const rows = await comments({ query: 'ارسال' });
+
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.body.includes('ارسال'))).toBe(true);
+  });
+
+  it('comments: approving removes it from the pending filter', async () => {
+    const [first] = await comments({ status: 'pending' });
+
+    const approved = await firstValueFrom(
+      http.post<ApiResponse<CommentRow>>(
+        `/api/v1/comments/${first.id}/moderate`,
+        { approved: true },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(approved.data.status).toBe('approved');
+    expect((await comments({ status: 'pending' })).some((row) => row.id === first.id)).toBe(false);
+  });
+
+  it('comments: rejecting stores the note and answers 404 for an unknown id', async () => {
+    const [first] = await comments({ status: 'pending' });
+
+    const rejected = await firstValueFrom(
+      http.post<ApiResponse<CommentRow>>(
+        `/api/v1/comments/${first.id}/moderate`,
+        { approved: false, note: 'تبلیغ' },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    expect(rejected.data.status).toBe('rejected');
+    expect(rejected.data.moderationNote).toBe('تبلیغ');
+
+    const missing = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>(
+          '/api/v1/comments/999/moderate',
+          { approved: true },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(missing.status).toBe(404);
+  });
+
+  // --- BO-O01: tickets ---------------------------------------------------------
+
+  interface TicketRow {
+    id: string;
+    subject: string;
+    userName: string;
+    status: string;
+    priority: string;
+    lastMessageAt: number;
+  }
+
+  async function tickets(params: Record<string, string | number> = {}): Promise<TicketRow[]> {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<TicketRow[]>>('/api/v1/tickets', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { pageSize: 100, ...params },
+      }),
+    );
+
+    return body.data;
+  }
+
+  it('tickets: filters status and priority together', async () => {
+    const rows = await tickets({ status: 'open', priority: 'high' });
+
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((ticket) => ticket.status === 'open')).toBe(true);
+    expect(rows.every((ticket) => ticket.priority === 'high')).toBe(true);
+  });
+
+  it('tickets: searches subject and user, newest last message first', async () => {
+    const rows = await tickets({ query: 'سفارش' });
+
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((ticket) => ticket.subject.includes('سفارش'))).toBe(true);
+    expect(rows[0].lastMessageAt).toBeGreaterThanOrEqual(rows[rows.length - 1].lastMessageAt);
+  });
+
+  it('tickets: paginates over the filtered set', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<TicketRow[]>>('/api/v1/tickets', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { page: 2, pageSize: 5 },
+      }),
+    );
+
+    expect(body.data).toHaveLength(3);
+    expect(body.meta?.total).toBe(8);
+  });
 });

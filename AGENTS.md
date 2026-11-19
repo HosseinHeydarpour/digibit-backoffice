@@ -1088,6 +1088,39 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
 - **The logo follows the banner/brand rule.** Picking a file validates type/size and shows a blob
   preview; the upload happens on save through the shared `POST /media`, and cancel writes nothing.
 
+### Comments (BO-N01..N05)
+
+- **One query, four filters.** The page sends status, product, rating and text together, so a
+  combined filter is one request rather than three local passes. Text is debounced 300 ms and every
+  filter change returns to page 1.
+- **The fixture is the queue.** `MOCK_COMMENTS` has 18 rows across six products, all three statuses
+  and every rating (including `null`), and the dashboard's `newComments` is counted from the same
+  array. The mock store (`COMMENTS`) filters and sorts newest-first; `resetMockState()` restores it.
+- **`StarRating` is shared.** `shared/components/star-rating` renders full/half/empty from a 1..5
+  value, prints the number in Persian digits and says «بدون امتیاز» for `null`. It is the only
+  star renderer; the list must not hand-build icons.
+- **Moderation is optimistic.** The badge changes before the answer, a failure clears the
+  override, and success reloads the page. The error toast belongs to the interceptor; the success
+  toast is the component's.
+- **Rejecting takes an optional note.** The dialog writes `moderationNote`, which the list shows
+  under the text; approving does not carry a note.
+- **Product links need two grants.** The edit link requires `products.view` (plain text otherwise);
+  the site link is a slug URL from `SITE_URL` in a new tab. A missing product is a plain name, not
+  a broken link.
+
+### Tickets (BO-O01)
+
+- **The queue is state, not URL.** Status, priority, search and page live in component signals;
+  one `GET /tickets` carries them together. Filters reset to page 1, search is debounced 300 ms.
+- **Unread is three signals at once.** A bold row, an envelope glyph and a screen-reader-only
+  «خوانده‌نشده» — colour alone would be invisible to both a monochrome print and a screen reader.
+- **The date is the last message.** `lastMessageAt` is what the table prints; the mock sorts by it
+  after filtering, because creation order would put an answered old ticket above a waiting new one.
+- **Empty and filtered-empty differ**, exactly like comments and products: only the filtered case
+  offers «پاک کردن فیلترها».
+- **Only the queue exists yet.** Thread, composer, status change, assignment and the unread badge
+  are O02..O08; this page deliberately renders no disabled shell of them.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

@@ -121,15 +121,13 @@ export const routes: Routes = [
       },
       {
         path: 'comments',
-        data: { title: 'نظرات', breadcrumb: 'نظرات' },
-        title: 'نظرات',
-        children: [],
+        loadChildren: () =>
+          import('@features/comments/comments.routes').then((m) => m.COMMENTS_ROUTES),
       },
       {
         path: 'tickets',
-        data: { title: 'پشتیبانی', breadcrumb: 'پشتیبانی' },
-        title: 'پشتیبانی',
-        children: [],
+        loadChildren: () =>
+          import('@features/tickets/tickets.routes').then((m) => m.TICKETS_ROUTES),
       },
       {
         path: 'settings',

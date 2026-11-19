@@ -1,0 +1,59 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as CommentStories from '../app/features/comments/comment-list/comment-list.stories';
+
+<Meta title="Features/Comments" />
+
+# نظرات / Comments
+
+صف بررسی نظرات محصولات (BO-N01 تا BO-N05): فیلتر وضعیت، محصول، امتیاز و جستجوی متن،
+نمایش ستاره‌ها، لینک محصول و تأیید/رد با قابلیت بازگشت.
+
+The product-review queue (BO-N01..N05): status, product and rating filters plus a text search,
+stars, product links, and approve/reject with a rollback.
+
+## کاربرد / Use case
+
+وقتی نظرات کاربران باید قبل از انتشار بررسی شوند. «در انتظار تأیید» صف کار است؛ «تأییدشده»
+و «ردشده» آرشیو. صفحه فقط با `comments.view` باز می‌شود و دکمه‌های بررسی به
+`comments.moderate` نیاز دارند.
+
+Use it when reviews need approval before they reach the shop. «در انتظار تأیید» is the work queue;
+approved and rejected are the archive. The page needs `comments.view`; the controls need
+`comments.moderate`.
+
+## رفتارها / Behaviour
+
+- **یک درخواست، چهار فیلتر.** وضعیت، محصول، امتیاز و متن با هم فرستاده می‌شوند؛ جستجو ۳۰۰
+  میلی‌ثانیه debounce دارد و هر تغییر به صفحهٔ اول برمی‌گردد.
+- **تأیید و رد خوش‌بینانه‌اند.** بج قبل از پاسخ عوض می‌شود، خطا آن را برمی‌گرداند (توست خطا کار
+  interceptor است) و پاسخ موفق لیست را دوباره می‌گیرد.
+- **رد یادداشت دارد.** دیالوگ رد یک یادداشت اختیاری می‌گیرد که فقط برای تیم است و کنار متن
+  نظر دیده می‌شود.
+- **ستاره‌ها مشترک‌اند.** `StarRating` نیم‌ستاره را واقعی نشان می‌دهد و امتیاز خالی
+  «بدون امتیاز» است، پس ردیف بی‌امتیاز هم‌تراز بقیه می‌ماند.
+- **لینک محصول دو مسیر دارد.** «مشاهده در سایت» در تب جدید با slug و «ویرایش در پنل» با
+  مجوز محصول؛ هر دو در موبایل ۴۴px هستند.
+- **خالی و بی‌نتیجه فرق دارند.** «هنوز نظری ثبت نشده» با دکمهٔ فیلتر نمی‌آید، ولی «نظری با
+  این فیلترها پیدا نشد» دکمهٔ پاک‌کردن دارد.
+
+**English**
+
+- **One request, four filters.** Status, product, rating and text travel together; the search is
+  debounced 300 ms and every change returns to page 1.
+- **Approve and reject are optimistic.** The badge flips before the answer, a failure clears it
+  (the interceptor owns the error toast), and success refetches the page.
+- **Reject takes a note.** The dialog's optional note is internal, and it is shown beside the
+  review text when present.
+- **Stars are shared.** `StarRating` renders a real half star, and a missing score says
+  «بدون امتیاز» so the row still lines up.
+- **The product has two links.** «مشاهده در سایت» opens the slug in a new tab; «ویرایش در پنل»
+  needs the products grant. Both are 44px on a phone.
+- **Empty and filtered-empty differ.** The queue's empty state has no clear-filters button; the
+  filtered one does.
+
+## پیش‌نمایش / Preview
+
+<Canvas of={CommentStories.Default} />
+
+<Canvas of={CommentStories.Loading} />

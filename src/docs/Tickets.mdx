@@ -1,0 +1,49 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as TicketStories from '../app/features/tickets/ticket-list/ticket-list.stories';
+
+<Meta title="Features/Tickets" />
+
+# پشتیبانی / Tickets
+
+صف تیکت‌های پشتیبانی (BO-O01): فیلتر وضعیت و اولویت، جستجوی موضوع یا کاربر، نمایش
+خوانده‌نشده و تاریخ آخرین پیام.
+
+The support queue (BO-O01): status and priority filters, a subject/user search, unread emphasis
+and the last message date.
+
+## کاربرد / Use case
+
+وقتی کارشناس باید بداند چه کسی منتظر پاسخ است. این صفحه فقط صف است؛ رشتهٔ پیام‌ها، پاسخ و
+تغییر وضعیت در تسک‌های بعدی صف O می‌آیند. مسیر با `tickets.view` محافظت می‌شود.
+
+Use it when an agent needs to know who is waiting. This page is the queue only; the thread,
+reply and status change arrive with the later O tasks. The route is guarded by `tickets.view`.
+
+## رفتارها / Behaviour
+
+- **خوانده‌نشده قبل از خواندن دیده می‌شود.** ردیف بولد است و آیکون پاکت دارد؛ برای screen
+  reader هم «خوانده‌نشده» گفته می‌شود.
+- **تاریخ، آخرین پیام است نه ایجاد تیکت.** صف دربارهٔ «الان چه کسی منتظر است» حرف می‌زند.
+- **فیلترها با هم می‌روند.** وضعیت و اولویت و متن با یک درخواست فرستاده می‌شوند؛ جستجو ۳۰۰
+  میلی‌ثانیه debounce دارد.
+- **خالی و بی‌نتیجه فرق دارند.** «هنوز تیکتی ثبت نشده» دکمه ندارد؛ «تیکتی با این فیلترها پیدا
+  نشد» دکمهٔ پاک‌کردن دارد.
+- **موبایل کارت است، نه جدول.** ستون‌های اضافه پنهان می‌شوند و هر تیکت یک کارت خوانا می‌شود.
+
+**English**
+
+- **Unread is visible before reading.** The row is bold with an envelope, and a screen reader
+  hears «خوانده‌نشده».
+- **The date is the last message, not creation.** The queue answers "who is waiting now".
+- **Filters travel together.** Status, priority and text are one request; the search is debounced
+  300 ms.
+- **Empty and filtered-empty differ.** The empty shop state has no button; the filtered one does.
+- **A phone gets cards, not a table.** Extra columns collapse and each ticket becomes a readable
+  card.
+
+## پیش‌نمایش / Preview
+
+<Canvas of={TicketStories.Default} />
+
+<Canvas of={TicketStories.Loading} />

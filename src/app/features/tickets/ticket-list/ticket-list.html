@@ -1,0 +1,258 @@
+<app-page-header title="پشتیبانی" description="تیکت‌های کاربران · پاسخ و پیگیری" />
+
+@if (error(); as message) {
+  <div
+    class="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
+  >
+    <app-error-state [title]="message" (retry)="retry()" />
+  </div>
+} @else {
+  <div
+    class="rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+  >
+    <div
+      class="flex flex-col gap-3 border-b border-gray-200 p-4 dark:border-gray-700 lg:flex-row lg:items-center"
+    >
+      <p-iconfield class="w-full lg:max-w-md">
+        <p-inputicon class="pi pi-search" />
+        <input
+          pInputText
+          [formControl]="queryControl"
+          class="w-full"
+          placeholder="جستجوی موضوع یا نام کاربر"
+          aria-label="جستجوی تیکت‌ها"
+        />
+      </p-iconfield>
+
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:flex-1">
+        <p-select
+          inputId="tickets-status"
+          [ngModel]="status()"
+          (onChange)="onStatusChange($event.value)"
+          [options]="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          class="w-full"
+          styleClass="w-full"
+        />
+
+        <p-select
+          inputId="tickets-priority"
+          [ngModel]="priority()"
+          (onChange)="onPriorityChange($event.value)"
+          [options]="priorityOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          class="w-full"
+          styleClass="w-full"
+        />
+      </div>
+
+      @if (hasFilters()) {
+        <button
+          type="button"
+          pButton
+          severity="secondary"
+          [text]="true"
+          (click)="clearFilters()"
+          class="min-h-10 shrink-0 max-sm:min-h-11"
+        >
+          <i class="pi pi-filter-slash text-xs" aria-hidden="true"></i>
+          پاک کردن فیلترها
+        </button>
+      }
+    </div>
+
+    @if (loading()) {
+      <div
+        class="space-y-3 p-4"
+        role="status"
+        aria-busy="true"
+        aria-label="در حال بارگذاری تیکت‌ها"
+      >
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <div class="h-14 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700"></div>
+        }
+      </div>
+    } @else if (items().length === 0) {
+      @if (hasFilters()) {
+        <app-empty-state
+          icon="pi pi-filter"
+          title="تیکتی با این فیلترها پیدا نشد"
+          description="فیلترها را تغییر بده یا پاکشان کن."
+          actionLabel="پاک کردن فیلترها"
+          (action)="clearFilters()"
+        />
+      } @else {
+        <app-empty-state
+          icon="pi pi-inbox"
+          title="هنوز تیکتی ثبت نشده"
+          description="پیام‌های کاربران از فرم پشتیبانی سایت اینجا می‌آیند."
+        />
+      }
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="hidden min-w-full divide-y divide-gray-200 dark:divide-gray-700 sm:table">
+          <thead class="bg-gray-50 dark:bg-gray-900/40">
+            <tr>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                کد
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                کاربر
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                موضوع
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                اولویت
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                وضعیت
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                آخرین پیام
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+            @for (ticket of items(); track ticket.id) {
+              <tr
+                class="transition hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                [class.font-bold]="ticket.unread"
+              >
+                <td
+                  class="whitespace-nowrap px-4 py-3 text-xs text-gray-500 dark:text-gray-400"
+                  dir="ltr"
+                >
+                  {{ ticket.code }}
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                  {{ ticket.userName }}
+                </td>
+                <td class="max-w-80 px-4 py-3">
+                  <span class="flex items-center gap-2">
+                    @if (ticket.unread) {
+                      <i
+                        class="pi pi-envelope shrink-0 text-xs text-primary"
+                        aria-hidden="true"
+                      ></i>
+                      <span class="sr-only">خوانده‌نشده</span>
+                    }
+                    <span class="truncate text-sm" [title]="ticket.subject">{{
+                      ticket.subject
+                    }}</span>
+                  </span>
+                </td>
+                <td class="whitespace-nowrap px-4 py-3">
+                  <p-tag
+                    [value]="priorityMeta(ticket.priority).label"
+                    [severity]="priorityMeta(ticket.priority).severity"
+                  />
+                </td>
+                <td class="whitespace-nowrap px-4 py-3">
+                  <p-tag
+                    [value]="statusMeta(ticket.status).label"
+                    [severity]="statusMeta(ticket.status).severity"
+                  />
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                  {{ ticket.lastMessageAt | persianDate }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="divide-y divide-gray-100 sm:hidden dark:divide-gray-700">
+        @for (ticket of items(); track ticket.id) {
+          <article class="space-y-2 p-4" [class.font-bold]="ticket.unread">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="text-xs text-gray-500 dark:text-gray-400" dir="ltr">{{ ticket.code }}</p>
+                <p class="mt-1 flex items-center gap-2 text-sm">
+                  @if (ticket.unread) {
+                    <i class="pi pi-envelope shrink-0 text-xs text-primary" aria-hidden="true"></i>
+                    <span class="sr-only">خوانده‌نشده</span>
+                  }
+                  <span class="truncate" [title]="ticket.subject">{{ ticket.subject }}</span>
+                </p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ ticket.userName }}</p>
+              </div>
+              <p-tag
+                [value]="statusMeta(ticket.status).label"
+                [severity]="statusMeta(ticket.status).severity"
+              />
+            </div>
+
+            <div class="flex items-center justify-between gap-2">
+              <p-tag
+                [value]="priorityMeta(ticket.priority).label"
+                [severity]="priorityMeta(ticket.priority).severity"
+              />
+              <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
+                {{ ticket.lastMessageAt | persianDate }}
+              </span>
+            </div>
+          </article>
+        }
+      </div>
+
+      <div
+        class="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <p class="text-xs" aria-live="polite">
+          {{ total() | persianDigits }} تیکت · صفحهٔ {{ pageNumber() | persianDigits }} از
+          {{ totalPages() | persianDigits }}
+        </p>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            pButton
+            [text]="true"
+            size="small"
+            (click)="goToPage(pageNumber() - 1)"
+            [disabled]="pageNumber() === 1"
+            aria-label="صفحهٔ قبل"
+            class="min-h-10 max-sm:min-h-11"
+          >
+            <i class="pi pi-chevron-right text-xs" aria-hidden="true"></i>
+          </button>
+          <button
+            type="button"
+            pButton
+            [text]="true"
+            size="small"
+            (click)="goToPage(pageNumber() + 1)"
+            [disabled]="pageNumber() >= totalPages()"
+            aria-label="صفحهٔ بعد"
+            class="min-h-10 max-sm:min-h-11"
+          >
+            <i class="pi pi-chevron-left text-xs" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+}

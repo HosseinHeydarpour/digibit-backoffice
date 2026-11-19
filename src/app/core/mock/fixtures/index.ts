@@ -43,7 +43,7 @@ const now = FIXTURE_NOW;
 const DAY = 86_400_000;
 
 /** Generic list generator — enough shape for any table to render. */
-function makeList<T extends Record<string, unknown>>(count: number, build: (i: number) => T): T[] {
+function makeList<T extends object>(count: number, build: (i: number) => T): T[] {
   return Array.from({ length: count }, (_, i) => build(i));
 }
 
@@ -172,18 +172,50 @@ export const MOCK_CATEGORIES = [
   },
 ];
 
-export const MOCK_COMMENTS = makeList(5, (i) => ({
-  id: pad(i + 1),
-  // Comments hang off real catalogue rows, so a comment's product link is never
-  // a dangling id now that product ids are the export's `pcat`-style strings.
-  productId: MOCK_PRODUCTS[i].id,
-  productName: MOCK_PRODUCTS[i].name,
-  userName: ['کاربر مهمان', 'زهرا م.', 'علی ر.', 'مریم ح.', 'رضا ک.'][i],
-  body: 'کیفیت محصول خوب بود و سریع ارسال شد. پیشنهاد میکنم.',
-  rating: (i % 5) + 1,
-  status: ['pending', 'approved', 'rejected'][i % 3],
-  createdAt: now - i * DAY,
-}));
+export interface MockComment {
+  readonly id: string;
+  readonly productId: string;
+  readonly productName: string;
+  readonly productSlug: string;
+  readonly userName: string;
+  readonly body: string;
+  readonly rating: number | null;
+  readonly status: 'pending' | 'approved' | 'rejected';
+  readonly createdAt: number;
+  readonly moderationNote: string | null;
+}
+
+const COMMENT_BODIES = [
+  'کیفیت ساخت خیلی خوبه، سریع هم رسید. پیشنهاد می‌کنم.',
+  'همون چیزی بود که در عکس دیدم. بسته‌بندی سالم رسید.',
+  'متأسفانه گوشی با خط و خش رسید و پشتیبانی هم جواب نداد.',
+  'برای قیمتش عالیه. باتری یک روز کامل جواب می‌ده.',
+  'ارسال دیر شد ولی محصول بی‌عیب بود.',
+  'کیفیت صدا خوبه، فقط کابلش کوتاهه.',
+  'دفتر و خودکارها دقیقاً مثل توضیحات بودن.',
+  'بعد از دو هفته استفاده هنوز مثل روز اوله.',
+  'اشتباه سفارش دادم، مرجوعی سخت بود.',
+  'قیمت نسبت به کیفیت منصفانه‌ست.',
+];
+
+export const MOCK_COMMENTS: readonly MockComment[] = makeList<MockComment>(18, (i) => {
+  const product = MOCK_PRODUCTS[i % MOCK_PRODUCTS.length];
+
+  return {
+    id: pad(i + 1),
+    productId: product.id,
+    productName: product.name,
+    productSlug: product.slug,
+    userName: ['کاربر مهمان', 'زهرا م.', 'علی ر.', 'مریم ح.', 'رضا ک.', 'سارا ا.'][i % 6],
+    body: COMMENT_BODIES[i % COMMENT_BODIES.length],
+    // Every fifth review has no score, so «بدون امتیاز» exists in the list and
+    // not only in a spec (BO-N04 tc 8).
+    rating: i % 5 === 4 ? null : (i % 5) + 1,
+    status: (['pending', 'approved', 'rejected'] as const)[i % 3],
+    createdAt: now - i * (DAY / 2),
+    moderationNote: i % 3 === 2 ? 'محتوای نامناسب' : null,
+  };
+});
 
 export const MOCK_TICKETS = makeList(8, (i) => ({
   id: pad(i + 1),
@@ -294,7 +326,7 @@ export const MOCK_DASHBOARD_SUMMARY = {
   salesChangePercent: Math.round(((TODAY_SALES - YESTERDAY_SALES) / YESTERDAY_SALES) * 1000) / 10,
   pendingOrders: MOCK_ORDER_DETAILS.filter((order) => order.status === 'pending').length,
   lowStockCount: MOCK_LOW_STOCK.length,
-  newComments: 5,
+  newComments: MOCK_COMMENTS.filter((comment) => comment.status === 'pending').length,
 };
 
 /**
