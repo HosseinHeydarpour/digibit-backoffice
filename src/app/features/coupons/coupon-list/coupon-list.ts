@@ -10,10 +10,12 @@ import type { EntityId, Page, SelectOption } from '@shared/models';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { formatDigits, PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
+import { isOnline, OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { ButtonDirective } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { Select } from 'primeng/select';
 import { Tag } from 'primeng/tag';
+import { ToggleSwitch } from 'primeng/toggleswitch';
 import { BehaviorSubject, catchError, combineLatest, of, switchMap, tap } from 'rxjs';
 
 import { CouponForm } from '../coupon-form/coupon-form';
@@ -66,6 +68,7 @@ type CouponListView = 'loading' | 'error' | 'empty' | 'data';
     Dialog,
     ButtonDirective,
     CouponForm,
+    ToggleSwitch,
     PersianDatePipe,
     PersianDigitsPipe,
     TomanPipe,
@@ -104,6 +107,13 @@ export class CouponList {
   /** Whether the signed-in admin may create or edit a coupon (BO-J02). */
   readonly canManage = computed(() => this.permissions().includes('coupons.manage'));
 
+  /**
+   * Optimistic switch overlay (BO-J04). The server page stays the source of
+   * truth; a success keeps the override until the next fetch returns the same
+   * `isActive`, and a failure clears it.
+   */
+  private readonly statusOverrides = signal<ReadonlyMap<EntityId, boolean>>(new Map());
+
   readonly pageResult = toSignal<Page<Coupon> | null>(
     combineLatest([this.reload$, this.state$]).pipe(
       tap(() => {
@@ -116,6 +126,7 @@ export class CouponList {
             next: () => {
               this.listError.set(null);
               this.isFetching.set(false);
+              this.reconcileOverrides();
             },
             error: () => {
               this.listError.set('دریافت کوپن‌ها ناموفق بود');
@@ -129,7 +140,25 @@ export class CouponList {
     { initialValue: null },
   );
 
-  readonly items = computed<readonly Coupon[] | null>(() => this.pageResult()?.items ?? null);
+  readonly items = computed<readonly Coupon[] | null>(() => {
+    const rows = this.pageResult()?.items ?? null;
+
+    if (rows === null) {
+      return null;
+    }
+
+    const overrides = this.statusOverrides();
+
+    return overrides.size === 0
+      ? rows
+      : rows.map((coupon) => {
+          const isActive = overrides.get(coupon.id);
+
+          return isActive === undefined || isActive === coupon.isActive
+            ? coupon
+            : { ...coupon, isActive };
+        });
+  });
 
   readonly viewState = computed<CouponListView>(() => {
     if (this.listError()) {
@@ -300,5 +329,77 @@ export class CouponList {
     this.toast.success(this.editing() ? 'کوپن ذخیره شد.' : `کوپن «${coupon.code}» ایجاد شد.`);
     this.closeDialog();
     this.reload$.next();
+  }
+
+  /**
+   * Enable or disable a coupon from the row (BO-J04).
+   *
+   * No confirmation: this is the "quick switch" the task asks for, and it is
+   * reversible. The pill flips before the answer (optimistic), a failure clears
+   * the override (rollback), and the error toast is the interceptor's.
+   *
+   * An expired or exhausted coupon cannot be switched ON: the mock answers 409
+   * and the client refuses before asking, writing the old value back so the
+   * switch does not lie.
+   */
+  async toggleStatus(coupon: Coupon, toggle: ToggleSwitch): Promise<void> {
+    if (!this.canManage()) {
+      return;
+    }
+
+    const next = !coupon.isActive;
+
+    if (next && this.isClosed(coupon)) {
+      toggle.writeValue(false);
+      this.toast.warning('کوپن منقضی یا تمام‌شده را نمی‌توان فعال کرد.');
+      return;
+    }
+
+    if (!isOnline()) {
+      toggle.writeValue(coupon.isActive);
+      this.toast.warning(OFFLINE_MESSAGE);
+      return;
+    }
+
+    this.setOverride(coupon.id, next);
+
+    this.coupons.setStatus(coupon.id, next).subscribe({
+      next: () => this.toast.success(next ? 'کوپن فعال شد.' : 'کوپن غیرفعال شد.'),
+      error: () => this.clearOverride(coupon.id),
+    });
+  }
+
+  private setOverride(id: EntityId, isActive: boolean): void {
+    this.statusOverrides.update((current) => new Map(current).set(id, isActive));
+  }
+
+  private clearOverride(id: EntityId): void {
+    this.statusOverrides.update((current) => {
+      const next = new Map(current);
+      next.delete(id);
+
+      return next;
+    });
+  }
+
+  /** Drop an override once the server's own row carries that value. */
+  private reconcileOverrides(): void {
+    const current = this.statusOverrides();
+
+    if (current.size === 0) {
+      return;
+    }
+
+    const next = new Map(current);
+
+    for (const coupon of this.pageResult()?.items ?? []) {
+      if (next.get(coupon.id) === coupon.isActive) {
+        next.delete(coupon.id);
+      }
+    }
+
+    if (next.size !== current.size) {
+      this.statusOverrides.set(next);
+    }
   }
 }

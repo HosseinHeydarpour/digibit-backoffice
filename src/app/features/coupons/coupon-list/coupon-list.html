@@ -231,14 +231,42 @@
                   </div>
                 </td>
 
-                <!-- وضعیت — derived: expired > exhausted > inactive > active. -->
+                <!-- وضعیت — derived: expired > exhausted > inactive > active. With the
+                     grant, the switch is the control and the pill collapses on a phone. -->
                 <td class="whitespace-nowrap px-6 py-4 text-start">
-                  <span
-                    class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
-                    [class]="statusBadgeClass(coupon)"
-                  >
-                    {{ statusLabel(coupon) }}
-                  </span>
+                  @if (canManage()) {
+                    <div class="flex items-center gap-2">
+                      <label
+                        [for]="'coupon-status-' + coupon.id"
+                        class="inline-flex shrink-0 items-center justify-center max-sm:size-11"
+                      >
+                        <p-toggleswitch
+                          #toggle
+                          [inputId]="'coupon-status-' + coupon.id"
+                          [ngModel]="coupon.isActive"
+                          [disabled]="isClosed(coupon) && !coupon.isActive"
+                          (click)="$event.preventDefault()"
+                          (onChange)="toggleStatus(coupon, toggle)"
+                          [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
+                          [ariaLabel]="'وضعیت کوپن ' + coupon.code"
+                          [attr.data-toggle-coupon]="coupon.id"
+                        />
+                      </label>
+                      <span
+                        class="hidden rounded-full px-3 py-1 text-xs font-medium leading-5 sm:inline-flex"
+                        [class]="statusBadgeClass(coupon)"
+                      >
+                        {{ statusLabel(coupon) }}
+                      </span>
+                    </div>
+                  } @else {
+                    <span
+                      class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+                      [class]="statusBadgeClass(coupon)"
+                    >
+                      {{ statusLabel(coupon) }}
+                    </span>
+                  }
                 </td>
 
                 @if (canManage()) {

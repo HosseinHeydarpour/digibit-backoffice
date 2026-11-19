@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { ToastService } from '@core/services/toast';
 import type { Page } from '@shared/models';
+import type { ToggleSwitch } from 'primeng/toggleswitch';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
 import type { Coupon, CouponQuery } from '../models/coupon.model';
@@ -50,6 +51,10 @@ class CouponsServiceStub {
 
   hang = false;
 
+  setStatusCalls: { id: string; isActive: boolean }[] = [];
+
+  statusFail = false;
+
   list(query: CouponQuery = {}): Observable<Page<Coupon>> {
     this.queries.push(query);
 
@@ -60,6 +65,14 @@ class CouponsServiceStub {
     return this.failWith === null
       ? of({ items: [...this.rows], total: this.total, page: query.page ?? 1, pageSize: 10 })
       : throwError(() => new Error(this.failWith ?? 'request failed'));
+  }
+
+  setStatus(id: string, isActive: boolean): Observable<Coupon> {
+    this.setStatusCalls.push({ id, isActive });
+
+    return this.statusFail
+      ? throwError(() => new Error('toggle failed'))
+      : of({ ...COUPONS[0], id, isActive });
   }
 }
 
@@ -202,11 +215,15 @@ describe('CouponList create/edit (BO-J02)', () => {
   let fixture: ComponentFixture<CouponList>;
   let component: CouponList;
   let service: CouponsServiceStub;
-  let toast: { success: ReturnType<typeof vi.fn> };
+  let toast: { success: ReturnType<typeof vi.fn>; warning: ReturnType<typeof vi.fn> };
+
+  function fakeToggle(): ToggleSwitch {
+    return { writeValue: vi.fn() } as unknown as ToggleSwitch;
+  }
 
   beforeEach(async () => {
     service = new CouponsServiceStub();
-    toast = { success: vi.fn() };
+    toast = { success: vi.fn(), warning: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [CouponList],
@@ -277,5 +294,43 @@ describe('CouponList create/edit (BO-J02)', () => {
 
     expect(restricted.nativeElement.textContent).not.toContain('ایجاد کوپن');
     expect(restricted.nativeElement.querySelector('[data-edit-coupon]')).toBeNull();
+  });
+
+  it('renders the switch for a manager (BO-J04)', () => {
+    expect(fixture.nativeElement.querySelector('[data-toggle-coupon]')).toBeTruthy();
+  });
+
+  it('toggles optimistically and toasts the result', async () => {
+    const row = component.items()![0];
+    expect(row.isActive).toBe(true);
+
+    await component.toggleStatus(row, fakeToggle());
+
+    expect(service.setStatusCalls).toEqual([{ id: row.id, isActive: false }]);
+    expect(component.items()![0].isActive).toBe(false);
+    expect(component.status(component.items()![0])).toBe('inactive');
+    expect(toast.success).toHaveBeenCalledWith('کوپن غیرفعال شد.');
+  });
+
+  it('rolls the switch back when the request fails', async () => {
+    service.statusFail = true;
+    const row = component.items()![0];
+
+    await component.toggleStatus(row, fakeToggle());
+
+    expect(component.items()![0].isActive).toBe(true);
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('refuses to enable an expired coupon and sends nothing', async () => {
+    const expired = component.items()!.find((coupon) => coupon.to < Date.now());
+    expect(expired).toBeDefined();
+    const control = fakeToggle();
+
+    await component.toggleStatus(expired!, control);
+
+    expect(control.writeValue).toHaveBeenCalledWith(false);
+    expect(service.setStatusCalls).toEqual([]);
+    expect(toast.warning).toHaveBeenCalled();
   });
 });

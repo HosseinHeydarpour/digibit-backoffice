@@ -36,6 +36,9 @@ that.
 - **فیلتر و صفحه‌بندی در state کامپوننت‌اند، نه URL.** یک سلکت و یک شمارهٔ صفحه است و لینک
   اشتراکی فیلتر کوپن نیاز نیست؛ اگر شد، `coupon-paging.ts` شکل URL را آماده دارد.
 - **موبایل:** نوع زیر `sm` و بازه زیر `md` پنهان می‌شوند؛ کد، مقدار، استفاده و وضعیت می‌مانند.
+- **کلید فعال/غیرفعال (BO-J04) بی‌دیالوگ است.** پیل پیش از پاسخ عوض می‌شود و خطا آن را
+  برمی‌گرداند؛ کوپن منقضی یا تمام‌شده در UI غیرفعال است و اگر ردیف کهنه درخواست بدهد، سرور
+  ۴۰۹ می‌دهد. `coupons.manage` کنترل‌ها را نشان می‌دهد.
 
 **English**
 
@@ -50,6 +53,9 @@ that.
   number, and a shareable coupon filter is not a requirement; `coupon-paging.ts` already has the
   URL shape if that changes.
 - **Mobile:** type below `sm` and the window below `md` hide; code, value, usage and status stay.
+- **The enable switch (BO-J04) has no dialog.** The pill flips before the answer and a failure
+  rolls it back; expired or exhausted coupons are disabled in the UI and answer 409 from the mock
+  if a stale row asks. `coupons.manage` decides whether the controls render at all.
 
 ## پیش‌نمایش / Preview
 

@@ -971,6 +971,34 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   table links into `/orders/:id` and uses the shared `ORDER_STATUS_META` (via `p-tag` severities),
   never a second status vocabulary.
 
+### Coupons (BO-J01..J04)
+
+- **The status is derived, never stored.** `couponStatus(coupon, now)` in `coupon-status.ts` reads
+  `to`, `usedCount` and `isActive` with expired > exhausted > inactive > active. The list badge, the
+  filter and the switch's guard all call it, and the mock duplicates the rule on the server side of
+  the wire (a mock that imported the UI's helper would agree by construction, not by contract).
+- **Coupons run on the real clock.** Their fixture windows are seeded from `Date.now()`, not
+  `FIXTURE_NOW`: an expiry is a fact about today, and a fixed demo date would turn every coupon
+  «منقضی» after it.
+- **The list state is component signals, not the URL.** One status select and one page number; a
+  shareable coupon filter is not a requirement. `coupon-paging.ts` still owns the shape if it
+  becomes one.
+- **One form, two modes.** `CouponForm` is created inside `@if (dialogOpen())`, so a cancelled
+  edit cannot leak into the next create; `ngOnChanges` hydrates or resets it. The Jalali controls
+  hold Gregorian `YYYY-MM-DD`, and `toInput()` converts with start-of-day for `from` and
+  END-of-day for `to`, so the last day is inclusive.
+- **The code generator avoids I/O/0/1.** `generateCouponCode` uses 32 unambiguous characters and
+  `OFF-` + six; lowercase input is accepted by the validator and uppercased by the payload builder.
+- **Rules live in `coupon-validators.ts` and the mock repeats them.** The percent/amount and
+  date-order rules are group validators that write their key onto the field that owns the error;
+  the server answers 422 with `fields`, and the form maps each message under its control and stays
+  open. `minCartWarning` is a warning only: an amount coupon bigger than its cart still saves.
+- **The toggle is optimistic, with no confirmation.** The switch flips, a failure clears the
+  override, and the pill follows the override through `couponStatus`. An expired or exhausted
+  coupon is disabled in the UI and answers **409** from the mock if a stale row asks anyway.
+- **`coupons.manage` gates the write actions** (create, edit, switch); the route needs
+  `coupons.view` and `permissionGuard`.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`
