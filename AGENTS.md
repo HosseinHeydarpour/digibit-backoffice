@@ -931,6 +931,37 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
   init hazards), and the detail's money cards print «رایگان» for zero shipping and a discount
   line only when the discount is real.
 
+### Customers (BO-I01..I06)
+
+- **One fixture, three projections.** `customers.fixture.ts` builds 187 records from the order
+  fixture's first eight shoppers plus generated ones; `MOCK_CUSTOMERS` is the list row (no
+  addresses), `MOCK_CUSTOMER_DETAILS` is the profile, and `MOCK_DASHBOARD_SUMMARY.customerCount`
+  reads the same array (187, no longer a hand-written number). `orderCount` and `totalSpent` are
+  counted from `MOCK_ORDER_DETAILS` per read; `totalSpent` excludes cancelled and returned orders.
+- **The list state is one URL object.** `customer-paging.ts` owns `query/status/page/size/sort/dir`,
+  maps `size`→`pageSize` for the API, and falls back on invalid values. Search is debounced 300 ms,
+  the status select applies at once, and both reset to page 1. `writeState` uses `replaceUrl` +
+  `queryParamsHandling: 'merge'`; Back/Forward mirrors through `queryParamMap` guarded by
+  `stateEqual`.
+- **The mock normalises Persian digits for the phone search.** «۰۹۱۲…» becomes `0912…`; only a
+  digits-and-separators query is treated as a phone (an email's stray digit matched half the shop
+  before that rule). `filterOrders` gained `customerId`, which the profile's second request uses.
+- **The toggle is optimistic and the reload is not the rollback.** `statusOverrides` lives above
+  `page()`; a success keeps the override until the next fetch returns the same status
+  (`reconcileOverrides`), an error clears it, and `toggle.writeValue(old)` runs on cancel, offline
+  and every path that sends nothing. `customers.block` gates the switch; the read-only pill stays
+  when the grant is absent.
+- **`permissionGuard` is the first route guard.** It reads `data.permission` and returns a UrlTree
+  to `/forbidden`, and it is **fail-closed** (`PERMISSIONS` defaults to empty). It is applied to
+  the customers route now; other features keep their declarative `data.permission` until BO-D07
+  widens the sweep. `MOCK_PERMISSIONS` adds action grants such as `customers.block`, which are not
+  menu items and would otherwise be missing in mock mode.
+- **A filtered empty is not an empty shop.** «مشتری‌ای با این مشخصات پیدا نشد» + «پاک کردن
+  فیلترها» when a filter is active; «هنوز مشتری‌ای ثبت نشده» only when the shop is new; an empty
+  page above page 1 offers the way back to page 1.
+- **The table hides light columns on a phone** (email < `lg`, mobile/date < `md`, order count <
+  `sm`), and the wrapper scrolls, not the page.
+
 ### Sales chart and Chart.js testing (BO-E03)
 
 - **Chart.js runs in jsdom via Proxy context mock:** `UIChart` from PrimeNG mounts `<p-chart>`

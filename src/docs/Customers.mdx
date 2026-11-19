@@ -53,6 +53,18 @@ and each row downloads light columns only, not addresses and order history.
   before the server answers, and a failure rolls it back. Without `customers.block` only the
   read-only pill renders.
 
+## دسترسی / Permissions
+
+مسیر مشتریان با `permissionGuard` محافظت می‌شود: `data.permission: 'customers.view'` و
+`PERMISSIONS` پیش‌فرض خالی. بدون مجوز، آدرس مستقیم به `/forbidden` می‌رود؛ منوی پنهان تنها
+مرز نیست. دکمهٔ مسدودسازی `customers.block` می‌خواهد و برای نقش بدون آن، فقط پیل خواندنی
+رندر می‌شود. این کنترل سمت UI است؛ سرور هر نوشتن را دوباره اعتبارسنجی می‌کند.
+
+The customers route is guarded by `permissionGuard`: `data.permission: 'customers.view'` and an
+empty `PERMISSIONS` default. Without the grant a direct URL goes to `/forbidden`, so a hidden menu
+item is not the only boundary. The block switch needs `customers.block`; without it only the
+read-only pill renders. This is UI gating; the server re-validates every write.
+
 ## پیش‌نمایش / Preview
 
 <Canvas of={CustomerListStories.Default} />

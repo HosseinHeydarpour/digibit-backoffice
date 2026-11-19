@@ -9,6 +9,7 @@
 // cannot disagree about who may open the module.
 
 import { Routes } from '@angular/router';
+import { permissionGuard } from '@core/guards/permission.guard';
 
 import { CustomerList } from './customer-list/customer-list';
 
@@ -17,6 +18,7 @@ export const CUSTOMERS_ROUTES: Routes = [
     path: '',
     component: CustomerList,
     title: 'مشتریان',
+    canActivate: [permissionGuard],
     data: {
       title: 'مشتریان',
       breadcrumb: 'مشتریان',
