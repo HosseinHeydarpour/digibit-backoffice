@@ -209,19 +209,43 @@
                   </div>
                 </td>
 
-                <!-- موبایل — LTR inside the RTL cell, hidden below `md`. -->
+                <!-- موبایل: LTR and mono; the value copies on click without
+                     opening the profile. Hidden below `md`. -->
                 <td
                   class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 md:table-cell dark:text-gray-400"
                 >
-                  <bdi class="font-mono" dir="ltr">{{ item.phone }}</bdi>
+                  <button
+                    type="button"
+                    (click)="$event.stopPropagation(); copyPhone(item.phone)"
+                    [attr.aria-label]="'کپی موبایل ' + item.phone"
+                    class="inline-flex items-center gap-1.5 rounded font-mono text-sm text-gray-500 transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-400 dark:hover:text-primary-light"
+                  >
+                    <bdi dir="ltr">{{ item.phone }}</bdi>
+                    <i
+                      class="pi pi-copy text-[11px] text-gray-400 dark:text-gray-500"
+                      aria-hidden="true"
+                    ></i>
+                  </button>
                 </td>
 
-                <!-- ایمیل — hidden below `lg`, truncates before it pushes the row. -->
+                <!-- ایمیل: copies on click too; truncated before it pushes the
+                     row. Hidden below `lg`. -->
                 <td
-                  class="hidden max-w-56 truncate whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 lg:table-cell dark:text-gray-400"
+                  class="hidden max-w-56 whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 lg:table-cell dark:text-gray-400"
                   [title]="item.email"
                 >
-                  <bdi dir="ltr">{{ item.email }}</bdi>
+                  <button
+                    type="button"
+                    (click)="$event.stopPropagation(); copyEmail(item.email)"
+                    [attr.aria-label]="'کپی ایمیل ' + item.email"
+                    class="flex max-w-full items-center gap-1.5 rounded text-sm text-gray-500 transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-400 dark:hover:text-primary-light"
+                  >
+                    <bdi dir="ltr" class="min-w-0 truncate">{{ item.email }}</bdi>
+                    <i
+                      class="pi pi-copy shrink-0 text-[11px] text-gray-400 dark:text-gray-500"
+                      aria-hidden="true"
+                    ></i>
+                  </button>
                 </td>
 
                 <!-- تعداد سفارش — hidden below `sm`. -->

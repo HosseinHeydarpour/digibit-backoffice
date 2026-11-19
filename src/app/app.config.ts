@@ -8,83 +8,17 @@ import {
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { CURRENT_USER } from '@core/auth/current-user.token';
 import { PERMISSIONS } from '@core/auth/permissions.token';
+import { DIGIBIT_PRESET } from '@core/digibit-preset';
 import { errorInterceptor } from '@core/interceptors/error-interceptor';
 import { MOCK_SESSION_USER } from '@core/mock/fixtures';
 import { mockInterceptor } from '@core/mock/mock-interceptor';
 import { environment } from '@env/environment';
-import { definePreset } from '@primeng/themes';
-import Aura from '@primeng/themes/aura';
 import type { SessionUser } from '@shared/models/session.model';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 
 import { routes } from './app.routes';
 import { MOCK_PERMISSIONS } from './layout/sidebar/menu';
-
-/**
- * Aura with the Digibit brand colour substituted into the primary palette.
- *
- * Every PrimeNG component reads `--p-primary-*` from this, so the brand orange
- * reaches buttons, tables and focus rings without any per-component overrides.
- * The value matches `--color-primary` in src/styles/tailwind.css.
- *
- * The dark `formField.background` override exists because Aura's dark scheme
- * paints fields with `{surface.950}` (near-black #020617), which reads as a
- * black hole on the project's #1e293b dark cards. The project palette is
- * slate, so the field sits on slate-700 — the same tone the pre-PrimeNG inputs
- * carried as `dark:bg-gray-700`. Light mode keeps Aura's `{surface.0}`; every
- * other form-field token (borders, placeholder, focus) is untouched.
- */
-const DigibitPreset = definePreset(Aura, {
-  semantic: {
-    primary: {
-      50: '#fff4ec',
-      100: '#ffe4d1',
-      200: '#ffc9a3',
-      300: '#ffae75',
-      400: '#ff9847',
-      500: '#ff8229',
-      600: '#d96b1f',
-      700: '#b76122',
-      800: '#8c4a1a',
-      900: '#6b3814',
-      950: '#3d1f0a',
-    },
-    colorScheme: {
-      dark: {
-        formField: {
-          background: '#334155',
-        },
-      },
-    },
-  },
-  components: {
-    // Tooltips wear the project's slate surfaces, not Aura's zinc tokens: #1e293b
-    // is `--color-dark` on light, #334155 is the dark form-field tone, and
-    // #f8fafc is `--color-text-primary-dark`. 20rem gives a long customer name
-    // room; the 8px radius matches the fields.
-    tooltip: {
-      root: {
-        maxWidth: '20rem',
-        borderRadius: '0.5rem',
-      },
-      colorScheme: {
-        light: {
-          root: {
-            background: '#1e293b',
-            color: '#f8fafc',
-          },
-        },
-        dark: {
-          root: {
-            background: '#334155',
-            color: '#f8fafc',
-          },
-        },
-      },
-    },
-  },
-});
 
 /**
  * Root providers.
@@ -141,7 +75,7 @@ export const appConfig: ApplicationConfig = {
 
     providePrimeNG({
       theme: {
-        preset: DigibitPreset,
+        preset: DIGIBIT_PRESET,
         options: { darkModeSelector: '.app-dark' },
       },
     }),

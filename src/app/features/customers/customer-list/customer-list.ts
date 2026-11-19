@@ -105,9 +105,9 @@ const COLUMNS: readonly CustomerColumn[] = [
  *      drops a repeated value.
  *   3. `applyState({ query: 'مریم', page: 1 })` resets to page 1 — a filter
  *      change must not stay on page 4 of the OLD result set.
- *   4. `writeState` pushes `state$` once and navigates with `replaceUrl: true`
- *      (typing does not fill the browser history) and `merge` (future keys
- *      survive).
+ *   4. `writeState` pushes `state$` once and navigates. Typing uses
+ *      `replaceUrl: true` so it does not fill history; paging pushes a real
+ *      entry so Back returns to the previous page. `merge` keeps future keys.
  *   5. `combineLatest(reload$, state$)` → `switchMap` cancels the previous
  *      request → `GET /customers?query=مریم&page=1&pageSize=20`.
  *   6. The mock filters name/email/phone and answers page 1; the footer prints
@@ -348,7 +348,7 @@ export class CustomerList {
     const current = this.listState();
     const dir: SortOrder = current.sort === field && current.dir === 'asc' ? 'desc' : 'asc';
 
-    this.applyState({ ...current, page: 1, sort: field, dir });
+    this.applyState({ ...current, page: 1, sort: field, dir }, { replaceUrl: false });
   }
 
   /** `aria-sort` for the sortable `<th>`; an inactive column reports `none`. */
@@ -379,7 +379,7 @@ export class CustomerList {
       return;
     }
 
-    this.applyState({ ...this.listState(), page: next });
+    this.applyState({ ...this.listState(), page: next }, { replaceUrl: false });
   }
 
   /** Page-size select; the allowed sizes are the closed 10/20/50 union. */
@@ -388,7 +388,7 @@ export class CustomerList {
       return;
     }
 
-    this.applyState({ ...this.listState(), page: 1, pageSize: size });
+    this.applyState({ ...this.listState(), page: 1, pageSize: size }, { replaceUrl: false });
   }
 
   /** The empty state's way back when a stale page number is out of range. */
@@ -407,6 +407,33 @@ export class CustomerList {
   /** «زهرا محمدی» → «زم» for the row avatar (the topbar's own helper). */
   initials(fullName: string): string {
     return toInitials(fullName);
+  }
+
+  /** Copy the mobile number; the row click still opens the profile. */
+  copyPhone(phone: string): void {
+    this.copy(phone, 'شماره موبایل کپی شد.');
+  }
+
+  /** Copy the email address; the row click still opens the profile. */
+  copyEmail(email: string): void {
+    this.copy(email, 'ایمیل کپی شد.');
+  }
+
+  /**
+   * Clipboard may be missing (insecure context, older browser) or blocked; a
+   * convenience action then fails quietly, like the order code's copy.
+   */
+  private copy(value: string, message: string): void {
+    const clipboard = navigator.clipboard;
+
+    if (!clipboard?.writeText) {
+      return;
+    }
+
+    void clipboard.writeText(value).then(
+      () => this.toast.success(message),
+      () => undefined,
+    );
   }
 
   /**
@@ -497,21 +524,23 @@ export class CustomerList {
   }
 
   /** One atomic state update and one URL write (never two navigations). */
-  private applyState(next: CustomerListState): void {
+  private applyState(next: CustomerListState, options: { replaceUrl?: boolean } = {}): void {
     if (stateEqual(next, this.listState())) {
       return;
     }
 
-    this.writeState(next);
+    this.writeState(next, options.replaceUrl ?? true);
   }
 
   /**
    * Single write path: state → stream → URL.
    *
-   * `replaceUrl` keeps typing out of history; `merge` preserves keys this task
-   * does not own. The caller has already checked equality.
+   * Typing and filters replace the current entry so a search does not fill the
+   * browser history. Paging and sorting pass `replaceUrl: false`: without a
+   * pushed entry, Back from page 2 would leave the list instead of returning to
+   * page 1. `merge` preserves keys this task does not own.
    */
-  private writeState(next: CustomerListState): void {
+  private writeState(next: CustomerListState, replaceUrl: boolean): void {
     this.listState.set(next);
     this.state$.next(next);
 
@@ -519,7 +548,7 @@ export class CustomerList {
       relativeTo: this.route,
       queryParams: stateToParams(next),
       queryParamsHandling: 'merge',
-      replaceUrl: true,
+      replaceUrl,
     });
   }
 }

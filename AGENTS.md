@@ -174,8 +174,8 @@ Three layers, in this order of preference:
    `src/styles/tailwind.css` (`bg-light`, `dark:bg-background-dark`, `text-primary`, …).
    Prefer these over hand-written CSS.
 2. **PrimeNG components** for widgets — tables, dialogs, buttons. They are themed by the
-   preset configured in `src/app/app.config.ts`, so they pick up the brand colour without
-   per-component overrides.
+   shared preset in `src/app/core/digibit-preset.ts` (wired in `src/app/app.config.ts`), so they
+   pick up the brand colour without per-component overrides.
 3. **Component SCSS** only for what the first two cannot express.
 
 Design reference is the Arino admin template; the extracted palette and layout are
@@ -1344,7 +1344,9 @@ second toggle — the two systems would then disagree and half the UI would stay
 ### Two styling gotchas
 
 - **The PrimeNG preset cannot live in SCSS.** `@primeng/themes` ships `.mjs` entry points,
-  so Sass `@use` cannot resolve it. Configure it in TypeScript (`app.config.ts`).
+  so Sass `@use` cannot resolve it. Configure it in TypeScript (`core/digibit-preset.ts`, wired
+  in `app.config.ts`). The app and `.storybook/preview.ts` import the same object, so the
+  preview cannot drift back to Aura's near-black dark-mode fields.
 - **Import Tailwind with CSS `@import`, not Sass `@use`.** Sass parses `@use`d files as its
   own syntax and strips the semicolons from Tailwind's `@theme` block. Sass also requires
   every `@use` to come before other rules, so `@use './styles/fonts'` goes first.

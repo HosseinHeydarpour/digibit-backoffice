@@ -1,7 +1,8 @@
 // src/app/core/services/breadcrumb.spec.ts
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Params, Router, provideRouter } from '@angular/router';
+import { PERMISSIONS } from '@core/auth/permissions.token';
 
 import { routes as APP_ROUTES } from '../../app.routes';
 
@@ -154,7 +155,12 @@ describe('BreadcrumbService against the real app routes (integration)', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideRouter(APP_ROUTES)],
+      providers: [
+        provideRouter(APP_ROUTES),
+        // The customers profile is the first guarded route; grant the one
+        // permission it declares so the real navigation can reach it.
+        { provide: PERMISSIONS, useValue: signal(['customers.view']) },
+      ],
     });
     service = TestBed.inject(BreadcrumbService);
     router = TestBed.inject(Router);
@@ -187,6 +193,15 @@ describe('BreadcrumbService against the real app routes (integration)', () => {
     expect(service.crumbs()).toEqual([
       { label: 'سفارش‌ها', url: '/orders' },
       { label: 'جزئیات سفارش', url: '/orders/1' },
+    ]);
+  });
+
+  it('builds «مشتریان / پروفایل مشتری» on a real customer profile (BO-I01 X4)', async () => {
+    await router.navigateByUrl('/customers/1');
+
+    expect(service.crumbs()).toEqual([
+      { label: 'مشتریان', url: '/customers' },
+      { label: 'پروفایل مشتری', url: '/customers/1' },
     ]);
   });
 

@@ -10,7 +10,7 @@
 // docs and the product can never drift apart:
 //
 //   - `src/styles/tailwind.css`  -> the `@theme` design tokens
-//   - `src/app/app.config.ts`    -> the PrimeNG preset (`DigibitPreset`)
+//   - `src/app/core/digibit-preset.ts` -> the PrimeNG preset (`DIGIBIT_PRESET`)
 //
 // If the brand colour ever changes, it changes in those two places AND here.
 // There is no way to import them at runtime — `tailwind.css` is not a JS module

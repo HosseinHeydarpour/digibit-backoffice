@@ -2,36 +2,19 @@ import { applicationConfig, type Preview } from '@storybook/angular';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { LOCALE_ID } from '@angular/core';
-import { definePreset } from '@primeng/themes';
-import Aura from '@primeng/themes/aura';
+import { DIGIBIT_PRESET } from '@core/digibit-preset';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 
 import { BrandedDocsContainer } from './docs-container';
 import { BRAND } from './theme';
 
-/**
- * Aura with the Digibit brand orange substituted into the primary palette — the
- * exact preset from src/app/app.config.ts, so components render with the same
- * brand colour in Storybook as they do in the app.
+/*
+ * The preset is imported from the app (`src/app/core/digibit-preset.ts`) rather
+ * than copied. The copy that used to live here had only the brand palette, so
+ * Storybook's dark-mode fields fell back to Aura's near-black surface while the
+ * app showed slate. One import keeps the two in step.
  */
-const DigibitPreset = definePreset(Aura, {
-  semantic: {
-    primary: {
-      50: '#fff4ec',
-      100: '#ffe4d1',
-      200: '#ffc9a3',
-      300: '#ffae75',
-      400: '#ff9847',
-      500: '#ff8229',
-      600: '#d96b1f',
-      700: '#b76122',
-      800: '#8c4a1a',
-      900: '#6b3814',
-      950: '#3d1f0a',
-    },
-  },
-});
 
 /**
  * Global styles are NOT imported here: the Angular builder target in
@@ -61,7 +44,7 @@ const preview: Preview = {
         provideRouter([]),
         providePrimeNG({
           theme: {
-            preset: DigibitPreset,
+            preset: DIGIBIT_PRESET,
             options: { darkModeSelector: '.app-dark' },
           },
         }),

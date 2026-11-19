@@ -181,6 +181,57 @@ describe('CustomerList (BO-I01)', () => {
     expect(service.queries.at(-1)).toEqual(expect.objectContaining({ status: 'blocked', page: 1 }));
   });
 
+  it('keeps a filter change out of browser history', async () => {
+    await mount();
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    component.onStatusChange('blocked');
+
+    expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ replaceUrl: true }));
+  });
+
+  it('copies the mobile number without opening the profile', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    await mount();
+    const navigate = vi.spyOn(router, 'navigate');
+
+    const button = fixture.nativeElement.querySelector(
+      'tbody tr button[aria-label^="کپی موبایل"]',
+    ) as HTMLButtonElement;
+    expect(button.textContent).toContain('09121000001');
+
+    button.click();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith('09121000001');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('copies the email without opening the profile', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    await mount();
+    const navigate = vi.spyOn(router, 'navigate');
+
+    const button = fixture.nativeElement.querySelector(
+      'tbody tr button[aria-label^="کپی ایمیل"]',
+    ) as HTMLButtonElement;
+    expect(button.textContent).toContain('customer1@example.com');
+
+    button.click();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith('customer1@example.com');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it('sorts by signup date, flipping direction on the second click', async () => {
     await mount();
 
@@ -214,7 +265,7 @@ describe('CustomerList (BO-I01)', () => {
       [],
       expect.objectContaining({
         queryParams: expect.objectContaining({ page: '2' }),
-        replaceUrl: true,
+        replaceUrl: false,
       }),
     );
   });
