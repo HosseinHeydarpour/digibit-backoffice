@@ -141,6 +141,13 @@
     />
   </app-form-field>
 
+  @if (minCartWarning(); as warning) {
+    <p class="text-xs text-yellow-700 dark:text-yellow-400">
+      <i class="pi pi-exclamation-circle text-xs" aria-hidden="true"></i>
+      {{ warning }}
+    </p>
+  }
+
   <app-form-field controlName="description" label="توضیحات" inputId="coupon-description">
     <textarea
       id="coupon-description"

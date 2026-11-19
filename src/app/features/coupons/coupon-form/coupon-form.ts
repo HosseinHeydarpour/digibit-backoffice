@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnChanges,
+  computed,
   inject,
   input,
   output,
   signal,
 } from '@angular/core';
 import type { SimpleChanges } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormField } from '@shared/components/form-field/form-field';
 import { JalaliDatepicker } from '@shared/components/jalali-datepicker/jalali-datepicker';
@@ -18,11 +20,18 @@ import { InputNumber } from 'primeng/inputnumber';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
+import { startWith } from 'rxjs';
 
 import type { Coupon, CouponInput, CouponType } from '../models/coupon.model';
 import { CouponsService } from '../services/coupons.service';
 
 import { generateCouponCode } from './coupon-code';
+import {
+  couponCodeValidator,
+  couponDateRangeValidator,
+  couponValueValidator,
+  minCartWarning,
+} from './coupon-validators';
 
 const DAY = 86_400_000;
 
@@ -101,16 +110,39 @@ export class CouponForm implements OnChanges {
 
   readonly saveError = signal<string | null>(null);
 
-  readonly form = new FormGroup({
-    code: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    type: new FormControl<CouponType>('percent', { nonNullable: true }),
-    value: new FormControl(0, { nonNullable: true, validators: [Validators.required] }),
-    minCart: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
-    maxUses: new FormControl(100, { nonNullable: true, validators: [Validators.min(1)] }),
-    maxUsesPerUser: new FormControl<number | null>(1, { validators: [Validators.min(1)] }),
-    from: new FormControl<string | null>(null, { validators: [Validators.required] }),
-    to: new FormControl<string | null>(null, { validators: [Validators.required] }),
-    description: new FormControl('', { nonNullable: true }),
+  readonly form = new FormGroup(
+    {
+      code: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, couponCodeValidator],
+      }),
+      type: new FormControl<CouponType>('percent', { nonNullable: true }),
+      value: new FormControl(0, { nonNullable: true, validators: [Validators.required] }),
+      minCart: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
+      maxUses: new FormControl(100, { nonNullable: true, validators: [Validators.min(1)] }),
+      maxUsesPerUser: new FormControl<number | null>(1, { validators: [Validators.min(1)] }),
+      from: new FormControl<string | null>(null, { validators: [Validators.required] }),
+      to: new FormControl<string | null>(null, { validators: [Validators.required] }),
+      description: new FormControl('', { nonNullable: true }),
+    },
+    { validators: [couponValueValidator, couponDateRangeValidator] },
+  );
+
+  /** The live form value; feeds the one cross-field WARNING. */
+  private readonly formValue = toSignal(
+    this.form.valueChanges.pipe(startWith(this.form.getRawValue())),
+    { initialValue: this.form.getRawValue() },
+  );
+
+  /** An amount coupon bigger than its minimum cart: allowed, but worth a note. */
+  readonly minCartWarning = computed(() => {
+    const value = this.formValue();
+
+    return minCartWarning(
+      value.type ?? 'percent',
+      Number(value.value) || 0,
+      Number(value.minCart) || 0,
+    );
   });
 
   get typeOptions(): { label: string; value: CouponType }[] {
@@ -142,7 +174,29 @@ export class CouponForm implements OnChanges {
 
     const server = control.errors?.['server'];
 
-    return typeof server === 'string' ? server : null;
+    if (typeof server === 'string') {
+      return server;
+    }
+
+    const errors = control.errors ?? {};
+
+    if (errors['codePattern']) {
+      return 'کد باید ۳ تا ۲۰ کاراکتر انگلیسی، رقم یا خط تیره باشد.';
+    }
+
+    if (errors['percentRange']) {
+      return 'درصد باید بین ۱ و ۱۰۰ باشد.';
+    }
+
+    if (errors['amountPositive']) {
+      return 'مبلغ تخفیف باید بزرگ‌تر از صفر باشد.';
+    }
+
+    if (errors['afterFrom']) {
+      return 'پایان بازه باید بعد از شروع باشد.';
+    }
+
+    return null;
   }
 
   save(): void {

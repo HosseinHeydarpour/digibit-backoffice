@@ -63,6 +63,34 @@ that.
 
 <Canvas of={CouponListStories.RequestFailed} />
 
+## قواعد اعتبار / Validation rules
+
+- **درصد ۱ تا ۱۰۰، مبلغ بزرگ‌تر از صفر.** `couponValueValidator` یک گروه‌ولیدیتور است چون به
+  `type` نگاه می‌کند؛ خطا روی خود فیلد `value` نوشته می‌شود تا `app-form-field` و `fieldError()`
+  یک جا بخوانند.
+- **پایان بعد از شروع.** `couponDateRangeValidator` دو تاریخ جلالی را مقایسه می‌کند (هر دو در
+  کنترل به‌صورت میلادی `YYYY-MM-DD` هستند).
+- **کد ۳ تا ۲۰ کاراکتر `[A-Z0-9-]`.** حروف کوچک پذیرفته و به بزرگ تبدیل می‌شوند، چون همان کدی
+  است که ذخیره می‌شود. یکتایی کد سمت سرور است و 422 به زیر فیلد `code` می‌رسد.
+- **سقف استفاده و حداقل سبد** با `Validators.min` کنترل می‌شوند؛ «سقف هر کاربر» خالی مجاز است.
+- **هشدار، نه خطا:** اگر کوپن مبلغی از حداقل سبدش بیشتر باشد، فرم یک خط زرد نشان می‌دهد؛
+  ذخیره را نمی‌بندد، چون کوپن کار می‌کند و فقط سخاوتمندانه است.
+- **خطاها فقط بعد از touched.** `fieldError()` تا لمس‌نشدن فیلد چیزی چاپ نمی‌کند (tc 9).
+
+**English**
+
+- **Percent 1..100, amount > 0.** `couponValueValidator` is a group validator because it reads
+  `type`; the key is written onto the `value` control so FormField and `fieldError()` read one
+  place.
+- **End after start.** `couponDateRangeValidator` compares the two Jalali picks (both controls hold
+  Gregorian `YYYY-MM-DD`).
+- **Codes are 3..20 chars of `[A-Z0-9-]`.** Lowercase is accepted and uppercased because that is
+  what gets stored; uniqueness is the server's call and a 422 lands under `code`.
+- **Caps and minimum cart** use `Validators.min`; the per-customer cap may be empty.
+- **A warning, not an error:** an amount coupon bigger than its minimum cart shows a yellow line
+  and still saves.
+- **Errors appear after `touched`.** `fieldError()` prints nothing before the field is touched.
+
 ## فرم ایجاد/ویرایش / Create and edit
 
 فرم (BO-J02): کد با دکمهٔ تولید، نوع، مقدار، بازهٔ جلالی، سقف کل و هر کاربر، حداقل سبد و

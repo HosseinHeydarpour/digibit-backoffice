@@ -178,4 +178,43 @@ describe('CouponForm (BO-J02)', () => {
 
     expect(cancelled).toBe(true);
   });
+
+  it('rejects a percent above 100 and names the rule after touch', async () => {
+    await mount(null);
+
+    component.form.controls.value.setValue(120);
+    component.form.controls.value.markAsTouched();
+
+    expect(component.form.controls.value.errors?.['percentRange']).toBe(true);
+    expect(component.fieldError('value')).toContain('۱ و ۱۰۰');
+  });
+
+  it('accepts the same number once the coupon is an amount', async () => {
+    await mount(null);
+
+    component.form.patchValue({ type: 'amount', value: 120 });
+
+    expect(component.form.controls.value.errors?.['percentRange']).toBeUndefined();
+    expect(component.form.controls.value.errors?.['amountPositive']).toBeUndefined();
+  });
+
+  it('rejects an end date before the start date', async () => {
+    await mount(null);
+
+    component.form.patchValue({ from: '2026-02-01', to: '2026-01-01' });
+    component.form.controls.to.markAsTouched();
+
+    expect(component.form.controls.to.errors?.['afterFrom']).toBe(true);
+    expect(component.fieldError('to')).toContain('بعد از شروع');
+  });
+
+  it('warns when an amount coupon is bigger than its minimum cart', async () => {
+    await mount(null);
+
+    component.form.patchValue({ type: 'amount', value: 200_000, minCart: 100_000 });
+    fixture.detectChanges();
+
+    expect(component.minCartWarning()).toContain('بیشتر');
+    expect(fixture.nativeElement.textContent).toContain('بیشتر');
+  });
 });
