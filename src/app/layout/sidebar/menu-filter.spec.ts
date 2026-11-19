@@ -25,7 +25,7 @@ describe('filterMenu', () => {
     const result = filterMenu(MENU, MENU_PERMISSIONS);
 
     expect(result).toHaveLength(MENU.length);
-    expect(labels(result)).toHaveLength(12);
+    expect(labels(result)).toHaveLength(13);
   });
 
   it('shows only the permitted parts for a Support role (tc 3)', () => {
@@ -67,7 +67,7 @@ describe('filterMenu', () => {
     filterMenu(MENU, ['products.view']);
 
     expect(JSON.stringify(MENU)).toBe(before);
-    expect(labels(MENU)).toHaveLength(12);
+    expect(labels(MENU)).toHaveLength(13);
   });
 
   it('returns new objects rather than the input references', () => {
@@ -86,7 +86,7 @@ describe('filterMenu', () => {
     const third = filterMenu(MENU, []);
 
     expect(first).toEqual(third);
-    expect(labels(second)).toHaveLength(12);
+    expect(labels(second)).toHaveLength(13);
   });
 
   it('ignores unknown permissions without throwing (tc 10)', () => {

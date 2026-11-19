@@ -57,11 +57,11 @@ function createSidebar(initial: readonly Permission[] = MENU_PERMISSIONS): {
 }
 
 describe('Sidebar', () => {
-  it('renders all 12 menu items when every permission is granted', () => {
+  it('renders all 13 menu items when every permission is granted', () => {
     const { fixture } = createSidebar();
 
     const links = renderedLabels(fixture);
-    expect(links.length).toBe(12);
+    expect(links.length).toBe(13);
 
     for (const item of MENU.flatMap((g) => g.items)) {
       expect(links).toContain(item.label);
@@ -80,14 +80,14 @@ describe('Sidebar', () => {
   it('renders an icon for every visible item', () => {
     const { fixture } = createSidebar();
 
-    expect(fixture.nativeElement.querySelectorAll('a i.pi').length).toBe(12);
+    expect(fixture.nativeElement.querySelectorAll('a i.pi').length).toBe(13);
   });
 
-  it('exposes MENU as a flat list of 12 unique routes', () => {
+  it('exposes MENU as a flat list of 13 unique routes', () => {
     const links = MENU.flatMap((g) => g.items.map((i) => i.routerLink));
 
-    expect(links.length).toBe(12);
-    expect(new Set(links).size).toBe(12);
+    expect(links.length).toBe(13);
+    expect(new Set(links).size).toBe(13);
   });
 
   it('hides items the user has no permission for (tc 1)', () => {
@@ -129,12 +129,12 @@ describe('Sidebar', () => {
     permissions.set(MENU_PERMISSIONS);
     fixture.detectChanges();
 
-    expect(renderedLabels(fixture)).toHaveLength(12);
+    expect(renderedLabels(fixture)).toHaveLength(13);
   });
 
   it('narrows the menu when permissions are revoked (tc 4)', () => {
     const { fixture, permissions } = createSidebar(MENU_PERMISSIONS);
-    expect(renderedLabels(fixture)).toHaveLength(12);
+    expect(renderedLabels(fixture)).toHaveLength(13);
 
     permissions.set([]);
     fixture.detectChanges();

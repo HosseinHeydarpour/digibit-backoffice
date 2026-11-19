@@ -1,6 +1,6 @@
 import { HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { environment } from '@env/environment';
-import type { PageMeta } from '@shared/models';
+import type { BannerPosition, PageMeta } from '@shared/models';
 import { delay, of, throwError } from 'rxjs';
 
 import * as fixtures from './fixtures';
@@ -382,15 +382,11 @@ function resolve(
       return resolveCoupons(method, id, sub, params, body, page, pageSize);
     case 'shipping-methods':
       return resolveShipping(method, id, sub, body);
-    case 'banners': {
-      if (!id) {
-        return ok([...fixtures.MOCK_BANNERS].sort((a, b) => a.order - b.order));
-      }
+    case 'banners':
+      return resolveBanners(method, id, sub, body);
 
-      const found = fixtures.MOCK_BANNERS.find((banner) => banner.id === id);
-
-      return found ? ok(found) : NOT_FOUND;
-    }
+    case 'content-pages':
+      return resolveContentPages(method, id, body);
 
     case 'orders': {
       if (!id) return paged(filterOrders(params), page, pageSize);
@@ -1156,6 +1152,281 @@ function resolveShipping(
   return method === 'GET' ? ok(found) : NOT_FOUND;
 }
 
+/** The banner store: seeded from the fixture, rebuilt by `resetMockState()`. */
+let BANNERS: fixtures.MockBanner[] = fixtures.MOCK_BANNERS.map((banner) => ({ ...banner }));
+
+const BANNER_POSITIONS: readonly BannerPosition[] = ['home-top', 'home-middle', 'sidebar'];
+const BANNER_POSITION_RANK: Readonly<Record<BannerPosition, number>> = {
+  'home-top': 0,
+  'home-middle': 1,
+  sidebar: 2,
+};
+
+interface BannerBody {
+  title: string;
+  alt: string;
+  imageUrl: string;
+  link: string;
+  position: BannerPosition;
+  from: number;
+  to: number;
+  isActive: boolean;
+}
+
+function toBannerBody(body: unknown): BannerBody {
+  const data = asRecord(body);
+
+  return {
+    title: String(data['title'] ?? '').trim(),
+    alt: String(data['alt'] ?? '').trim(),
+    imageUrl: String(data['imageUrl'] ?? '').trim(),
+    link: String(data['link'] ?? '').trim(),
+    position: data['position'] as BannerPosition,
+    from: Number(data['from'] ?? 0),
+    to: Number(data['to'] ?? 0),
+    isActive: data['isActive'] === true,
+  };
+}
+
+/** Every field the form can get wrong, with the sentence the form prints. */
+function validateBanner(input: BannerBody): Record<string, string[]> | null {
+  const fields: Record<string, string[]> = {};
+
+  if (input.title.length < 3 || input.title.length > 60) {
+    fields['title'] = ['عنوان باید بین ۳ و ۶۰ کاراکتر باشد.'];
+  }
+
+  if (input.link === '') {
+    fields['link'] = ['لینک مقصد الزامی است.'];
+  } else if (!input.link.startsWith('/') && !/^https?:\/\/\S+$/.test(input.link)) {
+    fields['link'] = ['لینک داخلی با / و لینک خارجی با http(s):// شروع شود.'];
+  }
+
+  if (!BANNER_POSITIONS.includes(input.position)) {
+    fields['position'] = ['موقعیت نامعتبر است.'];
+  }
+
+  if (input.imageUrl !== '' && input.alt === '') {
+    fields['alt'] = ['متن جایگزین تصویر الزامی است.'];
+  }
+
+  if (!Number.isFinite(input.from) || !Number.isFinite(input.to) || input.to <= input.from) {
+    fields['to'] = ['پایان بازه باید بعد از شروع باشد.'];
+  }
+
+  return Object.keys(fields).length > 0 ? fields : null;
+}
+
+function sortBanners(): fixtures.MockBanner[] {
+  return [...BANNERS].sort(
+    (a, b) =>
+      BANNER_POSITION_RANK[a.position] - BANNER_POSITION_RANK[b.position] || a.order - b.order,
+  );
+}
+
+function nextBannerOrder(position: BannerPosition): number {
+  return (
+    BANNERS.filter((banner) => banner.position === position).reduce(
+      (max, banner) => Math.max(max, banner.order),
+      0,
+    ) + 1
+  );
+}
+
+/**
+ * `/banners`, `/banners/:id`, `/banners/order` and the status sub-route
+ * (BO-L01..L07).
+ *
+ * TRACE — dragging the third header banner to the top:
+ *   1. The page sends `PATCH /banners/order` with
+ *      `{ position: 'home-top', ids: ['3','1','2'] }` — ONE request, not three.
+ *   2. The mock checks every id belongs to that position, then renumbers the
+ *      slot 1..n and answers the re-sorted full list.
+ *   3. A subsequent `GET /banners` returns the same order, so a refresh keeps
+ *      what the editor dropped.
+ */
+function resolveBanners(
+  method: string,
+  id: string | undefined,
+  _sub: string | undefined,
+  body: unknown,
+): MockResolution {
+  if (id === 'order' && method === 'PATCH') {
+    const data = asRecord(body);
+    const position = data['position'] as BannerPosition;
+    const ids = Array.isArray(data['ids']) ? data['ids'].map(String) : [];
+    const inPosition = BANNERS.filter((banner) => banner.position === position);
+
+    if (!BANNER_POSITIONS.includes(position) || ids.length === 0) {
+      return fieldValidationError({ position: ['موقعیت یا ترتیب نامعتبر است.'] });
+    }
+
+    if (!ids.every((item) => inPosition.some((banner) => banner.id === item))) {
+      return fieldValidationError({ ids: ['بنر به این موقعیت تعلق ندارد.'] });
+    }
+
+    const ordered = [
+      ...ids.map((item) => inPosition.find((banner) => banner.id === item)!),
+      ...inPosition.filter((banner) => !ids.includes(banner.id)),
+    ];
+
+    ordered.forEach((banner, index) => {
+      BANNERS = BANNERS.map((item) =>
+        item.id === banner.id ? { ...item, order: index + 1 } : item,
+      );
+    });
+
+    return ok(sortBanners(), 'ترتیب بنرها ذخیره شد.');
+  }
+
+  if (!id) {
+    if (method === 'POST') {
+      const input = toBannerBody(body);
+      const fields = validateBanner(input);
+
+      if (fields) {
+        return fieldValidationError(fields);
+      }
+
+      const next: fixtures.MockBanner = {
+        id: String(BANNERS.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1),
+        ...input,
+        order: nextBannerOrder(input.position),
+      };
+
+      BANNERS = [...BANNERS, next];
+
+      return created(next, 'بنر ایجاد شد.');
+    }
+
+    return method === 'GET' ? ok(sortBanners()) : NOT_FOUND;
+  }
+
+  const found = BANNERS.find((banner) => banner.id === id);
+
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  if (method === 'PATCH' && _sub === 'status') {
+    const isActive = asRecord(body)['isActive'] === true;
+
+    if (isActive && found.imageUrl === '') {
+      return {
+        status: 409,
+        body: {
+          error: {
+            code: 'BANNER_NO_IMAGE',
+            message: 'بنر بدون تصویر را نمی‌توان فعال کرد؛ اول تصویر را بارگذاری کن.',
+          },
+        },
+      };
+    }
+
+    const next: fixtures.MockBanner = { ...found, isActive };
+    BANNERS = BANNERS.map((banner) => (banner.id === id ? next : banner));
+
+    return ok(next, isActive ? 'بنر فعال شد.' : 'بنر غیرفعال شد.');
+  }
+
+  if (method === 'DELETE') {
+    BANNERS = BANNERS.filter((banner) => banner.id !== id);
+
+    return ok({ deleted: true }, 'بنر حذف شد.');
+  }
+
+  if (method === 'PUT') {
+    const input = toBannerBody(body);
+    const fields = validateBanner(input);
+
+    if (fields) {
+      return fieldValidationError(fields);
+    }
+
+    const next: fixtures.MockBanner = {
+      ...found,
+      ...input,
+      order: input.position === found.position ? found.order : nextBannerOrder(input.position),
+    };
+    BANNERS = BANNERS.map((banner) => (banner.id === id ? next : banner));
+
+    return ok(next, 'بنر ذخیره شد.');
+  }
+
+  return method === 'GET' ? ok(found) : NOT_FOUND;
+}
+
+let PAGES: fixtures.MockContentPage[] = fixtures.MOCK_CONTENT_PAGES.map((page) => ({
+  ...page,
+}));
+
+/** BO-L08's rules; the slug and timestamp stay server-owned. */
+function validateContentPage(input: {
+  title: string;
+  body: string;
+  metaTitle: string;
+  metaDescription: string;
+}): Record<string, string[]> | null {
+  const fields: Record<string, string[]> = {};
+
+  if (input.title.length < 3 || input.title.length > 80) {
+    fields['title'] = ['عنوان باید بین ۳ و ۸۰ کاراکتر باشد.'];
+  }
+
+  if (input.body === '') {
+    fields['body'] = ['متن صفحه نمی‌تواند خالی باشد.'];
+  }
+
+  if (input.metaTitle.length > 70) {
+    fields['metaTitle'] = ['عنوان متا حداکثر ۷۰ کاراکتر باشد.'];
+  }
+
+  if (input.metaDescription.length > 160) {
+    fields['metaDescription'] = ['توضیحات متا حداکثر ۱۶۰ کاراکتر باشد.'];
+  }
+
+  return Object.keys(fields).length > 0 ? fields : null;
+}
+
+/** `/content-pages` and `/content-pages/:slug` (BO-L08). Read + update only. */
+function resolveContentPages(
+  method: string,
+  id: string | undefined,
+  body: unknown,
+): MockResolution {
+  if (!id) {
+    return method === 'GET' ? ok([...PAGES]) : NOT_FOUND;
+  }
+
+  const found = PAGES.find((page) => page.slug === id);
+
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  if (method === 'PUT') {
+    const data = asRecord(body);
+    const input = {
+      title: String(data['title'] ?? '').trim(),
+      body: String(data['body'] ?? '').trim(),
+      metaTitle: String(data['metaTitle'] ?? '').trim(),
+      metaDescription: String(data['metaDescription'] ?? '').trim(),
+    };
+    const fields = validateContentPage(input);
+
+    if (fields) {
+      return fieldValidationError(fields);
+    }
+
+    const next: fixtures.MockContentPage = { ...found, ...input, updatedAt: Date.now() };
+    PAGES = PAGES.map((page) => (page.slug === id ? next : page));
+
+    return ok(next, 'صفحه ذخیره شد.');
+  }
+
+  return method === 'GET' ? ok(found) : NOT_FOUND;
+}
+
 function categoryName(id: string): string {
   return CATEGORIES.find((category) => category.id === id)?.name ?? '-';
 }
@@ -1887,6 +2158,8 @@ export function resetMockState(): void {
   CUSTOMERS = fixtures.MOCK_CUSTOMER_DETAILS;
   COUPONS = fixtures.MOCK_COUPONS.map((coupon) => ({ ...coupon }));
   SHIPPING = fixtures.MOCK_SHIPPING_METHODS.map((method) => ({ ...method }));
+  BANNERS = fixtures.MOCK_BANNERS.map((banner) => ({ ...banner }));
+  PAGES = fixtures.MOCK_CONTENT_PAGES.map((page) => ({ ...page }));
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */

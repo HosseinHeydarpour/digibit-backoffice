@@ -1537,6 +1537,100 @@ describe('mockInterceptor', () => {
     expect(soft.data.deleted).toBe(false);
   });
 
+  // --- BO-L01..L07: banners ---------------------------------------------------
+
+  it('banners: lists the seeded set sorted by position and order', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; position: string; order: number }[]>>('/api/v1/banners', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(body.data.length).toBe(8);
+    expect(body.data[0].position).toBe('home-top');
+    expect(body.data[0].order).toBe(1);
+  });
+
+  it('banners: reorders a whole position in one request', async () => {
+    await firstValueFrom(
+      http.patch<ApiResponse<unknown>>(
+        '/api/v1/banners/order',
+        { position: 'home-top', ids: ['3', '1', '2'] },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; position: string; order: number }[]>>('/api/v1/banners', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    const header = body.data.filter((banner) => banner.position === 'home-top');
+
+    expect(header.map((banner) => banner.id)).toEqual(['3', '1', '2']);
+  });
+
+  it('banners: activating a banner without an image is a 409', async () => {
+    const error = await firstValueFrom(
+      http
+        .patch<HttpErrorResponse>(
+          '/api/v1/banners/8/status',
+          { isActive: true },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+
+    expect(error.status).toBe(409);
+  });
+
+  it('banners: creates, validates the link and deletes', async () => {
+    const bad = await firstValueFrom(
+      http
+        .post<HttpErrorResponse>(
+          '/api/v1/banners',
+          {
+            title: 'بنر تازه',
+            alt: 'توضیح',
+            imageUrl: '',
+            link: 'products',
+            position: 'home-top',
+            from: Date.now(),
+            to: Date.now() + 86_400_000,
+            isActive: false,
+          },
+          { headers: { [MOCK_HEADER]: '1' } },
+        )
+        .pipe(catchError((e) => of(e as HttpErrorResponse))),
+    );
+    expect(bad.status).toBe(422);
+
+    const created = await firstValueFrom(
+      http.post<ApiResponse<{ id: string }>>(
+        '/api/v1/banners',
+        {
+          title: 'بنر تازه',
+          alt: 'توضیح',
+          imageUrl: '/mock/new.jpg',
+          link: '/products',
+          position: 'home-top',
+          from: Date.now(),
+          to: Date.now() + 86_400_000,
+          isActive: false,
+        },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+    expect(created.data.id).toBeTruthy();
+
+    const removed = await firstValueFrom(
+      http.delete<ApiResponse<{ deleted: boolean }>>(`/api/v1/banners/${created.data.id}`, {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(removed.data.deleted).toBe(true);
+  });
+
   /** `POST /categories` with only the fields the mock needs. */
   async function createCategory(name: string, slug: string, parentId?: string): Promise<string> {
     const created = await firstValueFrom(

@@ -14,6 +14,10 @@ export { MOCK_COUPONS } from './coupons.fixture';
 export type { MockCoupon, MockCouponType } from './coupons.fixture';
 export { MOCK_SHIPPING_METHODS } from './shipping.fixture';
 export type { MockShippingMethod } from './shipping.fixture';
+export { MOCK_BANNERS } from './banners.fixture';
+export type { MockBanner } from './banners.fixture';
+export { MOCK_CONTENT_PAGES } from './content-pages.fixture';
+export type { MockContentPage } from './content-pages.fixture';
 export type { SessionUser } from '@shared/models/session.model';
 
 /** 12 modules, matching the 12 feature folders. */
@@ -165,18 +169,6 @@ export const MOCK_CATEGORIES = [
     isActive: true,
   },
 ];
-
-export const MOCK_BANNERS = makeList(8, (i) => ({
-  id: pad(i + 1),
-  title: `بنر تخفیف شماره ${i + 1}`,
-  imageUrl: `/mock/banner-${i + 1}.jpg`,
-  link: '/products',
-  position: ['home-top', 'home-middle', 'sidebar'][i % 3],
-  order: i + 1,
-  from: now - 5 * DAY,
-  to: now + 15 * DAY,
-  isActive: i % 4 !== 0,
-}));
 
 export const MOCK_COMMENTS = makeList(5, (i) => ({
   id: pad(i + 1),

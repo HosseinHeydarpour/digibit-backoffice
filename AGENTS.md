@@ -1029,8 +1029,37 @@ the final validator, and SVG is sanitised server-side and only ever shown in an 
 - **A broken image degrades to one card.** The `error` event adds the id to `brokenImages` and that
   card renders a placeholder; the rest of the grid is untouched. The mock's `/mock/banner-*.jpg`
   URLs deliberately do not exist, so the placeholder is reachable in the demo.
-- **Read-only on purpose.** Upload, create/edit, reorder and delete are BO-L02..L07; the page has
-  no create button and guards `content.view` only.
+- **The image uploads at save.** Picking a file validates type/size (PNG/JPG/WebP, 2 MB) and shows a
+  `blob:` preview whose ratio follows the position (header 16:4, slider 16:6, sidebar 1:1); the
+  payload carries the server URL from `/media`, never the blob. Cancel writes nothing; the mock
+  returns the blob as the URL because it stores no file.
+- **One form, two link modes.** Internal (`/products`, picked from the fixed page list) or external
+  (`https://…`); only the active field owns the error. `alt` is required with an image.
+- **Order is per position, and saved in one batch.** The list is grouped into three slots; each is a
+  CDK drop list with up/down buttons in every card (phone/keyboard fallback). A drop sends ONE
+  `PATCH /banners/order { position, ids }`; the server renumbers that slot.
+- **Schedule and the switch are two axes.** `bannerSchedule()` prints «در حال نمایش» / «آینده» /
+  «منقضی» from the dates; the switch is `isActive`. Activating a banner with no image is refused in
+  the UI and 409 in the mock.
+- **Delete asks, and the server owns the file.** `DELETE /banners/:id` drops the row; the real
+  backend also removes the image when no other banner uses it (contract §1.4). The mock only has
+  URLs.
+- **`content.manage` gates the write controls**; the route needs `content.view`.
+
+### Content pages (BO-L08)
+
+- **Four fixed slugs, no create or delete.** `content-pages.fixture.ts` seeds about/contact/terms/faq;
+  the editor changes title, body and SEO only. The public routes exist, so a delete would 404 the
+  site.
+- **Plain text, with newlines.** The preview is `white-space: pre-wrap`, not a Markdown renderer:
+  typed text equals displayed text. Meta title is capped at 70 and description at 160, with live
+  counters.
+- **The dialog has no close button or Escape**, so every exit goes through the form's Cancel, which
+  asks when the form is dirty. Save resets the baseline (`markAsPristine`), so a second save is a
+  no-op rather than a second confirm.
+- **`PagesService` is read + update only.** A 422's `fields` land under their controls; the mock
+  validates the same title/body/meta limits.
+- **The `/pages` route** guards `content.view`; the edit control needs `content.manage`.
 
 ### Sales chart and Chart.js testing (BO-E03)
 

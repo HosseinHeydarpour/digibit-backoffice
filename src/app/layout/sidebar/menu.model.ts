@@ -16,6 +16,7 @@ export type Permission =
   | 'shipping.view'
   | 'shipping.manage'
   | 'content.view'
+  | 'content.manage'
   | 'comments.view'
   | 'tickets.view'
   | 'settings.write';

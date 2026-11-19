@@ -113,6 +113,12 @@ export const routes: Routes = [
         loadChildren: () =>
           import('@features/banners/banners.routes').then((m) => m.BANNERS_ROUTES),
       },
+      // Content pages own their route (BO-L08): the four fixed slugs, edited in
+      // a dialog; no create/delete.
+      {
+        path: 'pages',
+        loadChildren: () => import('@features/pages/pages.routes').then((m) => m.PAGES_ROUTES),
+      },
       {
         path: 'comments',
         data: { title: 'نظرات', breadcrumb: 'نظرات' },

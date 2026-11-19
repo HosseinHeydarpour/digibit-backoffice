@@ -1,0 +1,110 @@
+<app-page-header
+  title="صفحات"
+  description="صفحات ثابت سایت: درباره ما، تماس، قوانین و سوالات متداول"
+/>
+
+<div
+  class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+>
+  @if (listError()) {
+    <div class="p-6">
+      <app-error-state [title]="listError()!" (retry)="retry()" />
+    </div>
+  } @else if (rows() === null) {
+    <div class="space-y-3 p-6" role="status" aria-busy="true" aria-label="در حال بارگذاری صفحات">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="h-12 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700"></div>
+      }
+    </div>
+  } @else if (rows()!.length === 0) {
+    <app-empty-state
+      icon="pi pi-file"
+      title="صفحه‌ای تعریف نشده"
+      description="صفحات ثابت سایت از سمت سرور تعریف می‌شوند."
+    />
+  } @else {
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-700/50">
+          <tr>
+            <th
+              scope="col"
+              class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            >
+              عنوان
+            </th>
+            <th
+              scope="col"
+              class="hidden px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 sm:table-cell dark:text-gray-400"
+            >
+              مسیر
+            </th>
+            <th
+              scope="col"
+              class="hidden px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 md:table-cell dark:text-gray-400"
+            >
+              آخرین ویرایش
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            >
+              عملیات
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+          @for (page of rows(); track page.slug) {
+            <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/50">
+              <td
+                class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium text-gray-900 dark:text-white"
+              >
+                {{ page.title }}
+              </td>
+              <td
+                class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 sm:table-cell dark:text-gray-400"
+              >
+                <bdi class="font-mono" dir="ltr">/{{ page.slug }}</bdi>
+              </td>
+              <td
+                class="hidden whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 md:table-cell dark:text-gray-400"
+              >
+                {{ page.updatedAt | persianDate }}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-start">
+                @if (canManage()) {
+                  <button
+                    type="button"
+                    (click)="edit(page)"
+                    [attr.data-edit-page]="page.slug"
+                    [attr.aria-label]="'ویرایش صفحه ' + page.title"
+                    class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-primary transition hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary max-sm:min-h-11"
+                  >
+                    <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+                    ویرایش
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<p-dialog
+  [visible]="dialogOpen()"
+  [modal]="true"
+  [draggable]="false"
+  [closable]="false"
+  [closeOnEscape]="false"
+  [dismissableMask]="false"
+  [style]="{ width: '44rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+  [header]="'ویرایش صفحه'"
+>
+  @if (dialogOpen()) {
+    <app-content-page-form [page]="editing()" (saved)="onSaved()" (cancelled)="closeDialog()" />
+  }
+</p-dialog>

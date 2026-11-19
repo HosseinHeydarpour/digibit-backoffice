@@ -1,4 +1,6 @@
+import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { PERMISSIONS } from '@core/auth/permissions.token';
 import { applicationConfig, Meta, StoryObj } from '@storybook/angular';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
@@ -21,6 +23,7 @@ const BANNERS: readonly Banner[] = [
   {
     id: '1',
     title: 'تخفیف پاییزه',
+    alt: 'بنر نارنجی تخفیف پاییزه',
     imageUrl: IMAGE,
     link: '/products',
     position: 'home-top',
@@ -32,6 +35,7 @@ const BANNERS: readonly Banner[] = [
   {
     id: '2',
     title: 'اسلایدر پیشنهاد ویژه',
+    alt: 'بنر اسلایدر پیشنهاد ویژه',
     imageUrl: IMAGE,
     link: '/products',
     position: 'home-middle',
@@ -43,6 +47,7 @@ const BANNERS: readonly Banner[] = [
   {
     id: '3',
     title: 'بنر کناری دسته‌بندی',
+    alt: 'بنر کناری دسته‌بندی',
     imageUrl: IMAGE,
     link: '/categories',
     position: 'sidebar',
@@ -54,6 +59,7 @@ const BANNERS: readonly Banner[] = [
   {
     id: '4',
     title: 'تصویر خراب (نمونه)',
+    alt: 'بنر نمونه با تصویر خراب',
     imageUrl: '/mock/missing-banner.jpg',
     link: '/products',
     position: 'home-top',
@@ -85,7 +91,14 @@ class FlakyBannersService implements Pick<BannersService, 'list'> {
 const meta: Meta<BannerList> = {
   title: 'Features/Banners',
   component: BannerList,
-  decorators: [applicationConfig({ providers: [provideRouter([])] })],
+  decorators: [
+    applicationConfig({
+      providers: [
+        provideRouter([]),
+        { provide: PERMISSIONS, useValue: signal(['content.view', 'content.manage']) },
+      ],
+    }),
+  ],
   parameters: {
     docs: {
       description: {

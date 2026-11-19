@@ -1,4 +1,11 @@
-<app-page-header title="بنر و محتوا" description="بنرهای تبلیغاتی فروشگاه، موقعیت و بازهٔ نمایش" />
+<app-page-header title="بنر و محتوا" description="بنرهای تبلیغاتی فروشگاه، موقعیت و بازهٔ نمایش">
+  @if (canManage()) {
+    <button page-header-actions pButton type="button" (click)="openCreate()">
+      <i class="pi pi-plus text-xs" aria-hidden="true"></i>
+      افزودن بنر
+    </button>
+  }
+</app-page-header>
 
 <div
   class="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
@@ -86,72 +93,193 @@
         <app-empty-state
           icon="pi pi-images"
           title="هنوز بنری اضافه نشده"
-          description="بنرها از بخش مدیریت محتوا اضافه می‌شوند."
+          description="اولین بنر را از دکمهٔ «افزودن بنر» بساز."
         />
       </div>
     }
   }
 
   @default {
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      @for (banner of rows(); track banner.id) {
-        <article
-          class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md transition hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+    @for (group of groups(); track group.position) {
+      <section class="mb-8">
+        <div class="mb-3 flex items-center gap-2">
+          <h2 class="text-base font-bold text-gray-900 dark:text-white">
+            {{ positionLabel(group.position) }}
+          </h2>
+          <span
+            class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+          >
+            {{ group.items.length | persianDigits }} بنر
+          </span>
+          @if (canManage()) {
+            <span class="text-[11px] text-gray-400 dark:text-gray-500">
+              با دستهٔ کارت یا دکمه‌های بالا/پایین مرتب کن
+            </span>
+          }
+        </div>
+
+        <div
+          cdkDropList
+          (cdkDropListDropped)="drop($event, group)"
+          class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
         >
-          <div class="relative aspect-video bg-gray-100 dark:bg-gray-700/40">
-            @if (isBroken(banner.id)) {
-              <div
-                class="flex h-full flex-col items-center justify-center gap-1 text-gray-400 dark:text-gray-500"
-                role="img"
-                [attr.aria-label]="'پیش‌نمایش بنر ' + banner.title + ' در دسترس نیست'"
-              >
-                <i class="pi pi-image text-3xl" aria-hidden="true"></i>
-                <span class="text-xs">پیش‌نمایش نیست</span>
+          @for (banner of group.items; track banner.id; let index = $index) {
+            <article
+              cdkDrag
+              class="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md transition hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+            >
+              @if (canManage()) {
+                <button
+                  cdkDragHandle
+                  type="button"
+                  [attr.aria-label]="'جابه‌جایی بنر ' + banner.title"
+                  class="absolute start-2 top-2 z-10 hidden h-9 w-9 cursor-grab items-center justify-center rounded-lg bg-white/90 text-gray-600 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:flex dark:bg-gray-900/80 dark:text-gray-300"
+                >
+                  <i class="pi pi-bars text-xs" aria-hidden="true"></i>
+                </button>
+              }
+
+              <div class="relative aspect-video bg-gray-100 dark:bg-gray-700/40">
+                @if (isBroken(banner.id) || banner.imageUrl === '') {
+                  <div
+                    class="flex h-full flex-col items-center justify-center gap-1 text-gray-400 dark:text-gray-500"
+                    role="img"
+                    [attr.aria-label]="'پیش‌نمایش بنر ' + banner.title + ' در دسترس نیست'"
+                  >
+                    <i class="pi pi-image text-3xl" aria-hidden="true"></i>
+                    <span class="text-xs">پیش‌نمایش نیست</span>
+                  </div>
+                } @else {
+                  <img
+                    [src]="banner.imageUrl"
+                    [alt]="banner.alt || banner.title"
+                    class="h-full w-full object-cover"
+                    (error)="onImageError(banner.id)"
+                  />
+                }
+
+                <span
+                  class="absolute end-2 top-2 rounded-full bg-gray-900/70 px-2 py-0.5 text-[11px] font-medium text-white"
+                >
+                  ترتیب {{ banner.order | persianDigits }}
+                </span>
               </div>
-            } @else {
-              <img
-                [src]="banner.imageUrl"
-                [alt]="banner.title"
-                class="h-full w-full object-cover"
-                (error)="onImageError(banner.id)"
-              />
-            }
 
-            <span
-              class="absolute start-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-white"
-            >
-              {{ positionLabel(banner.position) }}
-            </span>
-            <span
-              class="absolute end-2 top-2 rounded-full bg-gray-900/70 px-2 py-0.5 text-[11px] font-medium text-white"
-            >
-              ترتیب {{ banner.order | persianDigits }}
-            </span>
-          </div>
+              <div class="space-y-2 p-4">
+                <h3
+                  class="truncate text-sm font-bold text-gray-900 dark:text-white"
+                  [title]="banner.title"
+                >
+                  {{ banner.title }}
+                </h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ banner.from | persianDate }} تا {{ banner.to | persianDate }}
+                </p>
 
-          <div class="space-y-2 p-4">
-            <h2
-              class="truncate text-sm font-bold text-gray-900 dark:text-white"
-              [title]="banner.title"
-            >
-              {{ banner.title }}
-            </h2>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ banner.from | persianDate }} تا {{ banner.to | persianDate }}
-            </p>
-            <span
-              class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium"
-              [class]="
-                banner.isActive
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-              "
-            >
-              {{ banner.isActive ? 'فعال' : 'غیرفعال' }}
-            </span>
-          </div>
-        </article>
-      }
-    </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span
+                    class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                    [class]="scheduleBadgeClass(banner)"
+                  >
+                    {{ scheduleLabel(banner) }}
+                  </span>
+
+                  @if (canManage()) {
+                    <label
+                      [for]="'banner-status-' + banner.id"
+                      class="inline-flex shrink-0 items-center justify-center max-sm:size-11"
+                    >
+                      <p-toggleswitch
+                        #toggle
+                        [inputId]="'banner-status-' + banner.id"
+                        [ngModel]="banner.isActive"
+                        (click)="$event.preventDefault()"
+                        (onChange)="toggleStatus(banner, toggle)"
+                        [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
+                        [ariaLabel]="'وضعیت بنر ' + banner.title"
+                        [attr.data-toggle-banner]="banner.id"
+                      />
+                    </label>
+                  } @else {
+                    <span
+                      class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                      [class]="
+                        banner.isActive
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                      "
+                    >
+                      {{ banner.isActive ? 'فعال' : 'غیرفعال' }}
+                    </span>
+                  }
+                </div>
+
+                @if (canManage()) {
+                  <div
+                    class="flex flex-wrap items-center gap-1 border-t border-gray-100 pt-2 dark:border-gray-700"
+                  >
+                    <button
+                      type="button"
+                      (click)="move(banner, group, -1)"
+                      [disabled]="index === 0"
+                      [attr.aria-label]="'انتقال بنر ' + banner.title + ' به بالا'"
+                      [attr.data-up-banner]="banner.id"
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 max-sm:h-11 max-sm:w-11 dark:text-gray-400 dark:hover:bg-gray-700"
+                    >
+                      <i class="pi pi-arrow-up text-xs" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      (click)="move(banner, group, 1)"
+                      [disabled]="index === group.items.length - 1"
+                      [attr.aria-label]="'انتقال بنر ' + banner.title + ' به پایین'"
+                      [attr.data-down-banner]="banner.id"
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 max-sm:h-11 max-sm:w-11 dark:text-gray-400 dark:hover:bg-gray-700"
+                    >
+                      <i class="pi pi-arrow-down text-xs" aria-hidden="true"></i>
+                    </button>
+
+                    <button
+                      type="button"
+                      (click)="openEdit(banner)"
+                      [attr.aria-label]="'ویرایش بنر ' + banner.title"
+                      [attr.data-edit-banner]="banner.id"
+                      class="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-sm text-primary transition hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary max-sm:min-h-11"
+                    >
+                      <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+                      ویرایش
+                    </button>
+                    <button
+                      type="button"
+                      (click)="removeBanner(banner)"
+                      [attr.aria-label]="'حذف بنر ' + banner.title"
+                      [attr.data-delete-banner]="banner.id"
+                      class="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-sm text-red-600 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 max-sm:min-h-11 dark:text-red-400 dark:hover:bg-red-900/20"
+                    >
+                      <i class="pi pi-trash text-sm" aria-hidden="true"></i>
+                      حذف
+                    </button>
+                  </div>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
   }
 }
+
+<p-dialog
+  [visible]="dialogOpen()"
+  (visibleChange)="onDialogVisibility($event)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: '40rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+  [header]="editing() ? 'ویرایش بنر' : 'افزودن بنر'"
+>
+  @if (dialogOpen()) {
+    <app-banner-form [banner]="editing()" (saved)="onSaved($event)" (cancelled)="closeDialog()" />
+  }
+</p-dialog>

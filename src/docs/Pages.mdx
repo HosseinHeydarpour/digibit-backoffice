@@ -1,0 +1,52 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+
+import * as ContentPageStories from '../app/features/pages/content-page-list/content-page-list.stories';
+
+<Meta title="Features/Pages" />
+
+# صفحات محتوایی / Content pages
+
+مدیریت چهار صفحهٔ ثابت سایت (BO-L08): درباره ما، تماس با ما، قوانین و مقررات، سوالات متداول.
+هر صفحه در یک دیالوگ ویرایش می‌شود: عنوان، متن، پیش‌نمایش زندهٔ متن و فیلدهای سئو.
+
+The four fixed pages (BO-L08): about, contact, terms and FAQ. Each is edited in a dialog with a
+title, a plain-text body, a live preview and SEO fields.
+
+## کاربرد / Use case
+
+وقتی محتوا باید متن «درباره ما» یا «قوانین» را بدون دست‌زدن به کد عوض کند. مسیر هر صفحه ثابت
+است، پس ساخت و حذف وجود ندارد؛ فقط محتوا و متادیتا عوض می‌شود.
+
+Use it when content needs to change the «about» or «terms» text without code. The route of each
+page is fixed, so there is no create or delete; only content and metadata change.
+
+## رفتارها / Behaviour
+
+- **ادیتور ساده است:** خطوط متن حفظ می‌شوند و پیش‌نمایش همان چیزی است که سایت نشان می‌دهد؛
+  Markdown رندر نمی‌شود تا متنِ تایپ‌شده با متنِ نمایش‌داده‌شده یکی باشد.
+- **صفحهٔ خالی ذخیره نمی‌شود.** عنوان ۳ تا ۸۰ کاراکتر و متن الزامی است.
+- **خروج با تغییرات ذخیره‌نشده می‌پرسد.** دیالوگ دکمهٔ بستن و Escape ندارد؛ فقط «ذخیره» و
+  «انصراف» که در صورت dirty بودن تأیید می‌گیرد.
+- **سئو جدا:** عنوان متا ۷۰ و توضیحات ۱۶۰ کاراکتر با شمارنده؛ خطای سرور زیر همان فیلد می‌آید.
+- **حذف وجود ندارد.** صفحات ثابت مسیر عمومی دارند و حذفشان سایت را ۴۰۴ می‌کند.
+
+**English**
+
+- **A plain editor:** newlines are preserved and the preview is what the site shows; Markdown is
+  not rendered, so typed text equals displayed text.
+- **An empty page is refused.** Title 3..80 characters, body required.
+- **Leaving with unsaved changes asks.** The dialog has no close button or Escape; only Save and
+  Cancel (which confirms when dirty).
+- **SEO apart:** meta title 70 and description 160 with counters; a server error lands under its
+  field.
+- **No delete.** Fixed pages have public routes; deleting one would 404 the site.
+
+## پیش‌نمایش / Preview
+
+<Canvas of={ContentPageStories.Default} />
+
+<Canvas of={ContentPageStories.Loading} />
+
+<Canvas of={ContentPageStories.Empty} />
+
+<Canvas of={ContentPageStories.RequestFailed} />

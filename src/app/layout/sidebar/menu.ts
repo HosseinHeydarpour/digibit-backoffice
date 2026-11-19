@@ -76,6 +76,12 @@ export const MENU: readonly MenuGroup[] = [
         permission: 'content.view',
       },
       {
+        label: 'صفحات',
+        icon: 'pi pi-file-edit',
+        routerLink: '/pages',
+        permission: 'content.view',
+      },
+      {
         label: 'نظرات',
         icon: 'pi pi-comments',
         routerLink: '/comments',
@@ -124,4 +130,5 @@ export const MOCK_PERMISSIONS: readonly Permission[] = [
   'customers.block',
   'coupons.manage',
   'shipping.manage',
+  'content.manage',
 ];

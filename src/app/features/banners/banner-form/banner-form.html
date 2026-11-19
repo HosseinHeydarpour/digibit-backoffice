@@ -1,0 +1,193 @@
+<form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
+  <div class="space-y-2">
+    <div
+      class="overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-700/30"
+      [class]="aspectClass()"
+    >
+      @if (preview(); as url) {
+        <img [src]="url" alt="" class="h-full w-full object-cover" />
+      } @else {
+        <div
+          class="flex h-full flex-col items-center justify-center gap-1 text-gray-400 dark:text-gray-500"
+        >
+          <i class="pi pi-image text-3xl" aria-hidden="true"></i>
+          <span class="text-xs">پیش‌نمایش تصویر</span>
+        </div>
+      }
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <label
+        class="inline-flex min-h-10 cursor-pointer items-center gap-1 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus-within:ring-2 focus-within:ring-primary dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 max-sm:min-h-11"
+      >
+        <i class="pi pi-upload text-xs" aria-hidden="true"></i>
+        انتخاب تصویر
+        <input
+          type="file"
+          class="sr-only"
+          accept="image/png,image/jpeg,image/webp"
+          (change)="onFile($event)"
+        />
+      </label>
+      @if (preview() !== '') {
+        <button
+          type="button"
+          (click)="removeImage()"
+          class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-red-600 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:bg-red-900/20 max-sm:min-h-11"
+        >
+          <i class="pi pi-trash text-xs" aria-hidden="true"></i>
+          حذف تصویر
+        </button>
+      }
+      <span class="text-xs text-gray-500 dark:text-gray-400"
+        >{{ aspectLabel() }} · حداکثر ۲ مگابایت</span
+      >
+    </div>
+
+    @if (imageError(); as message) {
+      <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
+    }
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <app-form-field
+      controlName="title"
+      label="عنوان"
+      inputId="banner-title"
+      hint="بین ۳ و ۶۰ کاراکتر"
+      [error]="fieldError('title')"
+    >
+      <input pInputText id="banner-title" formControlName="title" class="w-full" />
+    </app-form-field>
+
+    <app-form-field
+      controlName="alt"
+      label="متن جایگزین تصویر"
+      inputId="banner-alt"
+      hint="برای دسترسی‌پذیری؛ تصویر را توصیف کن"
+      [error]="fieldError('alt')"
+    >
+      <input pInputText id="banner-alt" formControlName="alt" class="w-full" />
+    </app-form-field>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <app-form-field controlName="position" label="موقعیت" inputId="banner-position">
+      <p-select
+        inputId="banner-position"
+        formControlName="position"
+        [options]="positionOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </app-form-field>
+
+    <app-form-field controlName="mode" label="نوع لینک" inputId="banner-mode">
+      <p-select
+        inputId="banner-mode"
+        formControlName="mode"
+        [options]="modeOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </app-form-field>
+  </div>
+
+  @if (isExternal()) {
+    <app-form-field
+      controlName="externalLink"
+      label="آدرس بیرونی"
+      inputId="banner-external"
+      hint="با http:// یا https:// شروع شود"
+      [error]="fieldError('externalLink')"
+    >
+      <input
+        pInputText
+        id="banner-external"
+        formControlName="externalLink"
+        dir="ltr"
+        class="w-full"
+        placeholder="https://example.com/page"
+      />
+    </app-form-field>
+  } @else {
+    <app-form-field controlName="internalLink" label="صفحهٔ مقصد" inputId="banner-internal">
+      <p-select
+        inputId="banner-internal"
+        formControlName="internalLink"
+        [options]="pageOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        class="w-full"
+        styleClass="w-full"
+      />
+    </app-form-field>
+  }
+
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <app-form-field
+      controlName="from"
+      label="شروع نمایش"
+      inputId="banner-from"
+      [control]="form.controls.from"
+      [error]="fieldError('from')"
+    >
+      <app-jalali-datepicker [control]="form.controls.from" inputId="banner-from" />
+    </app-form-field>
+
+    <app-form-field
+      controlName="to"
+      label="پایان نمایش"
+      inputId="banner-to"
+      [control]="form.controls.to"
+      [error]="fieldError('to')"
+    >
+      <app-jalali-datepicker [control]="form.controls.to" inputId="banner-to" />
+    </app-form-field>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <p-toggleswitch inputId="banner-active" formControlName="isActive" />
+    <label for="banner-active" class="text-sm text-gray-700 dark:text-gray-300">
+      بنر فعال باشد
+    </label>
+  </div>
+
+  @if (saveError(); as message) {
+    <p
+      role="alert"
+      class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300"
+    >
+      {{ message }}
+    </p>
+  }
+
+  <div
+    class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end dark:border-gray-700"
+  >
+    <button
+      type="button"
+      (click)="cancelled.emit()"
+      [disabled]="saving()"
+      class="inline-flex min-h-10 items-center justify-center rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+    >
+      انصراف
+    </button>
+    <button
+      pButton
+      type="submit"
+      pLoading
+      [loading]="saving()"
+      class="inline-flex min-h-10 items-center justify-center"
+    >
+      ذخیره
+    </button>
+  </div>
+</form>
