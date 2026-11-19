@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { PERMISSIONS } from '@core/auth/permissions.token';
+import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
@@ -8,10 +10,13 @@ import type { EntityId, Page, SelectOption } from '@shared/models';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { formatDigits, PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
+import { ButtonDirective } from 'primeng/button';
+import { Dialog } from 'primeng/dialog';
 import { Select } from 'primeng/select';
 import { Tag } from 'primeng/tag';
 import { BehaviorSubject, catchError, combineLatest, of, switchMap, tap } from 'rxjs';
 
+import { CouponForm } from '../coupon-form/coupon-form';
 import {
   couponStatus,
   couponStatusBadgeClass,
@@ -58,6 +63,9 @@ type CouponListView = 'loading' | 'error' | 'empty' | 'data';
     FormsModule,
     Select,
     Tag,
+    Dialog,
+    ButtonDirective,
+    CouponForm,
     PersianDatePipe,
     PersianDigitsPipe,
     TomanPipe,
@@ -69,6 +77,10 @@ type CouponListView = 'loading' | 'error' | 'empty' | 'data';
 })
 export class CouponList {
   private readonly coupons = inject(CouponsService);
+
+  private readonly toast = inject(ToastService);
+
+  private readonly permissions = inject(PERMISSIONS);
 
   private readonly reload$ = new BehaviorSubject<void>(undefined);
 
@@ -83,6 +95,14 @@ export class CouponList {
 
   /** The id whose code was just copied; drives the check icon for 1.5s. */
   readonly copied = signal<EntityId | null>(null);
+
+  /** The create/edit dialog and the record being edited (`null` = create). */
+  readonly dialogOpen = signal(false);
+
+  readonly editing = signal<Coupon | null>(null);
+
+  /** Whether the signed-in admin may create or edit a coupon (BO-J02). */
+  readonly canManage = computed(() => this.permissions().includes('coupons.manage'));
 
   readonly pageResult = toSignal<Page<Coupon> | null>(
     combineLatest([this.reload$, this.state$]).pipe(
@@ -239,5 +259,46 @@ export class CouponList {
 
     this.listState.set(next);
     this.state$.next(next);
+  }
+
+  /** «ایجاد کوپن»: a fresh form every time the dialog opens. */
+  openCreate(): void {
+    if (!this.canManage()) {
+      return;
+    }
+
+    this.editing.set(null);
+    this.dialogOpen.set(true);
+  }
+
+  /** The row's edit action. */
+  openEdit(coupon: Coupon): void {
+    if (!this.canManage()) {
+      return;
+    }
+
+    this.editing.set(coupon);
+    this.dialogOpen.set(true);
+  }
+
+  /** `[visible]` must handle `visibleChange`, or Escape leaves it stuck open. */
+  onDialogVisibility(visible: boolean): void {
+    this.dialogOpen.set(visible);
+
+    if (!visible) {
+      this.editing.set(null);
+    }
+  }
+
+  closeDialog(): void {
+    this.dialogOpen.set(false);
+    this.editing.set(null);
+  }
+
+  /** The form saved: toast, close, and refetch so the row reflects the write. */
+  onSaved(coupon: Coupon): void {
+    this.toast.success(this.editing() ? 'کوپن ذخیره شد.' : `کوپن «${coupon.code}» ایجاد شد.`);
+    this.closeDialog();
+    this.reload$.next();
   }
 }

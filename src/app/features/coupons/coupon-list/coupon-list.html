@@ -1,4 +1,11 @@
-<app-page-header title="کوپن تخفیف" description="کدهای تخفیف، بازهٔ اعتبار و سقف استفاده" />
+<app-page-header title="کوپن تخفیف" description="کدهای تخفیف، بازهٔ اعتبار و سقف استفاده">
+  @if (canManage()) {
+    <button page-header-actions pButton type="button" (click)="openCreate()">
+      <i class="pi pi-plus text-xs" aria-hidden="true"></i>
+      ایجاد کوپن
+    </button>
+  }
+</app-page-header>
 
 <div
   class="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
@@ -143,6 +150,14 @@
               >
                 وضعیت
               </th>
+              @if (canManage()) {
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-start text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                >
+                  عملیات
+                </th>
+              }
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
@@ -225,6 +240,21 @@
                     {{ statusLabel(coupon) }}
                   </span>
                 </td>
+
+                @if (canManage()) {
+                  <td class="whitespace-nowrap px-6 py-4 text-start">
+                    <button
+                      type="button"
+                      (click)="openEdit(coupon)"
+                      [attr.aria-label]="'ویرایش کوپن ' + coupon.code"
+                      [attr.data-edit-coupon]="coupon.id"
+                      class="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-primary transition hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <i class="pi pi-pencil text-sm" aria-hidden="true"></i>
+                      ویرایش
+                    </button>
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -312,3 +342,22 @@
     }
   }
 </div>
+
+<!--
+  ONE DIALOG, TWO MODES (BO-J02). The form is re-created on every open because
+  it is inside `@if (dialogOpen())`; `ngOnChanges` hydrates it from `editing()`.
+  The width collapses to 95vw below 640px (tc 8).
+-->
+<p-dialog
+  [visible]="dialogOpen()"
+  (visibleChange)="onDialogVisibility($event)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: '36rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+  [header]="editing() ? 'ویرایش کوپن' : 'ایجاد کوپن'"
+>
+  @if (dialogOpen()) {
+    <app-coupon-form [coupon]="editing()" (saved)="onSaved($event)" (cancelled)="closeDialog()" />
+  }
+</p-dialog>

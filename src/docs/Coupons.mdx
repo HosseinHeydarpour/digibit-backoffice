@@ -1,6 +1,7 @@
 import { Canvas, Meta } from '@storybook/addon-docs/blocks';
 
 import * as CouponListStories from '../app/features/coupons/coupon-list/coupon-list.stories';
+import * as CouponFormStories from '../app/features/coupons/coupon-form/coupon-form.stories';
 
 <Meta title="Features/Coupons" />
 
@@ -61,3 +62,17 @@ that.
 <Canvas of={CouponListStories.Empty} />
 
 <Canvas of={CouponListStories.RequestFailed} />
+
+## فرم ایجاد/ویرایش / Create and edit
+
+فرم (BO-J02): کد با دکمهٔ تولید، نوع، مقدار، بازهٔ جلالی، سقف کل و هر کاربر، حداقل سبد و
+توضیحات. یک فرم برای هر دو حالت؛ دیالوگ هر بار کامپوننت را از نو می‌سازد، پس ویرایشِ لغوشده به
+فرم بعدی نشت نمی‌کند.
+
+The form (BO-J02): code with a generator, type, value, Jalali window, total and per-customer caps,
+minimum cart and a description. One form for both modes; the dialog re-creates the component each
+time, so a cancelled edit does not leak into the next one.
+
+<Canvas of={CouponFormStories.Create} />
+
+<Canvas of={CouponFormStories.Edit} />

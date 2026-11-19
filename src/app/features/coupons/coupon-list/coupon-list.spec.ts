@@ -1,4 +1,7 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PERMISSIONS } from '@core/auth/permissions.token';
+import { ToastService } from '@core/services/toast';
 import type { Page } from '@shared/models';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
@@ -75,7 +78,10 @@ describe('CouponList (BO-J01)', () => {
 
     await TestBed.configureTestingModule({
       imports: [CouponList],
-      providers: [{ provide: CouponsService, useValue: service }],
+      providers: [
+        { provide: CouponsService, useValue: service },
+        { provide: ToastService, useValue: { success: vi.fn() } },
+      ],
     }).compileComponents();
   });
 
@@ -189,5 +195,87 @@ describe('CouponList (BO-J01)', () => {
     await settle(fixture);
 
     expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(4);
+  });
+});
+
+describe('CouponList create/edit (BO-J02)', () => {
+  let fixture: ComponentFixture<CouponList>;
+  let component: CouponList;
+  let service: CouponsServiceStub;
+  let toast: { success: ReturnType<typeof vi.fn> };
+
+  beforeEach(async () => {
+    service = new CouponsServiceStub();
+    toast = { success: vi.fn() };
+
+    await TestBed.configureTestingModule({
+      imports: [CouponList],
+      providers: [
+        { provide: CouponsService, useValue: service },
+        { provide: ToastService, useValue: toast },
+        {
+          provide: PERMISSIONS,
+          useValue: signal(['coupons.view', 'coupons.manage']),
+        },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(CouponList);
+    component = fixture.componentInstance;
+    await settle(fixture);
+  });
+
+  it('renders the create button and the action column for a manager', () => {
+    expect(fixture.nativeElement.textContent).toContain('ایجاد کوپن');
+    expect(fixture.nativeElement.querySelector('[data-edit-coupon]')).toBeTruthy();
+  });
+
+  it('opens an empty form from the create button', async () => {
+    component.openCreate();
+    fixture.detectChanges();
+
+    expect(component.dialogOpen()).toBe(true);
+    expect(component.editing()).toBeNull();
+    expect(fixture.nativeElement.querySelector('app-coupon-form')).toBeTruthy();
+  });
+
+  it('opens the same form pre-filled from a row', () => {
+    const row = component.items()![0];
+
+    component.openEdit(row);
+    fixture.detectChanges();
+
+    expect(component.editing()).toBe(row);
+    expect(fixture.nativeElement.textContent).toContain('ویرایش کوپن');
+  });
+
+  it('toasts, closes and refetches after a save', async () => {
+    const calls = service.queries.length;
+    component.openCreate();
+
+    component.onSaved({ ...COUPONS[0], id: '13', code: 'SPRING25' });
+    await settle(fixture);
+
+    expect(toast.success).toHaveBeenCalledWith('کوپن «SPRING25» ایجاد شد.');
+    expect(component.dialogOpen()).toBe(false);
+    expect(service.queries.length).toBe(calls + 1);
+  });
+
+  it('hides the create and edit controls without coupons.manage', async () => {
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [CouponList],
+      providers: [
+        { provide: CouponsService, useValue: new CouponsServiceStub() },
+        { provide: ToastService, useValue: { success: vi.fn() } },
+        { provide: PERMISSIONS, useValue: signal(['coupons.view']) },
+      ],
+    }).compileComponents();
+
+    const restricted = TestBed.createComponent(CouponList);
+    await settle(restricted);
+
+    expect(restricted.nativeElement.textContent).not.toContain('ایجاد کوپن');
+    expect(restricted.nativeElement.querySelector('[data-edit-coupon]')).toBeNull();
   });
 });
