@@ -229,6 +229,7 @@ describe('customer fixtures (BO-I04)', () => {
   it('keeps ids unique and has both an active and a blocked row', () => {
     const ids = new Set(MOCK_CUSTOMERS.map((customer) => customer.id));
     expect(ids.size).toBe(MOCK_CUSTOMERS.length);
+    expect(MOCK_CUSTOMERS.every((customer) => typeof customer.id === 'string')).toBe(true);
     expect(MOCK_CUSTOMERS.some((customer) => customer.status === 'blocked')).toBe(true);
     expect(MOCK_CUSTOMERS.some((customer) => customer.status === 'active')).toBe(true);
   });

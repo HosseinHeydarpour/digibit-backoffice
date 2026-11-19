@@ -1,7 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { MOCK_HEADER } from '@core/mock/mock-interceptor';
 import { environment } from '@env/environment';
+import { ApiError } from '@shared/models';
 import { firstValueFrom } from 'rxjs';
 
 import type { Customer, CustomerListItem } from '../models/customer.model';
@@ -84,6 +86,7 @@ describe('CustomersService (BO-I04)', () => {
         req.params.get('status') === 'active' &&
         req.params.get('page') === '2',
     );
+    expect(request.request.headers.get(MOCK_HEADER)).toBe('1');
 
     request.flush({
       data: [LIST_ITEM],
@@ -133,5 +136,28 @@ describe('CustomersService (BO-I04)', () => {
     request.flush({ data: { ...CUSTOMER, status: 'blocked' }, message: '' });
 
     expect((await promise).status).toBe('blocked');
+  });
+
+  it('turns a 404 into an ApiError that carries the status', async () => {
+    const promise = firstValueFrom(service.get('9999'));
+
+    http
+      .expectOne(`${environment.API_BASE_URL}/customers/9999`)
+      .flush(
+        { error: { code: 'NOT_FOUND', message: 'کاربری با این شناسه دریافت نشد.' } },
+        { status: 404, statusText: 'Not Found' },
+      );
+
+    const error = await promise.catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 404 });
+  });
+
+  it('turns a network failure into a NETWORK ApiError', async () => {
+    const promise = firstValueFrom(service.get('3'));
+
+    http.expectOne(`${environment.API_BASE_URL}/customers/3`).error(new ProgressEvent('error'));
+
+    await expect(promise).rejects.toMatchObject({ code: 'NETWORK', status: 0 });
   });
 });

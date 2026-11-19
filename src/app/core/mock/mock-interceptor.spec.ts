@@ -1333,6 +1333,32 @@ describe('mockInterceptor', () => {
     expect(body.data.some((row) => row.id === '1')).toBe(true);
   });
 
+  it('customers: resetMockState restores the seed status', async () => {
+    await firstValueFrom(
+      http.patch<ApiResponse<{ status: string }>>(
+        '/api/v1/customers/1/status',
+        { blocked: true },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    const blocked = await firstValueFrom(
+      http.get<ApiResponse<{ status: string }>>('/api/v1/customers/1', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(blocked.data.status).toBe('blocked');
+
+    resetMockState();
+
+    const reset = await firstValueFrom(
+      http.get<ApiResponse<{ status: string }>>('/api/v1/customers/1', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+    expect(reset.data.status).toBe('active');
+  });
+
   it('orders: customerId narrows the list to one customer', async () => {
     const body = await firstValueFrom(
       http.get<ApiResponse<{ customerId: string }[]>>('/api/v1/orders', {
