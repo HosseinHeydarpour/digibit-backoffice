@@ -1,9 +1,14 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { PERMISSIONS } from '@core/auth/permissions.token';
+import { ConfirmService } from '@core/services/confirm';
+import { ToastService } from '@core/services/toast';
 import type { Page } from '@shared/models';
+import type { ToggleSwitch } from 'primeng/toggleswitch';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
-import type { CustomerListItem, CustomerQuery } from '../models/customer.model';
+import type { Customer, CustomerListItem, CustomerQuery } from '../models/customer.model';
 import { CustomersService } from '../services/customers.service';
 
 import { CustomerList } from './customer-list';
@@ -14,7 +19,7 @@ function customer(index: number, overrides: Partial<CustomerListItem> = {}): Cus
     fullName: `مشتری شماره ${index}`,
     phone: `0912100000${index}`,
     email: `customer${index}@example.com`,
-    status: index % 2 === 0 ? 'active' : 'blocked',
+    status: index % 2 === 0 ? 'blocked' : 'active',
     orderCount: index,
     totalSpent: index * 100_000,
     createdAt: 1_728_000_000_000 - index * 86_400_000,
@@ -36,6 +41,10 @@ class CustomersServiceStub {
 
   hang = false;
 
+  setStatusCalls: { id: string; blocked: boolean }[] = [];
+
+  statusResult: 'ok' | 'fail' = 'ok';
+
   list(query: CustomerQuery = {}): Observable<Page<CustomerListItem>> {
     this.queries.push(query);
 
@@ -46,6 +55,21 @@ class CustomersServiceStub {
     return this.failWith === null
       ? of({ items: [...this.rows], total: this.total, page: query.page ?? 1, pageSize: 20 })
       : throwError(() => new Error(this.failWith ?? 'request failed'));
+  }
+
+  setStatus(id: string, blocked: boolean): Observable<Customer> {
+    this.setStatusCalls.push({ id, blocked });
+
+    if (this.statusResult === 'fail') {
+      return throwError(() => new Error('toggle failed'));
+    }
+
+    return of({
+      ...customer(1),
+      id,
+      status: blocked ? 'blocked' : 'active',
+      addresses: [],
+    });
   }
 }
 
@@ -67,6 +91,8 @@ describe('CustomerList (BO-I01)', () => {
       imports: [CustomerList],
       providers: [
         { provide: CustomersService, useValue: service },
+        { provide: ConfirmService, useValue: { confirm: vi.fn().mockResolvedValue(false) } },
+        { provide: ToastService, useValue: { success: vi.fn(), warning: vi.fn() } },
         provideRouter([{ path: '**', children: [] }]),
       ],
     }).compileComponents();
@@ -258,5 +284,81 @@ describe('CustomerList (BO-I01)', () => {
       expect.objectContaining({ query: undefined, status: undefined, page: 1 }),
     );
     expect(component.search()).toBe('');
+  });
+
+  it('renders no switch without customers.block (BO-I03 tc 9)', async () => {
+    await mount();
+
+    expect(fixture.nativeElement.querySelector('[data-toggle-customer]')).toBeNull();
+  });
+});
+
+describe('CustomerList status toggle (BO-I03)', () => {
+  let fixture: ComponentFixture<CustomerList>;
+  let component: CustomerList;
+  let service: CustomersServiceStub;
+  let confirm: { confirm: ReturnType<typeof vi.fn> };
+  let toast: { success: ReturnType<typeof vi.fn>; warning: ReturnType<typeof vi.fn> };
+
+  function fakeToggle(): ToggleSwitch {
+    return { writeValue: vi.fn() } as unknown as ToggleSwitch;
+  }
+
+  beforeEach(async () => {
+    service = new CustomersServiceStub();
+    confirm = { confirm: vi.fn().mockResolvedValue(true) };
+    toast = { success: vi.fn(), warning: vi.fn() };
+
+    await TestBed.configureTestingModule({
+      imports: [CustomerList],
+      providers: [
+        { provide: CustomersService, useValue: service },
+        { provide: ConfirmService, useValue: confirm },
+        { provide: ToastService, useValue: toast },
+        { provide: PERMISSIONS, useValue: signal(['customers.view', 'customers.block']) },
+        provideRouter([{ path: '**', children: [] }]),
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(CustomerList);
+    component = fixture.componentInstance;
+    await fixture.whenStable();
+    fixture.detectChanges();
+  });
+
+  it('renders the switch for an admin who may block', () => {
+    expect(fixture.nativeElement.querySelector('[data-toggle-customer]')).toBeTruthy();
+  });
+
+  it('asks first, then blocks optimistically and toasts', async () => {
+    const row = component.items()![0];
+
+    await component.toggleStatus(row, fakeToggle());
+
+    expect(confirm.confirm).toHaveBeenCalledWith(expect.objectContaining({ danger: true }));
+    expect(service.setStatusCalls).toEqual([{ id: row.id, blocked: true }]);
+    expect(component.items()![0].status).toBe('blocked');
+    expect(toast.success).toHaveBeenCalledWith('حساب مشتری مسدود شد.');
+  });
+
+  it('cancel writes the old value back and sends nothing', async () => {
+    confirm.confirm.mockResolvedValue(false);
+    const row = component.items()![0];
+    const control = fakeToggle();
+
+    await component.toggleStatus(row, control);
+
+    expect(service.setStatusCalls).toEqual([]);
+    expect(control.writeValue).toHaveBeenCalledWith(true);
+  });
+
+  it('rolls the row back when the request fails', async () => {
+    service.statusResult = 'fail';
+    const row = component.items()![0];
+
+    await component.toggleStatus(row, fakeToggle());
+
+    expect(component.items()![0].status).toBe('active');
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

@@ -34,6 +34,8 @@ and each row downloads light columns only, not addresses and order history.
   پاسخ نیامده» و اسکلتون می‌شود، نه فروشگاه خالی.
 - **موبایل ستون‌های کم‌اهمیت را پنهان می‌کند:** ایمیل زیر `lg`، موبایل و تاریخ عضویت زیر `md`،
   تعداد سفارش زیر `sm`؛ نام و وضعیت در هر عرضی می‌مانند.
+- **مسدود/فعال‌کردن از همان سلول وضعیت است (BO-I03).** اول دیالوگ تأیید می‌پرسد؛ پیل پیش از
+  پاسخ سرور عوض می‌شود و خطا آن را برمی‌گرداند. بدون `customers.block` فقط پیل خواندنی می‌ماند.
 
 **English**
 
@@ -47,6 +49,9 @@ and each row downloads light columns only, not addresses and order history.
   answered yet" and renders the skeleton, never an empty shop.
 - **Mobile hides the light columns**: email below `lg`, mobile and signup date below `md`, order
   count below `sm`; name and status stay at every width.
+- **Block/unblock lives in the status cell** (BO-I03): the dialog asks first, the pill changes
+  before the server answers, and a failure rolls it back. Without `customers.block` only the
+  read-only pill renders.
 
 ## پیش‌نمایش / Preview
 

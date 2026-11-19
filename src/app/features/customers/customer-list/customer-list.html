@@ -228,14 +228,42 @@
                   {{ item.orderCount | persianDigits }}
                 </td>
 
-                <!-- وضعیت — the same green/red pair as the profile. -->
+                <!-- وضعیت — the pill, or the switch when the admin may block (BO-I03).
+                     The switch is the phone control; the text pill hides below `sm`
+                     only when the switch is actually rendered. -->
                 <td class="whitespace-nowrap px-6 py-4 text-start">
-                  <span
-                    class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
-                    [class]="statusBadgeClass(item.status)"
-                  >
-                    {{ statusLabel(item.status) }}
-                  </span>
+                  @if (canBlock()) {
+                    <div class="flex items-center gap-2">
+                      <label
+                        [for]="'customer-status-' + item.id"
+                        class="inline-flex shrink-0 items-center justify-center max-sm:size-11"
+                      >
+                        <p-toggleswitch
+                          #toggle
+                          [inputId]="'customer-status-' + item.id"
+                          [ngModel]="item.status === 'active'"
+                          (click)="$event.preventDefault()"
+                          (onChange)="toggleStatus(item, toggle)"
+                          [pt]="{ slider: { style: { borderColor: 'var(--p-text-muted-color)' } } }"
+                          [ariaLabel]="'وضعیت حساب ' + item.fullName"
+                          [attr.data-toggle-customer]="item.id"
+                        />
+                      </label>
+                      <span
+                        class="hidden rounded-full px-3 py-1 text-xs font-medium leading-5 sm:inline-flex"
+                        [class]="statusBadgeClass(item.status)"
+                      >
+                        {{ statusLabel(item.status) }}
+                      </span>
+                    </div>
+                  } @else {
+                    <span
+                      class="inline-flex rounded-full px-3 py-1 text-xs font-medium leading-5"
+                      [class]="statusBadgeClass(item.status)"
+                    >
+                      {{ statusLabel(item.status) }}
+                    </span>
+                  }
                 </td>
 
                 <!-- تاریخ عضویت — Jalali, hidden below `md`. -->

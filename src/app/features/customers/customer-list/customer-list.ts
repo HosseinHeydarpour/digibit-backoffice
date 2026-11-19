@@ -9,17 +9,22 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { PERMISSIONS } from '@core/auth/permissions.token';
+import { ConfirmService } from '@core/services/confirm';
+import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
-import type { Page, SelectOption, SortOrder } from '@shared/models';
+import type { EntityId, Page, SelectOption, SortOrder } from '@shared/models';
 import { toInitials } from '@shared/models/session.model';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { formatDigits, PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
+import { isOnline, OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
+import { ToggleSwitch } from 'primeng/toggleswitch';
 import {
   BehaviorSubject,
   Subject,
@@ -116,6 +121,7 @@ const COLUMNS: readonly CustomerColumn[] = [
     InputIcon,
     InputText,
     Select,
+    ToggleSwitch,
     PersianDatePipe,
     PersianDigitsPipe,
     ErrorState,
@@ -133,6 +139,12 @@ export class CustomerList {
 
   private readonly destroyRef = inject(DestroyRef);
 
+  private readonly confirm = inject(ConfirmService);
+
+  private readonly toast = inject(ToastService);
+
+  private readonly permissions = inject(PERMISSIONS);
+
   /** Emits once at construction (first paint) and on every retry. */
   private readonly reload$ = new BehaviorSubject<void>(undefined);
 
@@ -149,6 +161,18 @@ export class CustomerList {
 
   /** True while a request is in flight; drives the thin progress bar. */
   readonly isFetching = signal(false);
+
+  /**
+   * Optimistic status overlay (BO-I03). The server page stays the source of
+   * truth; this map is applied on top until the fetch returns the same status,
+   * at which point the entry is dropped. A failed toggle clears it — the
+   * rollback is the absence of an override, so there is no second copy of the
+   * row to keep in step.
+   */
+  private readonly statusOverrides = signal<ReadonlyMap<EntityId, CustomerStatus>>(new Map());
+
+  /** Whether the signed-in admin may block or unblock an account. */
+  readonly canBlock = computed(() => this.permissions().includes('customers.block'));
 
   /** The UI mirror of `state$`. */
   readonly listState = signal<CustomerListState>(this.state$.value);
@@ -172,6 +196,7 @@ export class CustomerList {
             next: () => {
               this.listError.set(null);
               this.isFetching.set(false);
+              this.reconcileOverrides();
             },
             error: () => {
               this.listError.set('دریافت مشتریان ناموفق بود');
@@ -185,7 +210,23 @@ export class CustomerList {
     { initialValue: null },
   );
 
-  readonly items = computed<readonly CustomerListItem[] | null>(() => this.page()?.items ?? null);
+  readonly items = computed<readonly CustomerListItem[] | null>(() => {
+    const rows = this.page()?.items ?? null;
+
+    if (rows === null) {
+      return null;
+    }
+
+    const overrides = this.statusOverrides();
+
+    return overrides.size === 0
+      ? rows
+      : rows.map((row) => {
+          const status = overrides.get(row.id);
+
+          return status === undefined || status === row.status ? row : { ...row, status };
+        });
+  });
 
   /** The single branch condition for the template's `@switch`. */
   readonly viewState = computed<CustomerListView>(() => {
@@ -364,6 +405,88 @@ export class CustomerList {
   /** «زهرا محمدی» → «زم» for the row avatar (the topbar's own helper). */
   initials(fullName: string): string {
     return toInitials(fullName);
+  }
+
+  /**
+   * Block or unblock an account (BO-I03).
+   *
+   * The switch has already flipped visually, so every path that does NOT send a
+   * request has to write the old value back: a cancel, an offline hint, or a
+   * permission that went missing between renders. Success is optimistic — the
+   * override paints the new pill before the answer — and a failure clears it,
+   * which is the rollback. The error toast belongs to the interceptor; the
+   * success toast is ours.
+   */
+  async toggleStatus(item: CustomerListItem, toggle: ToggleSwitch): Promise<void> {
+    if (!this.canBlock()) {
+      return;
+    }
+
+    const isActive = item.status === 'active';
+
+    if (!isOnline()) {
+      toggle.writeValue(isActive);
+      this.toast.warning(OFFLINE_MESSAGE);
+      return;
+    }
+
+    const blocked = isActive;
+    const confirmed = await this.confirm.confirm({
+      message: blocked
+        ? `آیا حساب «${item.fullName}» مسدود شود؟ ورود این مشتری به فروشگاه متوقف می‌شود.`
+        : `آیا حساب «${item.fullName}» دوباره فعال شود؟`,
+      header: blocked ? 'مسدود کردن حساب' : 'فعال کردن حساب',
+      acceptLabel: blocked ? 'مسدود کن' : 'فعال کن',
+      danger: blocked,
+    });
+
+    if (!confirmed) {
+      toggle.writeValue(isActive);
+      return;
+    }
+
+    this.setOverride(item.id, blocked ? 'blocked' : 'active');
+
+    this.customers.setStatus(item.id, blocked).subscribe({
+      next: () => {
+        this.toast.success(blocked ? 'حساب مشتری مسدود شد.' : 'حساب مشتری فعال شد.');
+      },
+      error: () => this.clearOverride(item.id),
+    });
+  }
+
+  private setOverride(id: EntityId, status: CustomerStatus): void {
+    this.statusOverrides.update((current) => new Map(current).set(id, status));
+  }
+
+  private clearOverride(id: EntityId): void {
+    this.statusOverrides.update((current) => {
+      const next = new Map(current);
+      next.delete(id);
+
+      return next;
+    });
+  }
+
+  /** Drop an override once the server's own row carries that status. */
+  private reconcileOverrides(): void {
+    const current = this.statusOverrides();
+
+    if (current.size === 0) {
+      return;
+    }
+
+    const next = new Map(current);
+
+    for (const row of this.page()?.items ?? []) {
+      if (next.get(row.id) === row.status) {
+        next.delete(row.id);
+      }
+    }
+
+    if (next.size !== current.size) {
+      this.statusOverrides.set(next);
+    }
   }
 
   /** One atomic state update and one URL write (never two navigations). */

@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { Router, provideRouter } from '@angular/router';
+import { PERMISSIONS } from '@core/auth/permissions.token';
 import type { Page } from '@shared/models';
 import { applicationConfig, Meta, StoryObj } from '@storybook/angular';
 import { NEVER, Observable, of, throwError } from 'rxjs';
@@ -117,7 +118,12 @@ const meta: Meta<CustomerList> = {
   component: CustomerList,
   decorators: [
     applicationConfig({
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        // The status switch is gated on this grant; without it every story
+        // would show the read-only pill and the toggle would be undocumented.
+        { provide: PERMISSIONS, useValue: signal(['customers.view', 'customers.block']) },
+      ],
     }),
   ],
   parameters: {
@@ -134,6 +140,11 @@ const meta: Meta<CustomerList> = {
           '',
           '**Mobile hides the light columns** (BO-I01 tc 10): email below `lg`, mobile and signup',
           'date below `md`, order count below `sm`; name and status stay at every width.',
+          '',
+          '**The status cell is the switch when `customers.block` is granted** (BO-I03): the',
+          'dialog asks first, the pill changes before the answer, and a failed request clears the',
+          'override. Cancel, Escape and an offline tab all write the old value back. Without the',
+          'grant the read-only pill renders instead.',
           '',
           '**One state, four outcomes (BO-E07):** error > loading > empty > data. `null` rows mean',
           '"not answered yet" and render the skeleton, never an empty shop.',

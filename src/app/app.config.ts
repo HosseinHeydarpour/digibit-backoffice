@@ -19,7 +19,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 
 import { routes } from './app.routes';
-import { MENU_PERMISSIONS } from './layout/sidebar/menu';
+import { MOCK_PERMISSIONS } from './layout/sidebar/menu';
 
 /**
  * Aura with the Digibit brand colour substituted into the primary palette.
@@ -87,7 +87,7 @@ export const appConfig: ApplicationConfig = {
     // local development usable. Production gets nothing, and therefore a
     // dashboard-only menu, until D08 lands.
     ...(environment.useMockApi
-      ? [{ provide: PERMISSIONS, useValue: signal<readonly string[]>(MENU_PERMISSIONS) }]
+      ? [{ provide: PERMISSIONS, useValue: signal<readonly string[]>(MOCK_PERMISSIONS) }]
       : []),
 
     // The topbar's profile dropdown renders only when this signal holds a user,

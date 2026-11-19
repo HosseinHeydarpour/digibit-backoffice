@@ -10,6 +10,7 @@ export type Permission =
   | 'products.view'
   | 'orders.view'
   | 'customers.view'
+  | 'customers.block'
   | 'content.view'
   | 'comments.view'
   | 'tickets.view'
