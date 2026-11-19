@@ -1,5 +1,6 @@
 import type { SessionUser } from '@shared/models/session.model';
 
+import { MOCK_CUSTOMER_DETAILS } from './customers.fixture';
 import { MOCK_ORDER_DETAILS } from './orders.fixture';
 import { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
 
@@ -7,6 +8,8 @@ export { FIXTURE_NOW, MOCK_BRANDS, MOCK_PRODUCTS } from './products.fixture';
 export type { MockProduct, MockProductStatus } from './products.fixture';
 export { MOCK_ORDERS, MOCK_ORDER_DETAILS } from './orders.fixture';
 export type { MockOrder } from './orders.fixture';
+export { MOCK_CUSTOMERS, MOCK_CUSTOMER_DETAILS, toCustomerListItem } from './customers.fixture';
+export type { MockCustomer, MockCustomerAddress, MockCustomerDetail } from './customers.fixture';
 export type { SessionUser } from '@shared/models/session.model';
 
 /** 12 modules, matching the 12 feature folders. */
@@ -159,25 +162,6 @@ export const MOCK_CATEGORIES = [
   },
 ];
 
-export const MOCK_CUSTOMERS = makeList(8, (i) => ({
-  id: pad(i + 1),
-  fullName: [
-    'زهرا محمدی',
-    'علی رضایی',
-    'مریم حسینی',
-    'رضا کریمی',
-    'سارا احمدی',
-    'محمد نوری',
-    'نگار شریفی',
-    'امیر صادقی',
-  ][i],
-  phone: `0912${String(1000000 + i * 11111)}`,
-  email: `user${i + 1}@example.com`,
-  isActive: i % 4 !== 0,
-  orderCount: (i * 3) % 7,
-  createdAt: now - i * 5 * DAY,
-}));
-
 export const MOCK_COUPONS = makeList(7, (i) => ({
   id: pad(i + 1),
   code: `OFF${(i + 1) * 10}`,
@@ -329,7 +313,7 @@ export const MOCK_LOW_STOCK = MOCK_PRODUCTS.filter((p) => p.stock <= MOCK_LOW_ST
 export const MOCK_DASHBOARD_SUMMARY = {
   totalSales: TODAY_SALES,
   orderCount: MOCK_ORDER_DETAILS.length,
-  customerCount: 187,
+  customerCount: MOCK_CUSTOMER_DETAILS.length,
   productCount: MOCK_PRODUCTS.length,
   salesChangePercent: Math.round(((TODAY_SALES - YESTERDAY_SALES) / YESTERDAY_SALES) * 1000) / 10,
   pendingOrders: MOCK_ORDER_DETAILS.filter((order) => order.status === 'pending').length,

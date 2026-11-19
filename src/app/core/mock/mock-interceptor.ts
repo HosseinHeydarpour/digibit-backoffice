@@ -394,11 +394,8 @@ function resolve(
       return found ? ok(found) : NOT_FOUND;
     }
 
-    case 'customers': {
-      if (!id) return paged(fixtures.MOCK_CUSTOMERS, page, pageSize);
-      const found = byId(fixtures.MOCK_CUSTOMERS, id);
-      return found ? ok(found) : NOT_FOUND;
-    }
+    case 'customers':
+      return resolveCustomers(method, id, sub, params, body, page, pageSize);
 
     case 'comments':
       return paged(fixtures.MOCK_COMMENTS, page, pageSize);
@@ -574,6 +571,7 @@ function millis(params: ParamReader, key: string): number | null {
 function filterOrders(params: ParamReader): Record<string, unknown>[] {
   const text = (params.get('query') ?? '').trim().toLowerCase();
   const status = params.get('status');
+  const customerId = params.get('customerId');
   const from = millis(params, 'from');
   const to = millis(params, 'to');
   const sort = params.get('sort');
@@ -585,6 +583,7 @@ function filterOrders(params: ParamReader): Record<string, unknown>[] {
     return (
       (text === '' || haystack.includes(text)) &&
       (status === null || order.status === status) &&
+      (customerId === null || order.customerId === customerId) &&
       (from === null || order.createdAt >= from) &&
       (to === null || order.createdAt <= to)
     );
@@ -595,6 +594,104 @@ function filterOrders(params: ParamReader): Record<string, unknown>[] {
   }
 
   return rows;
+}
+
+/** Persian and Arabic digits → Latin, so «۰۹۱۲» searches the same row as `0912`. */
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+
+function toLatinDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String(PERSIAN_DIGITS.indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)));
+}
+
+/**
+ * The customer rows the list shows (BO-I01/I04): one live array the status
+ * toggle replaces, seeded from the fixture and rebuilt by `resetMockState()`.
+ */
+let CUSTOMERS: readonly fixtures.MockCustomerDetail[] = fixtures.MOCK_CUSTOMER_DETAILS;
+
+/**
+ * The customer list the way the real API answers it: free text over name and
+ * email, a digit-only match on the phone (so «۰۹۱۲» and `0912` are the same
+ * query), an exact account status, then a numeric sort by signup date.
+ *
+ * TRACE: `GET /customers?query=۰۹۱۲&status=active&sort=createdAt&dir=desc&page=2`
+ *   → «۰۹۱۲» becomes `0912`; because the text is digits only it is treated as
+ *     a phone query and matched against the mobile column (an email's stray
+ *     digit must not do that), after the status filter,
+ *   → sorted newest first by `createdAt`,
+ *   → `paged(...)` answers rows 11-20 with the full total, which is what the
+ *     footer prints and what the paginator divides.
+ */
+function filterCustomers(params: ParamReader): readonly fixtures.MockCustomerDetail[] {
+  const text = toLatinDigits((params.get('query') ?? '').trim()).toLowerCase();
+  const digits = text.replace(/\D/g, '');
+  // A phone query is digits and separators only; an email like
+  // `customer3@example.com` also contains digits, and matching its «3» against
+  // every mobile returned half the shop.
+  const isPhoneQuery = digits.length >= 3 && /^[\d\s()+-]+$/.test(text);
+  const status = params.get('status');
+  const sort = params.get('sort');
+  const direction = params.get('dir') === 'desc' ? -1 : 1;
+
+  const rows = CUSTOMERS.filter((customer) => {
+    if (status !== null && customer.status !== status) {
+      return false;
+    }
+
+    if (text === '') {
+      return true;
+    }
+
+    const haystack = `${customer.fullName} ${customer.email}`.toLowerCase();
+
+    return haystack.includes(text) || (isPhoneQuery && customer.phone.includes(digits));
+  });
+
+  return sort === 'createdAt'
+    ? [...rows].sort((a, b) => (a.createdAt - b.createdAt) * direction)
+    : rows;
+}
+
+/** `/customers`, `/customers/:id` and `PATCH /customers/:id/status` (BO-I01..I04). */
+function resolveCustomers(
+  method: string,
+  id: string | undefined,
+  sub: string | undefined,
+  params: ParamReader,
+  body: unknown,
+  page: number,
+  pageSize: number,
+): MockResolution {
+  if (!id) {
+    return paged(filterCustomers(params).map(fixtures.toCustomerListItem), page, pageSize);
+  }
+
+  const found = CUSTOMERS.find((customer) => customer.id === id);
+
+  if (!found) {
+    return NOT_FOUND;
+  }
+
+  if (method === 'PATCH' && sub === 'status') {
+    const blocked = asRecord(body)['blocked'] === true;
+    const next: fixtures.MockCustomerDetail = {
+      ...found,
+      status: blocked ? 'blocked' : 'active',
+    };
+
+    CUSTOMERS = CUSTOMERS.map((customer) => (customer.id === id ? next : customer));
+
+    return ok(next, blocked ? 'حساب مشتری مسدود شد.' : 'حساب مشتری فعال شد.');
+  }
+
+  if (method !== 'GET') {
+    return NOT_FOUND;
+  }
+
+  return ok(found);
 }
 
 function categoryName(id: string): string {
@@ -1325,6 +1422,7 @@ export function resetMockState(): void {
   CREATED_PRODUCTS.length = 0;
   CATEGORIES.splice(0, CATEGORIES.length, ...seedCategories());
   BRANDS.splice(0, BRANDS.length, ...seedBrands());
+  CUSTOMERS = fixtures.MOCK_CUSTOMER_DETAILS;
 }
 
 /** The source's raw HTML reduced to the 160-code-point short-description field. */

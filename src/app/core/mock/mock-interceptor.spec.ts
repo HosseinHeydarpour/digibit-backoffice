@@ -1213,6 +1213,118 @@ describe('mockInterceptor', () => {
     expect(body.data[0].total).toBeGreaterThan(0);
   });
 
+  // --- BO-I01..I04: customers -------------------------------------------------
+
+  it('customers: paginates 187 rows and unwraps addresses from the list', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<Record<string, unknown>[]>>('/api/v1/customers', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { page: 2, pageSize: 10 },
+      }),
+    );
+
+    expect(body.data).toHaveLength(10);
+    expect(body.meta?.total).toBe(187);
+    expect(body.data[0]['addresses']).toBeUndefined();
+    expect(body.data[0]['fullName']).toBeTruthy();
+  });
+
+  it('customers: searches name, email and a Persian-digit mobile', async () => {
+    const byName = await firstValueFrom(
+      http.get<ApiResponse<{ fullName: string }[]>>('/api/v1/customers', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { query: 'علی رضایی' },
+      }),
+    );
+    const byPhone = await firstValueFrom(
+      http.get<ApiResponse<{ phone: string }[]>>('/api/v1/customers', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { query: '۰۹۱۲۱۰۰۱۳۷۹' },
+      }),
+    );
+    const byEmail = await firstValueFrom(
+      http.get<ApiResponse<{ email: string }[]>>('/api/v1/customers', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { query: 'customer3@example.com' },
+      }),
+    );
+
+    expect(byName.data.every((row) => row.fullName.includes('علی رضایی'))).toBe(true);
+    expect(byPhone.data).toHaveLength(1);
+    expect(byPhone.data[0].phone).toBe('09121001379');
+    expect(byEmail.data).toHaveLength(1);
+  });
+
+  it('customers: filters the account status and sorts signup date numerically', async () => {
+    const blocked = await firstValueFrom(
+      http.get<ApiResponse<{ status: string }[]>>('/api/v1/customers', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { status: 'blocked', pageSize: 100 },
+      }),
+    );
+    const newest = await firstValueFrom(
+      http.get<ApiResponse<{ createdAt: number }[]>>('/api/v1/customers', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { sort: 'createdAt', dir: 'desc', pageSize: 100 },
+      }),
+    );
+
+    expect(blocked.data.length).toBeGreaterThan(0);
+    expect(blocked.data.every((row) => row.status === 'blocked')).toBe(true);
+
+    const dates = newest.data.map((row) => row.createdAt);
+    expect([...dates].sort((a, b) => b - a)).toEqual(dates);
+  });
+
+  it('customers: the profile answers addresses and the customer 404s alone', async () => {
+    const detail = await firstValueFrom(
+      http.get<ApiResponse<{ addresses: unknown[] }>>('/api/v1/customers/1', {
+        headers: { [MOCK_HEADER]: '1' },
+      }),
+    );
+
+    expect(detail.data.addresses.length).toBeGreaterThan(0);
+
+    const missing = await firstValueFrom(
+      http
+        .get<HttpErrorResponse>('/api/v1/customers/9999', { headers: { [MOCK_HEADER]: '1' } })
+        .pipe(catchError((error) => of(error as HttpErrorResponse))),
+    );
+
+    expect(missing.status).toBe(404);
+  });
+
+  it('customers: PATCH status persists into the next list read', async () => {
+    await firstValueFrom(
+      http.patch<ApiResponse<{ status: string }>>(
+        '/api/v1/customers/1/status',
+        { blocked: true },
+        { headers: { [MOCK_HEADER]: '1' } },
+      ),
+    );
+
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ id: string; status: string }[]>>('/api/v1/customers', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { status: 'blocked', pageSize: 100 },
+      }),
+    );
+
+    expect(body.data.some((row) => row.id === '1')).toBe(true);
+  });
+
+  it('orders: customerId narrows the list to one customer', async () => {
+    const body = await firstValueFrom(
+      http.get<ApiResponse<{ customerId: string }[]>>('/api/v1/orders', {
+        headers: { [MOCK_HEADER]: '1' },
+        params: { customerId: '3', pageSize: 100 },
+      }),
+    );
+
+    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.data.every((row) => row.customerId === '3')).toBe(true);
+  });
+
   /** `POST /categories` with only the fields the mock needs. */
   async function createCategory(name: string, slug: string, parentId?: string): Promise<string> {
     const created = await firstValueFrom(

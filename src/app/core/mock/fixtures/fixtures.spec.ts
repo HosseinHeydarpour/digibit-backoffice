@@ -12,6 +12,8 @@
 import { FIXTURE_NOW, MOCK_PRODUCTS } from './products.fixture';
 
 import {
+  MOCK_CUSTOMERS,
+  MOCK_CUSTOMER_DETAILS,
   MOCK_DASHBOARD_SUMMARY,
   MOCK_LOW_STOCK,
   MOCK_ORDERS,
@@ -215,6 +217,48 @@ describe('orders fixtures (BO-H01)', () => {
       for (const item of order.items) {
         expect(ids.has(item.productId), `${item.productName} exists`).toBe(true);
       }
+    }
+  });
+});
+
+describe('customer fixtures (BO-I04)', () => {
+  it('is the dashboard customer count, not a second hand-written number', () => {
+    expect(MOCK_DASHBOARD_SUMMARY.customerCount).toBe(MOCK_CUSTOMER_DETAILS.length);
+  });
+
+  it('keeps ids unique and has both an active and a blocked row', () => {
+    const ids = new Set(MOCK_CUSTOMERS.map((customer) => customer.id));
+    expect(ids.size).toBe(MOCK_CUSTOMERS.length);
+    expect(MOCK_CUSTOMERS.some((customer) => customer.status === 'blocked')).toBe(true);
+    expect(MOCK_CUSTOMERS.some((customer) => customer.status === 'active')).toBe(true);
+  });
+
+  it('links every order to a real customer who owns it', () => {
+    const byId = new Map(MOCK_CUSTOMER_DETAILS.map((customer) => [customer.id, customer]));
+
+    for (const order of MOCK_ORDER_DETAILS) {
+      const owner = byId.get(order.customerId);
+      expect(owner, `order ${order.code} has an owner`).toBeDefined();
+      expect(owner?.fullName).toBe(order.customerName);
+    }
+  });
+
+  it('derives orderCount and totalSpent, skipping cancelled and returned orders', () => {
+    for (const customer of MOCK_CUSTOMER_DETAILS) {
+      const orders = MOCK_ORDER_DETAILS.filter((order) => order.customerId === customer.id);
+      const paid = orders.filter(
+        (order) => order.status !== 'cancelled' && order.status !== 'returned',
+      );
+
+      expect(customer.orderCount).toBe(orders.length);
+      expect(customer.totalSpent).toBe(paid.reduce((sum, order) => sum + order.total, 0));
+    }
+  });
+
+  it('gives every customer at least one address, with exactly one default', () => {
+    for (const customer of MOCK_CUSTOMER_DETAILS) {
+      expect(customer.addresses.length).toBeGreaterThan(0);
+      expect(customer.addresses.filter((address) => address.isDefault)).toHaveLength(1);
     }
   });
 });
