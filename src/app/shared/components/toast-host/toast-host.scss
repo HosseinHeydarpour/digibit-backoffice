@@ -1,0 +1,15 @@
+/**
+ * The library's close button carries `margin: -25% 0 0` and a physical
+ * `right/left: -25%` (see `@primeuix/styles/dist/toast`). That pulls the X up
+ * and into the corner, so it sits above the icon and the summary instead of on
+ * their line. The toast token set has no offset token, and the button lives in
+ * PrimeNG's own component scope, so an unscoped override is the only seam.
+ */
+:host ::ng-deep .p-toast-close-button {
+  /* The library's scoped `:dir(rtl)` rule outranks the plain class, so the
+     reset needs `!important`. The horizontal `-25%` pushed the X outside the
+     content edge; the small top lift keeps the glyph centred on the summary
+     line instead of 7px above it. */
+  margin: -0.25rem 0 0 !important;
+  inset: auto !important;
+}

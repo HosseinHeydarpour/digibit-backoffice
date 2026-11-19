@@ -47,7 +47,7 @@ const CUSTOMERS = [
   'سارا احمدی',
   'محمد نوری',
   'نگار شریفی',
-  'امیر صادقی',
+  'سید محمدحسین حسینی‌نژاد موسوی',
 ] as const;
 
 /** Province/city pairs cycled across the orders, so the address card varies. */

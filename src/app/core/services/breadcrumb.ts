@@ -130,7 +130,13 @@ export class BreadcrumbService {
 
       if (declared !== undefined) {
         const label = typeof declared === 'function' ? declared(route.snapshot.params) : declared;
-        crumbs.push({ label, url });
+
+        // A pathless child (the lazy module's `''` route) shares its parent's
+        // URL. Two chips for one navigation step read as a bug, so the first
+        // declaration of a URL owns the crumb.
+        if (crumbs.at(-1)?.url !== url) {
+          crumbs.push({ label, url });
+        }
       }
 
       route = route.firstChild;

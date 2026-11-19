@@ -166,6 +166,20 @@ export class OrderDetail {
     return orderStatusLabel(status);
   }
 
+  /** Copy the order code; a blocked or missing clipboard stays quiet. */
+  copyCode(code: string): void {
+    const clipboard = navigator.clipboard;
+
+    if (!clipboard?.writeText) {
+      return;
+    }
+
+    void clipboard.writeText(code).then(
+      () => this.toast.success('کد سفارش کپی شد.'),
+      () => undefined,
+    );
+  }
+
   statusBadgeClass(status: OrderStatus): string {
     return orderStatusBadgeClass(status);
   }

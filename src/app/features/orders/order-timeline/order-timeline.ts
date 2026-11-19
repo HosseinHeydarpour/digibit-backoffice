@@ -17,11 +17,12 @@ interface TimelineStep {
  *
  * The steps come from `ORDER_FLOW`, not from the history: a past step without a
  * recorded entry still renders as done in grey, and a future step renders
- * hollow. The CURRENT status is always the last recorded step, so «تحویل‌شده»
+ * hollow. The CURRENT status is always the last recorded step, so «تحویل شده»
  * shows four green steps and one brand-coloured current step.
  *
- * A cancelled or returned order does not walk the flow at all: it renders one
- * red row with the reason, because a cancelled order is not "waiting at step 3".
+ * A cancelled or returned order adds a red notice above the flow. The five
+ * steps stay visible as the record of how far the order got; the notice carries
+ * the terminal status and its reason.
  */
 @Component({
   selector: 'app-order-timeline',
@@ -29,7 +30,7 @@ interface TimelineStep {
   template: `
     @if (terminal(); as status) {
       <div
-        class="flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/40 dark:bg-red-900/20"
+        class="mb-4 flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/40 dark:bg-red-900/20"
       >
         <span class="text-sm font-medium text-red-700 dark:text-red-300">
           این سفارش {{ label(status) }} است.

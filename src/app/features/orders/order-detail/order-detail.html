@@ -78,7 +78,18 @@
         <div class="flex items-center justify-between gap-3">
           <dt class="text-gray-500 dark:text-gray-400">کد سفارش</dt>
           <dd class="font-medium text-gray-900 dark:text-white">
-            <bdi class="font-mono">#{{ order.code | persianDigits }}</bdi>
+            <button
+              type="button"
+              (click)="copyCode(order.code)"
+              [attr.aria-label]="'کپی کد سفارش ' + order.code"
+              class="inline-flex items-center gap-1.5 rounded font-mono text-sm font-medium transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:text-primary-light"
+            >
+              <bdi>#{{ order.code }}</bdi>
+              <i
+                class="pi pi-copy text-[11px] text-gray-400 dark:text-gray-500"
+                aria-hidden="true"
+              ></i>
+            </button>
           </dd>
         </div>
         <div class="flex items-center justify-between gap-3">

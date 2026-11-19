@@ -58,6 +58,32 @@ const DigibitPreset = definePreset(Aura, {
       },
     },
   },
+  components: {
+    // Tooltips wear the project's slate surfaces, not Aura's zinc tokens: #1e293b
+    // is `--color-dark` on light, #334155 is the dark form-field tone, and
+    // #f8fafc is `--color-text-primary-dark`. 20rem gives a long customer name
+    // room; the 8px radius matches the fields.
+    tooltip: {
+      root: {
+        maxWidth: '20rem',
+        borderRadius: '0.5rem',
+      },
+      colorScheme: {
+        light: {
+          root: {
+            background: '#1e293b',
+            color: '#f8fafc',
+          },
+        },
+        dark: {
+          root: {
+            background: '#334155',
+            color: '#f8fafc',
+          },
+        },
+      },
+    },
+  },
 });
 
 /**

@@ -168,7 +168,7 @@ describe('Orders routes (BO-H01)', () => {
 
     expect(fixture.nativeElement.querySelector('app-order-detail')).toBeTruthy();
     expect(fixture.nativeElement.textContent).toContain('مریم حسینی');
-    expect(fixture.nativeElement.textContent).toContain('۱۴۰۰۶');
+    expect(fixture.nativeElement.textContent).toContain('ORD-14006');
   });
 
   it('an unknown order id lands on the 404 page, not an empty detail', async () => {

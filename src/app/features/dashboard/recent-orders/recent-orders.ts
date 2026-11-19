@@ -72,7 +72,7 @@ const COLUMNS: readonly OrderColumn[] = [
  *    - Date: 1723456789000 -> persianDate pipe -> '۱۴۰۳/۰۵/۲۲'
  *    - Total: 1250000 -> toman pipe -> '۱٬۲۵۰٬۰۰۰ تومان'
  *    - Status 'delivered':
- *      - `statusLabel('delivered')` -> 'تحویلشده'
+ *      - `statusLabel('delivered')` -> 'تحویل شده'
  *      - `statusBadgeClass('delivered')` -> 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
  *
  * 4. User Interaction:

@@ -114,12 +114,12 @@ describe('RecentOrders (BO-E04)', () => {
     fixture.componentRef.setInput('orders', MOCK_8_ORDERS);
     fixture.detectChanges();
 
-    expect(component.statusLabel('delivered')).toBe('تحویلشده');
+    expect(component.statusLabel('delivered')).toBe('تحویل شده');
     expect(component.statusLabel('pending')).toBe('در انتظار پرداخت');
     expect(component.statusLabel('processing')).toBe('در حال پردازش');
-    expect(component.statusLabel('shipped')).toBe('ارسالشده');
-    expect(component.statusLabel('cancelled')).toBe('لغوشده');
-    expect(component.statusLabel('returned')).toBe('مرجوعشده');
+    expect(component.statusLabel('shipped')).toBe('ارسال شده');
+    expect(component.statusLabel('cancelled')).toBe('لغو شده');
+    expect(component.statusLabel('returned')).toBe('مرجوع شده');
 
     expect(component.statusBadgeClass('delivered')).toContain('text-green-800');
     expect(component.statusBadgeClass('cancelled')).toContain('text-red-800');

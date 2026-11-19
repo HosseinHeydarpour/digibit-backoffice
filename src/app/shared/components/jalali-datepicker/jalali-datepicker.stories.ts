@@ -18,7 +18,12 @@ import { JalaliDatepicker } from './jalali-datepicker';
   imports: [JalaliDatepicker, ReactiveFormsModule],
   template: `
     <div class="w-80 max-w-full">
-      <app-jalali-datepicker [control]="control" [inputId]="inputId" [placeholder]="placeholder" />
+      <app-jalali-datepicker
+        [control]="control"
+        [inputId]="inputId"
+        [placeholder]="placeholder"
+        [overlay]="overlay"
+      />
       <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
         مقدار فرم‌کنترل (میلادی):
         <code class="font-mono">{{ control.value ?? '—' }}</code>
@@ -31,6 +36,7 @@ class JalaliDatepickerStory implements OnChanges {
   @Input() value: string | null = '2025-09-23';
   @Input() inputId = 'story-jalali-datepicker';
   @Input() placeholder = 'انتخاب تاریخ';
+  @Input() overlay = false;
 
   readonly control = new FormControl<string | null>(null);
 
@@ -177,9 +183,36 @@ export const InAForm: Story = {
       description: {
         story:
           'The `inputId` matters here: the `<label for>` must match it, or clicking the label does ' +
-          'not focus the field. That is why `inputId` is an input at all rather than a constant — a ' +
-          'form with two datepickers would otherwise have two elements with the same id.',
+          'not focus the field. That is why `inputId` is an input at all rather than a constant, ' +
+          'since a form with two datepickers would otherwise have two elements with the same id.',
       },
     },
   },
+};
+
+/**
+ * The toolbar use case. `overlay` takes the calendar out of normal flow, so
+ * opening it never grows the row; the grey block stands in for the next filter.
+ * Use it in filter bars and keep the inline default inside forms.
+ */
+export const OverlayInAToolbar: Story = {
+  args: {
+    inputId: 'story-jalali-overlay',
+    placeholder: 'از تاریخ',
+    overlay: true,
+  },
+  render: (args) => ({
+    props: args,
+    template: `
+      <div class="flex max-w-2xl items-end gap-3">
+        <app-jalali-datepicker-story
+          [inputId]="inputId"
+          [placeholder]="placeholder"
+          [overlay]="overlay"
+        />
+        <div class="h-11 flex-1 rounded-lg bg-gray-100 dark:bg-gray-700" aria-hidden="true"></div>
+      </div>
+    `,
+    moduleMetadata: { imports: [JalaliDatepickerStory] },
+  }),
 };

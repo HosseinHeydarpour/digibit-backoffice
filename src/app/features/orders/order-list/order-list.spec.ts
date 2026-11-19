@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
+import { ToastService } from '@core/services/toast';
 import type { Page } from '@shared/models';
+import { Tooltip } from 'primeng/tooltip';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 
 import type { OrderListItem } from '../models/order.model';
@@ -88,15 +91,18 @@ describe('OrderList (BO-H01)', () => {
   let component: OrderList;
   let service: OrdersServiceStub;
   let router: Router;
+  let toast: { success: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     service = new OrdersServiceStub();
+    toast = { success: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [OrderList],
       providers: [
         // The stub, not the real service — this spec IS tc 6.
         { provide: OrdersService, useValue: service },
+        { provide: ToastService, useValue: toast },
         // A catch-all so a row click's navigation resolves without an outlet;
         // the assertions read the spy and the rendered href, not a target page.
         provideRouter([{ path: '**', children: [] }]),
@@ -125,8 +131,8 @@ describe('OrderList (BO-H01)', () => {
     const rows = fixture.nativeElement.querySelectorAll('tbody tr');
     expect(rows.length).toBe(ORDERS.length);
     expect(rows[0].textContent).toContain('زهرا محمدی');
-    // ORD-14001 with every digit converted: ۱۴۰۰۱
-    expect(rows[0].textContent).toContain('۱۴۰۰۱');
+    // The code keeps its Latin digits, so it stays copy-pasteable.
+    expect(rows[0].textContent).toContain('ORD-14001');
   });
 
   // ─── tc 2 · Persian column titles ─────────────────────────────────────────
@@ -175,8 +181,8 @@ describe('OrderList (BO-H01)', () => {
     await mount();
 
     expect(component.statusLabel('pending')).toBe('در انتظار پرداخت');
-    expect(component.statusLabel('delivered')).toBe('تحویلشده');
-    expect(component.statusLabel('cancelled')).toBe('لغوشده');
+    expect(component.statusLabel('delivered')).toBe('تحویل شده');
+    expect(component.statusLabel('cancelled')).toBe('لغو شده');
 
     expect(component.statusBadgeClass('delivered')).toContain('text-green-800');
     expect(component.statusBadgeClass('cancelled')).toContain('text-red-800');
@@ -284,6 +290,45 @@ describe('OrderList (BO-H01)', () => {
 
     // stopPropagation: the row handler must NOT fire a second navigation.
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('tc 3 (H01): copies the Latin order code without navigating the row', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    await mount();
+    const navigate = vi.spyOn(router, 'navigate');
+
+    const button = fixture.nativeElement.querySelector(
+      'tbody tr button[aria-label^="کپی کد سفارش"]',
+    ) as HTMLButtonElement;
+    expect(button.textContent).toContain('ORD-14001');
+
+    button.click();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith('ORD-14001');
+    expect(toast.success).toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('tc 4 (H01): exposes the full customer name through a PrimeNG tooltip', async () => {
+    const longName = 'سید محمدحسین حسینی‌نژاد موسوی';
+    service.rows = [{ ...ORDERS[0], customerName: longName }];
+    await mount();
+
+    const cell = fixture.nativeElement.querySelector('tbody tr td:nth-child(2)') as HTMLElement;
+    expect(cell.className).toContain('truncate');
+    expect(cell.hasAttribute('title')).toBe(false);
+
+    const cellDebug = fixture.debugElement.query(By.css('tbody tr td:nth-child(2)'));
+    const tooltip = cellDebug.injector.get(Tooltip);
+    expect(tooltip.content).toBe(longName);
+    expect(tooltip.tooltipPosition).toBe('top');
+    // Short names get no tooltip; only a cell that really truncates needs one.
+    expect(tooltip.showOnEllipsis).toBe(true);
   });
 
   // ─── BO-E07's error path, on a page that owns its fetch ───────────────────

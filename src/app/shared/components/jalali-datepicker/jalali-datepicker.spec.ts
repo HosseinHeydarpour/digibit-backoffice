@@ -1,16 +1,20 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { By } from '@angular/platform-browser';
+import { ThemeService } from '@core/services/theme';
 import { Jalali } from 'jalali-ts';
+import { NgPersianDatepickerComponent } from 'ng-persian-datepicker';
 
 import { JalaliDatepicker } from './jalali-datepicker';
 
 @Component({
   imports: [ReactiveFormsModule, JalaliDatepicker],
-  template: `<app-jalali-datepicker [control]="control" />`,
+  template: `<app-jalali-datepicker [control]="control" [overlay]="overlay" />`,
 })
 class HostComponent {
   readonly control = new FormControl<string | null>(null);
+  overlay = false;
 }
 
 function mount(initial: string | null = null) {
@@ -145,5 +149,40 @@ describe('JalaliDatepicker', () => {
     fixture.detectChanges();
 
     expect(input(host).value).toBe('');
+  });
+
+  it('floats the calendar only when the overlay input is on', () => {
+    const fixture = mount();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(
+      host.querySelector('app-jalali-datepicker')?.classList.contains('datepicker-overlay'),
+    ).toBe(false);
+
+    fixture.componentInstance.overlay = true;
+    fixture.detectChanges();
+
+    expect(
+      host.querySelector('app-jalali-datepicker')?.classList.contains('datepicker-overlay'),
+    ).toBe(true);
+  });
+
+  it('themes the calendar to the active light or dark mode', () => {
+    const fixture = mount();
+    const theme = TestBed.inject(ThemeService);
+
+    const picker = () =>
+      fixture.debugElement.query(By.directive(NgPersianDatepickerComponent))
+        .componentInstance as NgPersianDatepickerComponent;
+
+    theme.set('light');
+    fixture.detectChanges();
+    expect(picker().uiTheme.background).toBe('#ffffff');
+
+    theme.set('dark');
+    fixture.detectChanges();
+    expect(picker().uiTheme.background).toBe('#1e293b');
+
+    theme.set('light');
   });
 });

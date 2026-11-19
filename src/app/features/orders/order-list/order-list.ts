@@ -9,6 +9,7 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ToastService } from '@core/services/toast';
 import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { JalaliDatepicker } from '@shared/components/jalali-datepicker/jalali-datepicker';
@@ -24,6 +25,7 @@ import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
+import { Tooltip } from 'primeng/tooltip';
 import {
   BehaviorSubject,
   catchError,
@@ -141,12 +143,15 @@ const COLUMNS: readonly OrderColumn[] = [
     TomanPipe,
     ErrorState,
     EmptyState,
+    Tooltip,
   ],
   templateUrl: './order-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OrderList {
   private readonly ordersService = inject(OrdersService);
+
+  private readonly toast = inject(ToastService);
 
   private readonly router = inject(Router);
 
@@ -290,12 +295,12 @@ export class OrderList {
     return [
       { label: 'همهٔ وضعیت‌ها', value: '' },
       { label: 'در انتظار پرداخت', value: 'pending' },
-      { label: 'پرداخت‌شده', value: 'paid' },
+      { label: orderStatusLabel('paid'), value: 'paid' },
       { label: 'در حال پردازش', value: 'processing' },
-      { label: 'ارسال‌شده', value: 'shipped' },
-      { label: 'تحویل‌شده', value: 'delivered' },
-      { label: 'لغوشده', value: 'cancelled' },
-      { label: 'مرجوع‌شده', value: 'returned' },
+      { label: orderStatusLabel('shipped'), value: 'shipped' },
+      { label: orderStatusLabel('delivered'), value: 'delivered' },
+      { label: orderStatusLabel('cancelled'), value: 'cancelled' },
+      { label: orderStatusLabel('returned'), value: 'returned' },
     ];
   }
 
@@ -450,6 +455,26 @@ export class OrderList {
 
   statusLabel(status: OrderStatus): string {
     return orderStatusLabel(status);
+  }
+
+  /**
+   * Copy the order code.
+   *
+   * `navigator.clipboard` can be missing (insecure context, older browser) or
+   * blocked; a convenience action then fails quietly instead of showing an
+   * error the user cannot act on.
+   */
+  copyCode(code: string): void {
+    const clipboard = navigator.clipboard;
+
+    if (!clipboard?.writeText) {
+      return;
+    }
+
+    void clipboard.writeText(code).then(
+      () => this.toast.success('کد سفارش کپی شد.'),
+      () => undefined,
+    );
   }
 
   statusBadgeClass(status: OrderStatus): string {

@@ -78,6 +78,7 @@ import { Toast } from 'primeng/toast';
   selector: 'app-toast-host',
   imports: [Toast],
   templateUrl: './toast-host.html',
+  styleUrl: './toast-host.scss',
 })
 export class ToastHost {
   /**

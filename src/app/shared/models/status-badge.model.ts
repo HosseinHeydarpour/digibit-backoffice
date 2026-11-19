@@ -15,12 +15,12 @@ export type BadgeSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary'
  */
 export const ORDER_STATUS_META: Record<OrderStatus, { label: string; severity: BadgeSeverity }> = {
   pending: { label: 'در انتظار پرداخت', severity: 'warn' },
-  paid: { label: 'پرداختشده', severity: 'info' },
+  paid: { label: 'پرداخت شده', severity: 'info' },
   processing: { label: 'در حال پردازش', severity: 'info' },
-  shipped: { label: 'ارسالشده', severity: 'success' },
-  delivered: { label: 'تحویلشده', severity: 'success' },
-  cancelled: { label: 'لغوشده', severity: 'danger' },
-  returned: { label: 'مرجوعشده', severity: 'danger' },
+  shipped: { label: 'ارسال شده', severity: 'success' },
+  delivered: { label: 'تحویل شده', severity: 'success' },
+  cancelled: { label: 'لغو شده', severity: 'danger' },
+  returned: { label: 'مرجوع شده', severity: 'danger' },
 };
 
 export const TICKET_STATUS_META: Record<TicketStatus, { label: string; severity: BadgeSeverity }> =

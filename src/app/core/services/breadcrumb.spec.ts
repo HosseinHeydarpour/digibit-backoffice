@@ -40,6 +40,13 @@ const ROUTES = [
         data: { breadcrumb: 'سفارش‌ها' },
         children: [{ path: 'edit', children: [] }],
       },
+      {
+        // The lazy-module shape: a pathless child declares the same crumb at
+        // the same URL. One navigation step must not become two chips.
+        path: 'same-url',
+        data: { breadcrumb: 'یک قدم' },
+        children: [{ path: '', data: { breadcrumb: 'یک قدم' }, children: [] }],
+      },
       // Declares nothing at all.
       { path: 'plain', children: [] },
     ],
@@ -109,6 +116,12 @@ describe('BreadcrumbService (synthetic routes)', () => {
     expect(service.crumbs()).toEqual([]);
   });
 
+  it('keeps one crumb when a pathless child shares its parent URL', async () => {
+    await router.navigateByUrl('/same-url');
+
+    expect(service.crumbs()).toEqual([{ label: 'یک قدم', url: '/same-url' }]);
+  });
+
   it('returns an empty trail for an unknown URL (tc 9)', async () => {
     await router.navigateByUrl('/no-such-page');
 
@@ -160,6 +173,21 @@ describe('BreadcrumbService against the real app routes (integration)', () => {
     // The wildcard declares `title` (the topbar needs it) but deliberately no
     // `breadcrumb` — this test is what keeps it that way.
     expect(service.crumbs()).toEqual([]);
+  });
+
+  it('shows one «سفارش‌ها» crumb on the real orders list', async () => {
+    await router.navigateByUrl('/orders');
+
+    expect(service.crumbs()).toEqual([{ label: 'سفارش‌ها', url: '/orders' }]);
+  });
+
+  it('builds «سفارش‌ها / جزئیات سفارش» on a real order detail (BO-H01 X3)', async () => {
+    await router.navigateByUrl('/orders/1');
+
+    expect(service.crumbs()).toEqual([
+      { label: 'سفارش‌ها', url: '/orders' },
+      { label: 'جزئیات سفارش', url: '/orders/1' },
+    ]);
   });
 
   it('declares breadcrumb data on every real feature route', () => {

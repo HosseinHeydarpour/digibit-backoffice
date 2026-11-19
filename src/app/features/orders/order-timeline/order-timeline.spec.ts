@@ -60,8 +60,11 @@ describe('OrderTimeline (BO-H05)', () => {
       { id: 'h4', status: 'cancelled', note: 'انصراف مشتری', createdAt: 1_728_010_000_000 },
     ]);
 
-    expect(fixture.nativeElement.textContent).toContain('این سفارش لغوشده است.');
+    expect(fixture.nativeElement.textContent).toContain('این سفارش لغو شده است.');
     expect(fixture.nativeElement.textContent).toContain('انصراف مشتری');
-    expect(fixture.nativeElement.querySelector('.bg-red-50')).toBeTruthy();
+    const terminal = fixture.nativeElement.querySelector('.bg-red-50') as HTMLElement;
+    expect(terminal).toBeTruthy();
+    // The red notice must not touch the first step of the history below it.
+    expect(terminal.className).toContain('mb-4');
   });
 });

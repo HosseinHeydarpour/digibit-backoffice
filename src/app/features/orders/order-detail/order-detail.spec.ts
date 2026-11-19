@@ -111,8 +111,8 @@ describe('OrderDetail (BO-H01)', () => {
     expect(text()).toContain('جمع‌بندی مالی');
     expect(text()).toContain('تاریخچه وضعیت');
 
-    expect(text()).toContain('۱۴۰۰۶'); // the code, Persian digits
-    expect(text()).toContain('تحویلشده');
+    expect(text()).toContain('ORD-14006'); // the code keeps Latin digits
+    expect(text()).toContain('تحویل شده');
     expect(text()).toContain('مریم حسینی');
     expect(text()).toContain('اصفهان / اصفهان');
     expect(text()).toContain('زرین‌پال');
@@ -171,7 +171,7 @@ describe('OrderDetail (BO-H01)', () => {
     fixture.componentRef.setInput('detail', { order: cancelled });
     fixture.detectChanges();
 
-    expect(text()).toContain('این سفارش لغوشده است.');
+    expect(text()).toContain('این سفارش لغو شده است.');
     expect(text()).toContain('انصراف مشتری از خرید');
     expect(fixture.nativeElement.querySelectorAll('app-order-timeline ol li')).toHaveLength(5);
   });
@@ -183,6 +183,24 @@ describe('OrderDetail (BO-H01)', () => {
     const back = fixture.nativeElement.querySelector('a[href="/orders"]') as HTMLAnchorElement;
     expect(back).toBeTruthy();
     expect(back.textContent).toContain('بازگشت به سفارش‌ها');
+  });
+
+  it('copies the Latin order code from the info card', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    fixture.componentRef.setInput('detail', { order: ORDER });
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector(
+      'dd button[aria-label^="کپی کد سفارش"]',
+    ) as HTMLButtonElement;
+    button.click();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith('ORD-14006');
   });
 
   it('a failed load renders the retry block, not empty cards', () => {
@@ -252,7 +270,7 @@ describe('OrderDetail (BO-H01)', () => {
     fixture.detectChanges();
 
     expect(orders.cancel).toHaveBeenCalledWith('7', { reason: 'انصراف مشتری' });
-    expect(text()).toContain('لغوشده');
+    expect(text()).toContain('لغو شده');
   });
 
   function component(): OrderDetail {

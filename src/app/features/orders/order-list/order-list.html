@@ -1,15 +1,15 @@
-<app-page-header title="سفارش‌ها" description="مدیریت سفارش‌های فروشگاه" />
+<app-page-header title="سفارش‌ها" description="مدیریت سفارش‌های فروشگاه" [showBreadcrumb]="false" />
 
 <div
-  class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
+  class="rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800"
 >
   <!--
     FILTERS (BO-H02). Every control writes the SAME state + URL path as paging, so
     the request and a shared link can never disagree about what is on screen.
   -->
   <div class="flex flex-col gap-3 border-b border-gray-200 p-4 dark:border-gray-700">
-    <div class="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-center">
-      <p-iconfield class="lg:col-span-4">
+    <div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+      <p-iconfield class="w-full lg:min-w-56 lg:flex-1">
         <p-inputicon class="pi pi-search" />
         <input
           pInputText
@@ -22,17 +22,18 @@
 
       <p-select
         inputId="orders-status"
+        ariaLabel="وضعیت سفارش"
         [ngModel]="filters().status"
         (onChange)="onStatusFilter($event.value)"
         [options]="statusSelectOptions"
         optionLabel="label"
         optionValue="value"
         appendTo="body"
-        class="w-full lg:col-span-3"
+        class="w-full lg:w-44"
         styleClass="w-full"
       />
 
-      <div class="lg:col-span-2">
+      <div class="w-full lg:w-40">
         <label for="orders-from" class="mb-1 block text-xs text-gray-500 dark:text-gray-400">
           از تاریخ
         </label>
@@ -40,43 +41,36 @@
           [control]="fromControl"
           inputId="orders-from"
           placeholder="از تاریخ"
+          [overlay]="true"
         />
       </div>
 
-      <div class="lg:col-span-2">
+      <div class="w-full lg:w-40">
         <label for="orders-to" class="mb-1 block text-xs text-gray-500 dark:text-gray-400">
           تا تاریخ
         </label>
-        <app-jalali-datepicker [control]="toControl" inputId="orders-to" placeholder="تا تاریخ" />
+        <app-jalali-datepicker
+          [control]="toControl"
+          inputId="orders-to"
+          placeholder="تا تاریخ"
+          [overlay]="true"
+        />
       </div>
 
-      <div class="flex items-center gap-2 lg:col-span-1 lg:justify-end">
-        @if (hasFilters()) {
-          <button
-            type="button"
-            pButton
-            [text]="true"
-            severity="secondary"
-            (click)="clearFilters()"
-            aria-label="پاک کردن فیلترها"
-            class="min-h-10 shrink-0 max-sm:min-h-11"
-          >
-            <i class="pi pi-filter-slash text-xs" aria-hidden="true"></i>
-          </button>
-        }
-      </div>
-    </div>
-
-    @if (dateError(); as message) {
-      <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
-    }
-
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      @if (exportError(); as message) {
-        <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
-      } @else {
-        <span></span>
+      @if (hasFilters()) {
+        <button
+          type="button"
+          pButton
+          [text]="true"
+          severity="secondary"
+          (click)="clearFilters()"
+          aria-label="پاک کردن فیلترها"
+          class="min-h-10 shrink-0 self-start max-sm:min-h-11 lg:self-auto"
+        >
+          <i class="pi pi-filter-slash text-xs" aria-hidden="true"></i>
+        </button>
       }
+
       <button
         type="button"
         pButton
@@ -86,12 +80,20 @@
         [disabled]="exporting()"
         pLoading
         [loading]="exporting()"
-        class="min-h-10 max-sm:min-h-11"
+        class="min-h-10 max-sm:min-h-11 lg:ms-auto"
       >
         <i class="pi pi-download text-xs" aria-hidden="true"></i>
         خروجی CSV
       </button>
     </div>
+
+    @if (dateError(); as message) {
+      <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
+    }
+
+    @if (exportError(); as message) {
+      <p role="alert" class="text-xs text-red-600 dark:text-red-400">{{ message }}</p>
+    }
   </div>
 
   <!--
@@ -261,19 +263,32 @@
                 (click)="openOrder(item.id)"
                 class="cursor-pointer transition hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
-                <!-- کد سفارش — `bdi` + mono keeps `ORD-14023` in LTR order inside
-                     the RTL cell, exactly like the dashboard widget. -->
+                <!-- کد سفارش: Latin digits keep the identifier copy-pasteable; the
+                     button copies it without triggering the row's navigation. -->
                 <td
                   class="whitespace-nowrap px-6 py-4 text-start text-sm font-medium text-gray-900 dark:text-white"
                 >
-                  <bdi class="font-mono">#{{ item.code | persianDigits }}</bdi>
+                  <button
+                    type="button"
+                    (click)="$event.stopPropagation(); copyCode(item.code)"
+                    [attr.aria-label]="'کپی کد سفارش ' + item.code"
+                    class="inline-flex items-center gap-1.5 rounded font-mono text-sm font-medium transition hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:text-primary-light"
+                  >
+                    <bdi>#{{ item.code }}</bdi>
+                    <i
+                      class="pi pi-copy text-[11px] text-gray-400 dark:text-gray-500"
+                      aria-hidden="true"
+                    ></i>
+                  </button>
                 </td>
 
-                <!-- مشتری — truncated with the full value on hover, so a long
-                     name must not push the actions out of the row. -->
+                <!-- مشتری: truncated, with the full name in a PrimeNG tooltip, so a
+                     long name must not push the actions out of the row. -->
                 <td
                   class="max-w-40 truncate whitespace-nowrap px-6 py-4 text-start text-sm text-gray-500 dark:text-gray-400"
-                  [title]="item.customerName"
+                  [pTooltip]="item.customerName"
+                  tooltipPosition="top"
+                  showOnEllipsis
                 >
                   {{ item.customerName }}
                 </td>

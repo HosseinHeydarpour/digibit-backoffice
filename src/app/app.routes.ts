@@ -83,6 +83,8 @@ export const routes: Routes = [
       // as one lazy chunk.
       {
         path: 'orders',
+        data: { title: 'سفارش‌ها', breadcrumb: 'سفارش‌ها' },
+        title: 'سفارش‌ها',
         loadChildren: () => import('@features/orders/orders.routes').then((m) => m.ORDERS_ROUTES),
       },
       // Customers owns its routes the same way (BO-I01): the list arrives as

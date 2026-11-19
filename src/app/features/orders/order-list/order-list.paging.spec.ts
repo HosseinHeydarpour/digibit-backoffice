@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { ToastService } from '@core/services/toast';
 import type { Page } from '@shared/models';
 import { Observable, of } from 'rxjs';
 
@@ -75,6 +76,7 @@ describe('OrderList paging and sort (BO-H01)', () => {
       providers: [
         provideRouter([{ path: 'orders', component: OrderList }]),
         { provide: OrdersService, useValue: service },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
       ],
     }).compileComponents();
 

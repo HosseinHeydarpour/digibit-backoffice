@@ -1,9 +1,13 @@
 :host {
   display: block;
+  position: relative;
 }
 
 input {
   width: 100%;
+  /* PrimeNG's fields are 44px tall; matching it keeps the date input on the
+     same bottom line as the search box and the status select. */
+  min-height: 2.75rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--p-inputtext-border-color, #d1d5db);
   border-radius: var(--p-inputtext-border-radius, 6px);
@@ -18,4 +22,29 @@ input {
 input:focus-visible {
   outline: 2px solid var(--p-primary-color, #ff8229);
   outline-offset: 1px;
+}
+
+/**
+ * `::ng-deep` is the only seam here: the calendar panel belongs to
+ * `ng-persian-datepicker`'s own component scope, and the library exposes no
+ * positioning input. Scoped to `overlay` hosts so inline form pickers keep
+ * their old behaviour.
+ *
+ * Without this the panel is in normal flow, so opening it makes its host taller
+ * and the whole filter row reflows. Absolute pins it under the input instead.
+ */
+:host(.datepicker-overlay) ::ng-deep .datepicker-outer-container {
+  position: absolute;
+  z-index: 30;
+  /* Anchor the popup's LEFT edge (inline-end in RTL). Date fields sit left of
+     the search/status in the toolbar, so extending right keeps the 16rem panel
+     inside the viewport even at 992px; anchoring right pushed it off-screen. */
+  inset-inline-end: 0;
+  top: calc(100% + 0.25rem);
+  width: 100%;
+  min-width: 16rem;
+  border-radius: 0.5rem;
+  box-shadow:
+    0 10px 25px -5px rgb(0 0 0 / 0.2),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
