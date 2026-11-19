@@ -85,7 +85,14 @@ function num(params: ParamReader, key: string, fallback: number): number {
 
 /** Test-only escape hatch: `?__mockStatus=500` forces an error response. */
 function forcedStatus(params: ParamReader): number | null {
-  const raw = params.get('__mockStatus');
+  // The page-level query is the manual-test seam from AGENTS.md; the HTTP
+  // request itself usually carries no params on a detail route, so fall back to
+  // the browser URL when the request has none.
+  const pageParam =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('__mockStatus')
+      : null;
+  const raw = params.get('__mockStatus') ?? pageParam;
   const parsed = raw === null ? NaN : Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
 }

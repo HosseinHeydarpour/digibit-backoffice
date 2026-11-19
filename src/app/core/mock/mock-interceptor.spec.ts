@@ -65,6 +65,24 @@ describe('mockInterceptor', () => {
     req.flush({ data: [] });
   });
 
+  it('lets a page-level __mockStatus force a failure (manual test seam)', async () => {
+    window.history.replaceState({}, '', '/?__mockStatus=503');
+
+    try {
+      const error = await firstValueFrom(
+        http
+          .get<HttpErrorResponse>('/api/v1/customers/1', {
+            headers: { [MOCK_HEADER]: '1' },
+          })
+          .pipe(catchError((response) => of(response as HttpErrorResponse))),
+      );
+
+      expect(error.status).toBe(503);
+    } finally {
+      window.history.replaceState({}, '', '/');
+    }
+  });
+
   it('returns the real envelope shape', async () => {
     const body = await firstValueFrom(
       http.get<ApiResponse<unknown[]>>('/api/v1/products', { headers: { [MOCK_HEADER]: '1' } }),
