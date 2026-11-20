@@ -1,4 +1,8 @@
-@import 'tailwindcss';
+/* Scan only this app's sources. Automatic detection follows the working tree,
+   and CI checks the backend repo out into `backend/` — its Razor pages carry
+   `bg-[url(../images/slider/patterns.png)]`, which compiled into our stylesheet
+   and broke the Playwright job. */
+@import 'tailwindcss' source('../');
 
 /* Bind Tailwind's dark: variant to the same switch PrimeNG uses. */
 @custom-variant dark (&:where(.app-dark, .app-dark *));
