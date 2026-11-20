@@ -1,9 +1,6 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
-import { CURRENT_USER } from '@core/auth/current-user.token';
-import { PERMISSIONS } from '@core/auth/permissions.token';
-import { clearTokens, readAccessToken } from '@core/auth/token-storage';
+import { readAccessToken } from '@core/auth/token-storage';
 import { AuthService } from '@core/services/auth';
 import { catchError, switchMap, throwError } from 'rxjs';
 
@@ -16,13 +13,12 @@ function isAuthEndpoint(url: string): boolean {
  * Attaches the access token and turns one 401 into one refresh + retry.
  *
  * The retry is what makes a short-lived access token invisible to the user; the
- * refresh request itself is excluded, or a rejected refresh would recurse.
+ * refresh request itself is excluded, or a rejected refresh would recurse. When
+ * the refresh is rejected too, `AuthService.expireSession()` reports it once and
+ * navigates; this interceptor never navigates ten times for ten requests.
  */
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
-  const router = inject(Router);
-  const currentUser = inject(CURRENT_USER);
-  const permissions = inject(PERMISSIONS);
 
   const token = readAccessToken();
   const authorized =
@@ -49,13 +45,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
           ),
         ),
         catchError((refreshError: unknown) => {
-          clearTokens();
-          currentUser.set(null);
-          permissions.set([]);
-          void router.navigate(['/login'], {
-            queryParams: { returnUrl: router.url },
-            replaceUrl: true,
-          });
+          auth.expireSession();
 
           return throwError(() => refreshError);
         }),

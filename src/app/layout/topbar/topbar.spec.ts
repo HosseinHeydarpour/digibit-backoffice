@@ -7,6 +7,7 @@ import { CURRENT_USER } from '@core/auth/current-user.token';
 import { PageTitleService } from '@core/services/page-title';
 import { ThemeService } from '@core/services/theme';
 import type { SessionUser } from '@shared/models/session.model';
+import { MessageService } from 'primeng/api';
 
 import { Topbar } from './topbar';
 
@@ -49,6 +50,7 @@ describe('Topbar', () => {
           provide: PageTitleService,
           useValue: { title: signal('محصولات') },
         },
+        MessageService,
       ],
     }).compileComponents();
 
@@ -181,6 +183,7 @@ describe('Topbar profile menu (BO-B06)', () => {
         provideRouter(TEST_ROUTES),
         { provide: CURRENT_USER, useValue: currentUser },
         { provide: PageTitleService, useValue: { title: signal('محصولات') } },
+        MessageService,
       ],
     }).compileComponents();
 

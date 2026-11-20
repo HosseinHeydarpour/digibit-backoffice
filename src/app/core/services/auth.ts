@@ -2,8 +2,7 @@ import type { WritableSignal } from '@angular/core';
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CURRENT_USER } from '@core/auth/current-user.token';
-import { expandPermissions } from '@core/auth/permission-catalog';
-import { PERMISSIONS } from '@core/auth/permissions.token';
+import { PermissionsService } from '@core/auth/permissions.service';
 import {
   clearTokens,
   readAccessToken,
@@ -11,6 +10,7 @@ import {
   writeTokens,
 } from '@core/auth/token-storage';
 import { ApiService } from '@core/services/api';
+import { ToastService } from '@core/services/toast';
 import type { SessionUser } from '@shared/models/session.model';
 import {
   Observable,
@@ -41,22 +41,28 @@ interface MeResponse {
  * list and logout.
  *
  * `CURRENT_USER` and `PERMISSIONS` stay the injection seams they always were;
- * this service is the writer both of them were waiting for. Nothing else in the
- * app reads a token, which is what keeps the storage key in one file.
+ * `PermissionsService` is the reader both the guard and the directive use.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly currentUser: WritableSignal<SessionUser | null> = inject(CURRENT_USER);
-  private readonly permissions: WritableSignal<readonly string[]> = inject(PERMISSIONS);
+  private readonly permissions = inject(PermissionsService);
+  private readonly toast = inject(ToastService);
 
   private refreshing: Observable<TokenPair> | null = null;
+
+  /** One expiry notice per session, not one per queued request. */
+  private expiryNotified = false;
 
   /** `POST /auth/admin/login` → tokens stored → `/auth/me` loaded. */
   login(email: string, password: string): Observable<SessionUser> {
     return this.api.post<TokenPair>('/auth/admin/login', { email, password }).pipe(
-      tap((pair) => writeTokens(pair.accessToken, pair.refreshToken)),
+      tap((pair) => {
+        writeTokens(pair.accessToken, pair.refreshToken);
+        this.expiryNotified = false;
+      }),
       switchMap(() => this.loadMe()),
     );
   }
@@ -72,8 +78,9 @@ export class AuthService {
           avatarUrl: null,
         };
 
-        this.permissions.set(expandPermissions(me.permissions ?? []));
+        this.permissions.set(me.permissions ?? []);
         this.currentUser.set(user);
+        this.expiryNotified = false;
 
         return user;
       }),
@@ -103,15 +110,20 @@ export class AuthService {
     return this.refreshing;
   }
 
+  /** `POST /auth/admin/change-password`; the server revokes other sessions. */
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.api
+      .post<unknown>('/auth/admin/change-password', { currentPassword, newPassword })
+      .pipe(map(() => undefined));
+  }
+
   /**
    * `POST /auth/logout`, then the local state is cleared whatever the server
    * answered: a failed request must not leave the user signed in on screen.
    */
   logout(): void {
     const done = (): void => {
-      clearTokens();
-      this.currentUser.set(null);
-      this.permissions.set([]);
+      this.clearSession();
       void this.router.navigateByUrl('/login', { replaceUrl: true });
     };
 
@@ -126,6 +138,26 @@ export class AuthService {
       .subscribe(done);
   }
 
+  /**
+   * The refresh token was rejected: say so once, clear everything and leave.
+   *
+   * The interceptor calls this instead of navigating itself, so ten parallel
+   * requests produce one message and one navigation.
+   */
+  expireSession(): void {
+    this.clearSession();
+
+    if (!this.expiryNotified) {
+      this.expiryNotified = true;
+      this.toast.warning('نشست شما منقضی شد. دوباره وارد شوید.');
+    }
+
+    void this.router.navigate(['/login'], {
+      queryParams: { returnUrl: this.router.url },
+      replaceUrl: true,
+    });
+  }
+
   /** Boot: restore the identity when a token survived the reload. */
   restore(): Promise<void> {
     if (!readAccessToken() && !readRefreshToken()) {
@@ -137,13 +169,17 @@ export class AuthService {
         .pipe(catchError(() => of(null)))
         .subscribe((user) => {
           if (!user) {
-            clearTokens();
-            this.currentUser.set(null);
-            this.permissions.set([]);
+            this.clearSession();
           }
 
           resolve();
         });
     });
+  }
+
+  private clearSession(): void {
+    clearTokens();
+    this.currentUser.set(null);
+    this.permissions.clear();
   }
 }

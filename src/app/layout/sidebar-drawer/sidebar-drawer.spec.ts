@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { MENU_PERMISSIONS } from '@layout/sidebar/menu';
 import { Topbar } from '@layout/topbar/topbar';
+import { MessageService } from 'primeng/api';
 
 import { SidebarDrawer } from './sidebar-drawer';
 import { SidebarDrawerState } from './sidebar-drawer.state';
@@ -77,6 +78,7 @@ describe('SidebarDrawer', () => {
       providers: [
         provideRouter(TEST_ROUTES),
         { provide: PERMISSIONS, useValue: signal<readonly string[]>(MENU_PERMISSIONS) },
+        MessageService,
       ],
     }).compileComponents();
 
@@ -244,6 +246,7 @@ describe('SidebarDrawer integration with Topbar', () => {
       providers: [
         provideRouter(TEST_ROUTES),
         { provide: PERMISSIONS, useValue: signal<readonly string[]>(MENU_PERMISSIONS) },
+        MessageService,
       ],
     }).compileComponents();
 

@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '@core/guards/auth.guard';
+import { guestGuard } from '@core/guards/guest.guard';
+import { permissionMatchGuard } from '@core/guards/permission.guard';
 import { MainLayout } from '@layout/index';
 import { ErrorPage } from '@shared/components/error-page/error-page';
 
@@ -29,12 +31,12 @@ export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('@features/auth/login/login').then((m) => m.Login),
+    canMatch: [guestGuard],
     title: 'ورود',
   },
   {
     path: '',
     component: MainLayout,
-    canMatch: [authGuard],
     children: [
       // '/' must not stay on the layout itself: the layout node carries no
       // `data.title`, so a bare '/' would show the fallback «پنل مدیریت»
@@ -61,6 +63,7 @@ export const routes: Routes = [
       // to the page that reads them.
       {
         path: 'dashboard',
+        canMatch: [authGuard],
         loadChildren: () =>
           import('@features/dashboard/dashboard.routes').then((m) => m.DASHBOARD_ROUTES),
       },
@@ -71,19 +74,27 @@ export const routes: Routes = [
       // `features/products/products.routes.ts` and arrive as one lazy chunk.
       {
         path: 'products',
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { permission: 'products.view' },
         loadChildren: () =>
           import('@features/products/products.routes').then((m) => m.PRODUCTS_ROUTES),
       },
       {
         path: 'categories',
-        data: { title: 'دسته‌بندی‌ها', breadcrumb: 'دسته‌بندی‌ها' },
+        canMatch: [authGuard, permissionMatchGuard],
+        data: {
+          title: 'دسته‌بندی‌ها',
+          breadcrumb: 'دسته‌بندی‌ها',
+          permission: 'products.view',
+        },
         title: 'دسته‌بندی‌ها',
         loadChildren: () =>
           import('@features/categories/categories.routes').then((m) => m.CATEGORIES_ROUTES),
       },
       {
         path: 'brands',
-        data: { title: 'برندها', breadcrumb: 'برندها' },
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { title: 'برندها', breadcrumb: 'برندها', permission: 'products.view' },
         title: 'برندها',
         loadChildren: () => import('@features/brands/brands.routes').then((m) => m.BRANDS_ROUTES),
       },
@@ -92,7 +103,8 @@ export const routes: Routes = [
       // as one lazy chunk.
       {
         path: 'orders',
-        data: { title: 'سفارش‌ها', breadcrumb: 'سفارش‌ها' },
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { title: 'سفارش‌ها', breadcrumb: 'سفارش‌ها', permission: 'orders.view' },
         title: 'سفارش‌ها',
         loadChildren: () => import('@features/orders/orders.routes').then((m) => m.ORDERS_ROUTES),
       },
@@ -101,7 +113,8 @@ export const routes: Routes = [
       // crumb is what lets the profile show «مشتریان / پروفایل مشتری».
       {
         path: 'customers',
-        data: { title: 'مشتریان', breadcrumb: 'مشتریان' },
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { title: 'مشتریان', breadcrumb: 'مشتریان', permission: 'customers.view' },
         title: 'مشتریان',
         loadChildren: () =>
           import('@features/customers/customers.routes').then((m) => m.CUSTOMERS_ROUTES),
@@ -110,6 +123,8 @@ export const routes: Routes = [
       // create/edit dialog, arrive as their own lazy chunk.
       {
         path: 'coupons',
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { permission: 'coupons.view' },
         loadChildren: () =>
           import('@features/coupons/coupons.routes').then((m) => m.COUPONS_ROUTES),
       },
@@ -117,6 +132,8 @@ export const routes: Routes = [
       // lazy chunk and edits ship in the same module.
       {
         path: 'shipping',
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { permission: 'shipping.view' },
         loadChildren: () =>
           import('@features/shipping/shipping.routes').then((m) => m.SHIPPING_ROUTES),
       },
@@ -124,6 +141,8 @@ export const routes: Routes = [
       // chunk; BO-L02..L07 add upload, edit, reorder and delete on top.
       {
         path: 'banners',
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { permission: 'content.view' },
         loadChildren: () =>
           import('@features/banners/banners.routes').then((m) => m.BANNERS_ROUTES),
       },
@@ -131,34 +150,41 @@ export const routes: Routes = [
       // a dialog; no create/delete.
       {
         path: 'pages',
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { permission: 'content.view' },
         loadChildren: () => import('@features/pages/pages.routes').then((m) => m.PAGES_ROUTES),
       },
       {
         path: 'comments',
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { permission: 'comments.view' },
         loadChildren: () =>
           import('@features/comments/comments.routes').then((m) => m.COMMENTS_ROUTES),
       },
       {
         path: 'tickets',
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { permission: 'tickets.view' },
         loadChildren: () =>
           import('@features/tickets/tickets.routes').then((m) => m.TICKETS_ROUTES),
       },
       {
         path: 'settings',
+        canMatch: [authGuard, permissionMatchGuard],
+        data: { permission: 'settings.write' },
         loadChildren: () =>
           import('@features/settings/settings.routes').then((m) => m.SETTINGS_ROUTES),
       },
-      // The profile page BO-B06's topbar dropdown links to. Component-less like
-      // the rest: the page itself is a later task, and a route that exists is
-      // worth more than a link that 404s.
+      // The profile page the topbar's dropdown links to, and the destination of
+      // the change-password form. It owns its route like every feature (BO-D12).
       {
         path: 'profile',
-        data: { title: 'پروفایل', breadcrumb: 'پروفایل' },
-        title: 'پروفایل',
-        children: [],
+        canMatch: [authGuard],
+        loadChildren: () =>
+          import('@features/profile/profile.routes').then((m) => m.PROFILE_ROUTES),
       },
 
-      // 403 — where BO-D07's role guard will send a user who lacks a permission.
+      // 403 — where the permission guards send a user who lacks a grant.
       // `router.navigate(['/forbidden'])` beats a raw error, and the page is
       // reachable directly as well (tc 6), so the guard needs no special case.
       //
@@ -170,20 +196,18 @@ export const routes: Routes = [
         data: { title: 'دسترسی غیرمجاز', code: 403 },
         title: 'دسترسی غیرمجاز',
       },
-
-      // Catch-all: an unknown URL renders the 404 page (tc 1).
-      //
-      // The `children: []` that used to live here is gone — it only existed to
-      // make a component-less route valid (NG04014). A route with a `component`
-      // is valid on its own.
-      //
-      // Still no `breadcrumb`, so the 404 shows no chips (BO-B08 tc 9).
-      {
-        path: '**',
-        component: ErrorPage,
-        data: { title: 'صفحه یافت نشد', code: 404 },
-        title: 'صفحه یافت نشد',
-      },
     ],
+  },
+
+  // Public catch-all: an unknown URL renders the 404 page even for a signed-out
+  // visitor (BO-D06 tc 6). It sits OUTSIDE MainLayout because the layout route
+  // is guarded; an authenticated user sees the same page without the shell.
+  //
+  // No `breadcrumb`, so the 404 shows no chips (BO-B08 tc 9).
+  {
+    path: '**',
+    component: ErrorPage,
+    data: { title: 'صفحه یافت نشد', code: 404 },
+    title: 'صفحه یافت نشد',
   },
 ];

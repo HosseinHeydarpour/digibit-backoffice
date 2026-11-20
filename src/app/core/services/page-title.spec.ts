@@ -3,6 +3,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { CURRENT_USER } from '@core/auth/current-user.token';
+import { PERMISSIONS } from '@core/auth/permissions.token';
 import type { SessionUser } from '@shared/models/session.model';
 
 import { routes as APP_ROUTES } from '../../app.routes';
@@ -93,6 +94,10 @@ describe('PageTitleService against the real app routes (integration)', () => {
       providers: [
         provideRouter(APP_ROUTES),
         { provide: CURRENT_USER, useValue: signal<SessionUser | null>(SESSION_USER) },
+        {
+          provide: PERMISSIONS,
+          useValue: signal<readonly string[]>(['products.view', 'orders.view']),
+        },
       ],
     });
     service = TestBed.inject(PageTitleService);

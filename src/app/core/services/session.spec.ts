@@ -8,6 +8,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { CURRENT_USER } from '@core/auth/current-user.token';
 import type { SessionUser } from '@shared/models/session.model';
+import { MessageService } from 'primeng/api';
 
 import { SessionService } from './session';
 
@@ -37,6 +38,8 @@ describe('SessionService', () => {
         // A real signal, not a stub: the clearing behaviour under test is
         // `set()` on *this* object, which only a real signal can show.
         { provide: CURRENT_USER, useValue: signal<SessionUser | null>(user) },
+        // AuthService owns logout now; its expiry toast needs this service.
+        MessageService,
       ],
     });
 

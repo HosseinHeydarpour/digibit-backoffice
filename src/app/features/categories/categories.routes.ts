@@ -8,7 +8,7 @@ import type { Routes } from '@angular/router';
 
 import { CategoryTree } from './category-tree/category-tree';
 
-const CATEGORIES_PERMISSION = 'categories.view';
+const CATEGORIES_PERMISSION = 'products.view';
 
 export const CATEGORIES_ROUTES: Routes = [
   {

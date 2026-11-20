@@ -1,0 +1,115 @@
+<app-page-header title="پروفایل من" description="مشخصات حساب و تغییر رمز عبور" />
+
+<div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+  <section
+    class="rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800 xl:col-span-1"
+    aria-labelledby="profile-card-title"
+  >
+    <h2 id="profile-card-title" class="font-bold text-gray-900 dark:text-white">حساب کاربری</h2>
+
+    <div class="mt-4 flex items-center gap-3">
+      <span
+        class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary"
+        aria-hidden="true"
+      >
+        {{ initials() ?? '—' }}
+      </span>
+      <div class="min-w-0">
+        <p class="truncate font-semibold text-gray-900 dark:text-white">
+          {{ user()?.fullName ?? '—' }}
+        </p>
+        <p class="truncate text-sm text-gray-500 dark:text-gray-400" dir="ltr">
+          {{ user()?.email ?? '—' }}
+        </p>
+      </div>
+    </div>
+
+    <a
+      routerLink="/settings"
+      class="mt-5 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+    >
+      <i class="pi pi-cog text-xs" aria-hidden="true"></i>
+      تنظیمات فروشگاه
+    </a>
+  </section>
+
+  <form
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    class="rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800 xl:col-span-2"
+    aria-labelledby="password-card-title"
+  >
+    <h2 id="password-card-title" class="font-bold text-gray-900 dark:text-white">تغییر رمز عبور</h2>
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+      رمز جدید باید حداقل ۱۲ کاراکتر باشد. پس از تغییر، از حساب خارج می‌شوید.
+    </p>
+
+    @if (error(); as message) {
+      <p
+        role="alert"
+        class="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300"
+      >
+        {{ message }}
+      </p>
+    }
+
+    <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <app-form-field
+        controlName="currentPassword"
+        label="رمز فعلی"
+        inputId="profile-current-password"
+      >
+        <input
+          pInputText
+          id="profile-current-password"
+          type="password"
+          formControlName="currentPassword"
+          autocomplete="current-password"
+          class="w-full"
+          dir="ltr"
+        />
+      </app-form-field>
+
+      <app-form-field
+        controlName="newPassword"
+        label="رمز جدید"
+        inputId="profile-new-password"
+        [hint]="'حداقل ۱۲ کاراکتر'"
+      >
+        <input
+          pInputText
+          id="profile-new-password"
+          type="password"
+          formControlName="newPassword"
+          autocomplete="new-password"
+          class="w-full"
+          dir="ltr"
+        />
+      </app-form-field>
+
+      <app-form-field
+        controlName="confirmPassword"
+        label="تکرار رمز جدید"
+        inputId="profile-confirm-password"
+        [error]="mismatch() ? 'تکرار رمز با رمز جدید یکسان نیست.' : null"
+      >
+        <input
+          pInputText
+          id="profile-confirm-password"
+          type="password"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+          class="w-full"
+          dir="ltr"
+        />
+      </app-form-field>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button pButton pLoading type="submit" [loading]="submitting()" class="max-sm:min-h-11">
+        <i class="pi pi-key text-xs" aria-hidden="true"></i>
+        تغییر رمز
+      </button>
+    </div>
+  </form>
+</div>

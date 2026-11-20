@@ -7,6 +7,7 @@ import { provideRouter, Router } from '@angular/router';
 import { CURRENT_USER } from '@core/auth/current-user.token';
 import { PERMISSIONS } from '@core/auth/permissions.token';
 import { clearTokens } from '@core/auth/token-storage';
+import { ToastService } from '@core/services/toast';
 import { environment } from '@env/environment';
 import type { SessionUser } from '@shared/models/session.model';
 import { firstValueFrom } from 'rxjs';
@@ -18,11 +19,13 @@ describe('AuthService', () => {
   let http: HttpTestingController;
   let user: WritableSignal<SessionUser | null>;
   let permissions: WritableSignal<readonly string[]>;
+  let toast: { warning: ReturnType<typeof vi.fn>; success: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     clearTokens();
     user = signal<SessionUser | null>(null);
     permissions = signal<readonly string[]>([]);
+    toast = { warning: vi.fn(), success: vi.fn() };
 
     TestBed.configureTestingModule({
       providers: [
@@ -31,6 +34,7 @@ describe('AuthService', () => {
         provideRouter([]),
         { provide: CURRENT_USER, useValue: user },
         { provide: PERMISSIONS, useValue: permissions },
+        { provide: ToastService, useValue: toast },
       ],
     });
 
@@ -89,5 +93,37 @@ describe('AuthService', () => {
     expect(permissions()).toEqual([]);
     expect(localStorage.getItem(environment.TOKEN_STORAGE_KEY)).toBeNull();
     expect(navigate).toHaveBeenCalledWith('/login', { replaceUrl: true });
+  });
+
+  it('expires the session once, with a message and a returnUrl', () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    localStorage.setItem(environment.TOKEN_STORAGE_KEY, 'access-1');
+    user.set({ id: '1', fullName: 'مدیر', email: null, avatarUrl: null });
+
+    service.expireSession();
+    service.expireSession();
+
+    expect(toast.warning).toHaveBeenCalledTimes(1);
+    expect(user()).toBeNull();
+    expect(permissions()).toEqual([]);
+    expect(localStorage.getItem(environment.TOKEN_STORAGE_KEY)).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/login'], {
+      queryParams: { returnUrl: '/' },
+      replaceUrl: true,
+    });
+  });
+
+  it('changes the password with the current and the new value', async () => {
+    const promise = firstValueFrom(service.changePassword('OldPassword123', 'NewPassword123'));
+
+    const request = http.expectOne(`${environment.API_BASE_URL}/auth/admin/change-password`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({
+      currentPassword: 'OldPassword123',
+      newPassword: 'NewPassword123',
+    });
+    request.flush({ message: 'ok' });
+
+    await expect(promise).resolves.toBeUndefined();
   });
 });

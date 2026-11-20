@@ -1,5 +1,5 @@
 import { Directive, TemplateRef, ViewContainerRef, effect, inject, input } from '@angular/core';
-import { PERMISSIONS } from '@core/auth/permissions.token';
+import { PermissionsService } from '@core/auth/permissions.service';
 
 /**
  * Structural permission directive (BO-D08).
@@ -23,7 +23,7 @@ export class HasPermissionDirective {
 
   private readonly viewContainer = inject(ViewContainerRef);
 
-  private readonly permissions = inject(PERMISSIONS);
+  private readonly permissions = inject(PermissionsService);
 
   readonly appHasPermission = input<string | readonly string[]>([]);
 
@@ -32,9 +32,8 @@ export class HasPermissionDirective {
   constructor() {
     effect(() => {
       const required = this.appHasPermission();
-      const grants = this.permissions();
       const wanted = typeof required === 'string' ? [required] : required;
-      const allowed = wanted.some((permission) => permission !== '' && grants.includes(permission));
+      const allowed = this.permissions.hasAny(wanted);
 
       if (allowed && !this.visible) {
         this.viewContainer.createEmbeddedView(this.templateRef);
