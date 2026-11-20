@@ -2,6 +2,28 @@
 
 All notable changes to the backoffice. Format: [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+
+- Real backend integration: the mock interceptor, fixtures and `X-Mock` header are gone;
+  login uses `/auth/admin/login`, tokens refresh on 401, and every feature service maps the
+  live API (flat responses, ISO dates, PascalCase order statuses).
+- `PermissionsService` with `hasPermission`/`hasAny`, module-level `canMatch` guards, a public
+  404, a guest guard on `/login`, and a single session-expired message.
+- Profile page with change password, plus the forgot/reset password flow.
+- Global top progress bar, 15s request timeout, one retry for transient GETs, and a
+  `LoggerService` wired into the error interceptor.
+- Playwright auth setup, login/product/order screens, an axe check for dashboard/profile and a
+  375px responsive matrix.
+
+### Fixed
+
+- The mobile drawer's static `aria-hidden` no longer removes the open dialog from the
+  accessibility tree.
+- Product gallery files are uploaded to `/media` on save instead of being dropped with the
+  `blob:` preview.
+
 ## [1.0.0] - 2026-11-19
 
 ### Added

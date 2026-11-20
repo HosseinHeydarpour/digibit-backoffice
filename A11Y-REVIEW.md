@@ -20,7 +20,8 @@ Reviewed against the shared kit and the feature pages; the automated axe pass in
 
 ## Open items
 
-- Run axe on the built app (not only Storybook) now that a real backend exists.
+- Axe now runs in Playwright against the real app (`e2e/a11y.spec.ts`) for `/dashboard` and
+  `/profile`: no serious or critical violations. Expanding the page list is the next step.
 - ~~The mobile drawer's static `aria-hidden` defect~~ — fixed: the panel now binds
   `[attr.aria-hidden]="!isOpen()"`, so the open dialog is in the accessibility tree.
 - Real-device screen-reader pass (NVDA/VoiceOver) is still manual.
