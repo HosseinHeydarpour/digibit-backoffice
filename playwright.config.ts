@@ -29,7 +29,8 @@ export default defineConfig({
     command: 'npm start -- --port 4200',
     url: 'http://localhost:4200',
     reuseExistingServer: !process.env['CI'],
-    timeout: 120_000,
+    // A cold CI build of the Angular app is slower than the local warm one.
+    timeout: 300_000,
   },
   projects: [
     {
