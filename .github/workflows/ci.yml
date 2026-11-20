@@ -31,11 +31,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The backend repository is private, so the workflow's own GITHUB_TOKEN
+      # cannot read it (a 404 from the checkout). This PAT must be a fine-grained
+      # token with Contents: Read-only on HosseinHeydarpour/digibit-backend.
+      - name: Require backend repository token
+        env:
+          BACKEND_REPO_TOKEN: ${{ secrets.BACKEND_REPO_TOKEN }}
+        run: |
+          if [ -z "$BACKEND_REPO_TOKEN" ]; then
+            echo "::error::BACKEND_REPO_TOKEN is missing. Create a fine-grained PAT with Contents: Read-only on HosseinHeydarpour/digibit-backend and add it as an Actions secret named BACKEND_REPO_TOKEN."
+            exit 1
+          fi
+
       # The panel is no longer mock-backed; e2e talks to the real API.
       - uses: actions/checkout@v4
         with:
           repository: HosseinHeydarpour/digibit-backend
           path: backend
+          token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
       - uses: actions/setup-dotnet@v4
         with:
