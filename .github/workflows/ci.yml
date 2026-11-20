@@ -43,11 +43,14 @@ jobs:
             exit 1
           fi
 
-      # The panel is no longer mock-backed; e2e talks to the real API.
+      # The panel is no longer mock-backed; e2e talks to the real API. Pin the
+      # backend to the contract commit this panel was verified against: later
+      # commits switch the API to Postgres, which this job does not start.
       - uses: actions/checkout@v4
         with:
           repository: HosseinHeydarpour/digibit-backend
           path: backend
+          ref: 33b9ddb
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
       - uses: actions/setup-dotnet@v4
