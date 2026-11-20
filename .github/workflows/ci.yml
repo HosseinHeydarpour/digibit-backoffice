@@ -51,6 +51,8 @@ jobs:
           repository: HosseinHeydarpour/digibit-backend
           path: backend
           ref: 33b9ddb
+          # checkout only resolves a SHA against a full clone.
+          fetch-depth: 0
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
       - uses: actions/setup-dotnet@v4
