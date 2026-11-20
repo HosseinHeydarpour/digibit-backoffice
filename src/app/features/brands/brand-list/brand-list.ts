@@ -35,6 +35,7 @@ import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { LoadingBlock } from '@shared/components/loading-block/loading-block';
 import { PageHeader } from '@shared/components/page-header/page-header';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { formatDigits, PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { isOnline, OFFLINE_MESSAGE } from '@shared/utils/connectivity';
 import { Dialog } from 'primeng/dialog';
@@ -53,6 +54,7 @@ const PAGE_SIZE = 10;
 @Component({
   selector: 'app-brand-list',
   imports: [
+    AssetUrlPipe,
     BrandForm,
     Dialog,
     EmptyState,

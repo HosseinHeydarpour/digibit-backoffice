@@ -165,7 +165,7 @@
         >
           @if (imagePreview(); as preview) {
             <img
-              [src]="preview"
+              [src]="preview | assetUrl"
               [alt]="'تصویر واریانت ' + (index() + 1)"
               class="h-full w-full object-cover"
             />

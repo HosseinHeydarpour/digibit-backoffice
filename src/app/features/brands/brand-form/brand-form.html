@@ -59,7 +59,7 @@
         >
           @if (logoPreview()) {
             <img
-              [src]="logoPreview()"
+              [src]="logoPreview() | assetUrl"
               [alt]="logoAltFor()"
               class="size-full object-contain"
               data-logo-image

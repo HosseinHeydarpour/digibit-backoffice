@@ -18,6 +18,7 @@ import { PageHeader } from '@shared/components/page-header/page-header';
 import { LoadingDirective } from '@shared/directives/loading.directive';
 import { ApiError } from '@shared/models';
 import type { SelectOption } from '@shared/models';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { slugify } from '@shared/utils/slugify';
 import { PrimeTemplate } from 'primeng/api';
@@ -180,6 +181,7 @@ interface InventorySnapshot {
 @Component({
   selector: 'app-product-create',
   imports: [
+    AssetUrlPipe,
     PageHeader,
     InputText,
     LoadingDirective,

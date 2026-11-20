@@ -5,7 +5,7 @@
       [class]="aspectClass()"
     >
       @if (preview(); as url) {
-        <img [src]="url" alt="" class="h-full w-full object-cover" />
+        <img [src]="url | assetUrl" alt="" class="h-full w-full object-cover" />
       } @else {
         <div
           class="flex h-full flex-col items-center justify-center gap-1 text-gray-400 dark:text-gray-500"

@@ -9,6 +9,7 @@ import { EmptyState } from '@shared/components/empty-state/empty-state';
 import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import type { BannerPosition, EntityId, SelectOption } from '@shared/models';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { isOnline, OFFLINE_MESSAGE } from '@shared/utils/connectivity';
@@ -63,6 +64,7 @@ export interface BannerGroup {
     ToggleSwitch,
     PersianDatePipe,
     PersianDigitsPipe,
+    AssetUrlPipe,
     ErrorState,
     EmptyState,
   ],

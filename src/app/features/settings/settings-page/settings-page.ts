@@ -17,6 +17,7 @@ import { PageHeader } from '@shared/components/page-header/page-header';
 import { LoadingDirective } from '@shared/directives/loading.directive';
 import { ApiError } from '@shared/models';
 import type { SelectOption } from '@shared/models';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { ButtonDirective } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -70,6 +71,7 @@ function tabFromUrl(value: string | null): SettingsTab {
 @Component({
   selector: 'app-settings-page',
   imports: [
+    AssetUrlPipe,
     ReactiveFormsModule,
     PageHeader,
     FormField,

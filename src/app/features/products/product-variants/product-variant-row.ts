@@ -34,6 +34,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import type { AbstractControl, FormGroup } from '@angular/forms';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
 import { InputText } from 'primeng/inputtext';
@@ -53,7 +54,7 @@ import {
 
 @Component({
   selector: 'app-product-variant-row',
-  imports: [InputText, ReactiveFormsModule, PersianDigitsPipe, TomanPipe],
+  imports: [AssetUrlPipe, InputText, ReactiveFormsModule, PersianDigitsPipe, TomanPipe],
   templateUrl: './product-variant-row.html',
   // A custom element is `display: inline` until told otherwise, and the editor
   // separates rows with `space-y-*` (sibling margins), which an inline box

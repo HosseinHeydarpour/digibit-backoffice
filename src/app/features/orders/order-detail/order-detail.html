@@ -295,7 +295,7 @@
                 >
                   @if (item.productImage) {
                     <img
-                      [src]="item.productImage"
+                      [src]="item.productImage | assetUrl"
                       [alt]="item.productName"
                       class="h-10 w-10 shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-700"
                     />

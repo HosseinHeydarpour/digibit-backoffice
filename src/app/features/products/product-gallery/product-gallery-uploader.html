@@ -161,7 +161,7 @@
         >
           <div class="relative">
             <img
-              [src]="group.controls['url'].value"
+              [src]="group.controls['url'].value | assetUrl"
               [alt]="altAttribute(i, group)"
               class="h-32 w-full bg-gray-100 object-cover dark:bg-gray-700"
               loading="lazy"

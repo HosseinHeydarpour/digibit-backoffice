@@ -243,13 +243,13 @@ describe('Topbar profile menu (BO-B06)', () => {
   });
 
   it('renders the avatar image when the user has one (tc 9)', () => {
-    const withAvatar = { ...currentUser()!, avatarUrl: '/mock/avatar.png' };
+    const withAvatar = { ...currentUser()!, avatarUrl: 'https://cdn.test/avatar.png' };
     currentUser.set(withAvatar);
     fixture.detectChanges();
 
     const img = profileTrigger().querySelector('img') as HTMLImageElement;
     expect(img).toBeTruthy();
-    expect(img.getAttribute('src')).toBe('/mock/avatar.png');
+    expect(img.getAttribute('src')).toBe('https://cdn.test/avatar.png');
     expect(img.getAttribute('alt')).toBe('مدیر سیستم');
   });
 

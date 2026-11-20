@@ -131,7 +131,11 @@
                 class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
               >
                 @if (item.imageUrl) {
-                  <img [src]="item.imageUrl" [alt]="item.name" class="size-11 object-cover" />
+                  <img
+                    [src]="item.imageUrl | assetUrl"
+                    [alt]="item.name"
+                    class="size-11 object-cover"
+                  />
                 } @else {
                   <i class="pi pi-box text-lg" aria-hidden="true"></i>
                 }

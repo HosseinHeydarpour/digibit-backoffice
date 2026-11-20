@@ -111,7 +111,7 @@
                   >
                     @if (item.logo) {
                       <img
-                        [src]="item.logo"
+                        [src]="item.logo | assetUrl"
                         [alt]="item.name + ' — لوگو'"
                         class="size-full object-contain"
                       />

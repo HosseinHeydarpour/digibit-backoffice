@@ -47,6 +47,7 @@ import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import type { ValidatorFn } from '@angular/forms';
 import { LoadingDirective } from '@shared/directives/loading.directive';
 import { ApiError } from '@shared/models';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { slugify } from '@shared/utils/slugify';
 import { InputText } from 'primeng/inputtext';
 import { Textarea } from 'primeng/textarea';
@@ -76,7 +77,7 @@ const slugRule: ValidatorFn = (control) => {
 
 @Component({
   selector: 'app-brand-form',
-  imports: [InputText, LoadingDirective, ReactiveFormsModule, Textarea, ToggleSwitch],
+  imports: [AssetUrlPipe, InputText, LoadingDirective, ReactiveFormsModule, Textarea, ToggleSwitch],
   templateUrl: './brand-form.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

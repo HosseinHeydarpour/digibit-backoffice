@@ -151,7 +151,7 @@
                   </div>
                 } @else {
                   <img
-                    [src]="banner.imageUrl"
+                    [src]="banner.imageUrl | assetUrl"
                     [alt]="banner.alt || banner.title"
                     class="h-full w-full object-cover"
                     (error)="onImageError(banner.id)"

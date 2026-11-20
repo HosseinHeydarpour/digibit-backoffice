@@ -185,7 +185,7 @@
               <div class="flex flex-wrap items-center gap-3">
                 @if (logoPreview(); as url) {
                   <img
-                    [src]="url"
+                    [src]="url | assetUrl"
                     alt="لوگوی فروشگاه"
                     class="h-14 w-14 rounded-lg border border-gray-200 object-contain dark:border-gray-700"
                   />
@@ -445,7 +445,7 @@
                 <p class="mt-1 text-[11px] text-green-700 dark:text-green-400">digibit.market</p>
                 @if (seoForm.controls.ogImage.value !== '') {
                   <img
-                    [src]="seoForm.controls.ogImage.value"
+                    [src]="seoForm.controls.ogImage.value | assetUrl"
                     alt="پیش‌نمایش تصویر اشتراک‌گذاری"
                     class="mt-2 h-20 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-700"
                   />

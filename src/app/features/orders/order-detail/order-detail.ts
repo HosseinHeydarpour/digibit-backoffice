@@ -15,6 +15,7 @@ import { ErrorState } from '@shared/components/error-state/error-state';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import { LoadingDirective } from '@shared/directives/loading.directive';
 import type { OrderStatus } from '@shared/models/status-badge.model';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { formatPersianDate, PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
@@ -59,6 +60,7 @@ import type { OrderDetailResult } from './order-detail.resolver';
 @Component({
   selector: 'app-order-detail',
   imports: [
+    AssetUrlPipe,
     PageHeader,
     RouterLink,
     ReactiveFormsModule,

@@ -4,12 +4,13 @@ import { PageTitleService } from '@core/services/page-title';
 import { SessionService } from '@core/services/session';
 import { ThemeService } from '@core/services/theme';
 import { environment } from '@env/environment';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { MenuItem } from 'primeng/api';
 import { Menu } from 'primeng/menu';
 
 @Component({
   selector: 'app-topbar',
-  imports: [Menu],
+  imports: [Menu, AssetUrlPipe],
   templateUrl: './topbar.html',
   styleUrl: './topbar.scss',
 })

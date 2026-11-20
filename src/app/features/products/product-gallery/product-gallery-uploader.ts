@@ -53,6 +53,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import type { FormArray, FormGroup } from '@angular/forms';
 import { ToastService } from '@core/services/toast';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { PersianDigitsPipe, formatDigits } from '@shared/pipes/persian-digits.pipe';
 
 import { compressImageFile } from './compress-image';
@@ -73,7 +74,7 @@ type ImageTarget = 'primary' | 'gallery';
 
 @Component({
   selector: 'app-product-gallery-uploader',
-  imports: [PersianDigitsPipe, ReactiveFormsModule],
+  imports: [AssetUrlPipe, PersianDigitsPipe, ReactiveFormsModule],
   templateUrl: './product-gallery-uploader.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

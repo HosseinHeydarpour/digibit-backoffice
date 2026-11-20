@@ -60,6 +60,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ErrorState } from '@shared/components/error-state/error-state';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
 import { TomanPipe } from '@shared/pipes/toman.pipe';
 
@@ -69,7 +70,7 @@ import type { WidgetState } from '../models/widget-state';
 
 @Component({
   selector: 'app-low-stock',
-  imports: [RouterLink, PersianDigitsPipe, TomanPipe, ErrorState],
+  imports: [AssetUrlPipe, RouterLink, PersianDigitsPipe, TomanPipe, ErrorState],
   templateUrl: './low-stock.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

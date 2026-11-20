@@ -126,7 +126,7 @@
       -->
       @if (account.avatarUrl) {
         <img
-          [src]="account.avatarUrl"
+          [src]="account.avatarUrl | assetUrl"
           [alt]="account.fullName"
           class="h-8 w-8 shrink-0 rounded-full border-2 border-white shadow dark:border-gray-800"
         />

@@ -17,6 +17,7 @@ import { JalaliDatepicker } from '@shared/components/jalali-datepicker/jalali-da
 import { LoadingDirective } from '@shared/directives/loading.directive';
 import type { BannerPosition, SelectOption } from '@shared/models';
 import { ApiError } from '@shared/models';
+import { AssetUrlPipe } from '@shared/pipes/asset-url.pipe';
 import { ButtonDirective } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
@@ -72,6 +73,7 @@ function toMillis(value: string | null, endOfDay: boolean): number {
     ReactiveFormsModule,
     FormField,
     JalaliDatepicker,
+    AssetUrlPipe,
     LoadingDirective,
     ButtonDirective,
     InputText,
