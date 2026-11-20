@@ -46,6 +46,11 @@ const ORDER_STATUS_BY_API: Readonly<Record<string, OrderStatus>> = Object.fromEn
 
 /** Turns a server status into the panel's lowercase union, with a safe default. */
 export function orderStatusFromApi(value: string): OrderStatus {
+  // Already normalised (a fixture, a test, a caller that mapped it once).
+  if (value in ORDER_STATUS_API) {
+    return value as OrderStatus;
+  }
+
   return ORDER_STATUS_BY_API[value] ?? 'pending';
 }
 
