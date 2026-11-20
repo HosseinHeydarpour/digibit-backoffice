@@ -41,23 +41,6 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Start API
-        run: |
-          cd backend/src/Digibit.Api
-          ASPNETCORE_ENVIRONMENT=Development \
-          Database__Provider=sqlite \
-          ConnectionStrings__Default="Data Source=$RUNNER_TEMP/digibit-e2e.db" \
-          dotnet run --urls http://localhost:5072 &
-          for i in $(seq 1 60); do
-            if curl -fs http://localhost:5072/health/live >/dev/null; then
-              echo "API is up"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "API did not start"
-          exit 1
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -65,7 +48,26 @@ jobs:
 
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run e2e
+
+      # The API runs in the SAME step as the suite: a background process from
+      # an earlier step is not guaranteed to survive into the next one.
+      - name: Run e2e against the real API
+        run: |
+          cd backend/src/Digibit.Api
+          ASPNETCORE_ENVIRONMENT=Development \
+          Database__Provider=sqlite \
+          ConnectionStrings__Default="Data Source=$RUNNER_TEMP/digibit-e2e.db" \
+          dotnet run --urls http://localhost:5072 &
+          cd "$GITHUB_WORKSPACE"
+          for i in $(seq 1 60); do
+            if curl -fs http://localhost:5072/health/live >/dev/null; then
+              echo "API is up"
+              break
+            fi
+            sleep 2
+          done
+          curl -fs http://localhost:5072/health/live >/dev/null || exit 1
+          npm run e2e
         env:
           CI: 'true'
 
