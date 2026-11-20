@@ -43,17 +43,18 @@ jobs:
             exit 1
           fi
 
-      # The panel is no longer mock-backed; e2e talks to the real API. Pin the
-      # backend to the contract commit this panel was verified against: later
-      # commits switch the API to Postgres, which this job does not start.
+      # The panel is no longer mock-backed; e2e talks to the real API.
       - uses: actions/checkout@v4
         with:
           repository: HosseinHeydarpour/digibit-backend
           path: backend
-          ref: 33b9ddb
-          # checkout only resolves a SHA against a full clone.
           fetch-depth: 0
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
+
+      # 33b9ddb is the contract commit this panel was verified against; main has
+      # since moved to Postgres, which this job does not start.
+      - name: Pin the backend contract commit
+        run: git -C backend checkout --quiet 33b9ddb
 
       - uses: actions/setup-dotnet@v4
         with:
