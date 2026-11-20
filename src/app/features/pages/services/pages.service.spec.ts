@@ -35,9 +35,7 @@ describe('PagesService (BO-L08)', () => {
   it('lists the fixed pages', async () => {
     const promise = firstValueFrom(service.list());
 
-    http
-      .expectOne(`${environment.API_BASE_URL}/content-pages`)
-      .flush({ data: [PAGE], message: '' });
+    http.expectOne(`${environment.API_BASE_URL}/admin/pages`).flush({ data: [PAGE], message: '' });
 
     expect((await promise)[0].slug).toBe('about');
   });
@@ -52,7 +50,7 @@ describe('PagesService (BO-L08)', () => {
       }),
     );
 
-    const request = http.expectOne(`${environment.API_BASE_URL}/content-pages/about`);
+    const request = http.expectOne(`${environment.API_BASE_URL}/admin/pages/about`);
     expect(request.request.method).toBe('PUT');
 
     request.flush({ data: { ...PAGE, title: 'درباره تازه' }, message: '' });

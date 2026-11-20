@@ -303,7 +303,7 @@ describe('DASHBOARD_ROUTES', () => {
   });
 
   it('is mounted lazily by app.routes (tc 4)', () => {
-    const layout = APP_ROUTES[0];
+    const layout = APP_ROUTES.find((route) => route.path === '')!;
     const mounted = (layout.children ?? []).find((child) => child.path === 'dashboard');
 
     expect(mounted?.loadChildren).toBeTypeOf('function');

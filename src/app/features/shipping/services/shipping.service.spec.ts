@@ -47,7 +47,11 @@ describe('ShippingService (BO-K05)', () => {
     const promise = firstValueFrom(service.list());
 
     http
-      .expectOne(`${environment.API_BASE_URL}/shipping-methods`)
+      .expectOne(
+        (request) =>
+          request.url === `${environment.API_BASE_URL}/shipping-methods` &&
+          request.params.get('includeInactive') === 'true',
+      )
       .flush({ data: [METHOD], message: '' });
 
     expect((await promise).length).toBe(1);

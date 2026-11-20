@@ -68,7 +68,11 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
     catchError((error: unknown) => {
       const apiError = toApiError(error);
 
-      if (!apiError.isValidation) {
+      // A 401 is the auth pipeline's business: the interceptor either refreshes
+      // the token silently or sends the user to /login. Toasting it here would
+      // report a failure the user never has to act on, and the login page shows
+      // its own inline message for a rejected credential.
+      if (!apiError.isValidation && apiError.status !== 401) {
         toast.error(apiError.message);
       }
 

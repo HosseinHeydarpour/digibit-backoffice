@@ -116,21 +116,3 @@ export const MENU_PERMISSIONS: readonly Permission[] = Array.from(
     ),
   ),
 );
-
-/**
- * The mock administrator's grants (dev only).
- *
- * `MENU_PERMISSIONS` covers pages, but an ACTION permission such as
- * `customers.block` is attached to a button, not a menu item, so it has to be
- * added by hand. Without this line the mock admin would see the customers page
- * and no status switch at all.
- */
-export const MOCK_PERMISSIONS: readonly Permission[] = [
-  ...MENU_PERMISSIONS,
-  'customers.block',
-  'coupons.manage',
-  'shipping.manage',
-  'content.manage',
-  'comments.moderate',
-  'tickets.manage',
-];

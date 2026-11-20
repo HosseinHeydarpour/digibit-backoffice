@@ -1,6 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { mockHeaders } from '@core/mock/mock-headers';
 import { environment } from '@env/environment';
 import { ApiError } from '@shared/models';
 import type { ApiResponse, Page } from '@shared/models';
@@ -20,13 +19,8 @@ export type QueryParams = Record<string, QueryValue> | HttpParams;
 /**
  * Sent on every request. Angular does not set `Accept` itself, so without this
  * a server doing content negotiation could answer with HTML instead of JSON.
- *
- * `mockHeaders()` layers `X-Mock: 1` on top while `environment.useMockApi` is
- * true, which is what makes the mock interceptor answer instead of the network.
- * Doing it here — at the single place every request is built — means no feature
- * service has to know whether a backend exists yet.
  */
-const JSON_HEADERS = mockHeaders(new HttpHeaders({ Accept: 'application/json' }));
+const JSON_HEADERS = new HttpHeaders({ Accept: 'application/json' });
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -93,19 +87,53 @@ export class ApiService {
   }
 }
 
-function unwrap<T>(response: ApiResponse<T>): T {
-  if (response === null || typeof response !== 'object' || !('data' in response)) {
-    throw new ApiError('MALFORMED', 'پاسخ سرور قابل خواندن نبود.', 200);
+function unwrap<T>(response: ApiResponse<T> | T): T {
+  // 204 No Content has no body; a caller that only needs "it worked" gets
+  // `undefined` instead of an error.
+  if (response === null || response === undefined) {
+    return response as T;
   }
-  return response.data;
+
+  if (typeof response === 'object' && 'data' in response) {
+    return (response as ApiResponse<T>).data;
+  }
+
+  // The API answers resource endpoints with the object itself rather than the
+  // envelope. Both shapes are accepted here, at the one place every response
+  // passes through.
+  return response as T;
 }
 
-function toPage<T>(response: ApiResponse<T[]>): Page<T> {
+function toPage<T>(response: ApiResponse<T[]> | T[] | { items?: T[] }): Page<T> {
+  if (Array.isArray(response)) {
+    return {
+      items: response,
+      total: response.length,
+      page: 1,
+      pageSize: response.length || environment.DEFAULT_PAGE_SIZE,
+    };
+  }
+
+  if (response && 'data' in response) {
+    const envelope = response as ApiResponse<T[]>;
+    const items = envelope.data ?? [];
+
+    return {
+      items,
+      total: envelope.meta?.total ?? items.length,
+      page: envelope.meta?.page ?? 1,
+      pageSize: envelope.meta?.pageSize ?? environment.DEFAULT_PAGE_SIZE,
+    };
+  }
+
+  const page = response as { items?: T[]; total?: number; page?: number; pageSize?: number };
+  const items = page.items ?? [];
+
   return {
-    items: response.data ?? [],
-    total: response.meta?.total ?? response.data?.length ?? 0,
-    page: response.meta?.page ?? 1,
-    pageSize: response.meta?.pageSize ?? environment.DEFAULT_PAGE_SIZE,
+    items,
+    total: page.total ?? items.length,
+    page: page.page ?? 1,
+    pageSize: page.pageSize ?? environment.DEFAULT_PAGE_SIZE,
   };
 }
 
@@ -151,13 +179,20 @@ export function toApiError(error: unknown): ApiError {
     }
     const body = error.error as {
       error?: { code?: string; message?: string; fields?: Record<string, string[]> };
+      message?: string;
+      title?: string;
+      detail?: string;
+      errors?: Record<string, string[]>;
     } | null;
-    return new ApiError(
-      body?.error?.code ?? 'HTTP_' + error.status,
-      body?.error?.message ?? 'خطای نامشخص در ارتباط با سرور.',
-      error.status,
-      body?.error?.fields,
-    );
+    const fields = body?.error?.fields ?? body?.errors;
+    const message =
+      body?.error?.message ??
+      body?.message ??
+      (fields
+        ? 'اطلاعات وارد‌شده معتبر نیست.'
+        : (body?.detail ?? body?.title ?? 'خطای نامشخص در ارتباط با سرور.'));
+
+    return new ApiError(body?.error?.code ?? 'HTTP_' + error.status, message, error.status, fields);
   }
   // Non-HTTP failure (e.g. a JSON parse error thrown by map()).
   return new ApiError('UNKNOWN', 'خطای غیرمنتظره رخ داد.', -1);

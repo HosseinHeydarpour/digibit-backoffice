@@ -22,6 +22,4 @@ export const environment = {
   // the first thing that checked this one.
   SITE_URL: 'https://digibitshop.ir',
   DEFAULT_PAGE_SIZE: 20,
-  useMockApi: false,
-  mockDelayMs: 0,
 } satisfies Environment;

@@ -32,8 +32,12 @@ npm run e2e        # Playwright (Chromium)
 - `src/environments/environment.ts` (dev) و `environment.prod.ts` با `fileReplacements`
   جابه‌جا می‌شوند؛ هر فیلد جدید را در **هر دو** اضافه کن.
 - `API_BASE_URL` روی `/api/v1` است و همهٔ درخواست‌ها از `ApiService` می‌گذرند.
-- `useMockApi` در dev روشن است: `core/mock/mock-interceptor.ts` از fixtureها جواب
-  می‌دهد و در production با `mock-interceptor.prod.ts` جایگزین می‌شود.
+- در توسعه بک‌اند روی `http://localhost:5072` اجرا می‌شود
+  (`dotnet run --project src/Digibit.Api`). لایهٔ ماک حذف شده است و هر درخواست
+  واقعاً به بک‌اند می‌رود.
+- ورود از `POST /auth/admin/login` است؛ توکن‌ها در `localStorage` می‌مانند،
+  `authInterceptor` هدر `Authorization: Bearer` را می‌گذارد و یک ۴۰۱ را با
+  refresh حل می‌کند.
 - `SITE_URL` آدرس سایت کاربر است (لینک محصول در نظرات).
 
 ## ساختار
@@ -61,8 +65,9 @@ src/app/
 ## تست
 
 - تست واحد: `npm test` (Vitest + TestBed).
-- e2e: `npm run e2e`؛ `playwright.config.ts` سرور توسعه را خودش اجرا می‌کند و
-  mock در حافظه است، پس هر اجرا از fixture یکسان شروع می‌شود.
+- e2e: `npm run e2e`؛ `playwright.config.ts` فقط سرور توسعه را خودش اجرا می‌کند، پس
+  بک‌اند باید از قبل روی `http://localhost:5072` بالا باشد و داده‌های تست را
+  خود specها می‌سازند.
 - CI: `.github/workflows/ci.yml` مراحل lint، format، typecheck، تست، بیلد و
   Playwright را اجرا می‌کند.
 

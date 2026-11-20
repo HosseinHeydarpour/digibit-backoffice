@@ -17,6 +17,7 @@
 
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from '@core/services/api';
+import { environment } from '@env/environment';
 import type { EntityId, Page } from '@shared/models';
 import { map } from 'rxjs';
 import type { Observable } from 'rxjs';
@@ -29,13 +30,38 @@ const BRANDS_PATH = '/brands';
 export class BrandsService {
   private readonly api = inject(ApiService);
 
-  /** `GET /brands` — paged rows plus the server's `total`. */
+  /**
+   * `GET /brands` → the rows, filtered and paged here.
+   *
+   * The endpoint answers the full array because the storefront's product page
+   * needs every brand to resolve a name. The admin catalogue is small in phase 1,
+   * so one request plus a local slice keeps the `Page` contract the table wants
+   * without a second endpoint.
+   */
   list(query: BrandQuery = {}): Observable<Page<BrandListItem>> {
-    return this.api.getPage<BrandListItem>(BRANDS_PATH, {
-      query: query.query,
-      page: query.page,
-      pageSize: query.pageSize,
-    });
+    return this.api.get<BrandListItem[]>(BRANDS_PATH).pipe(
+      map((items) => {
+        const text = query.query?.trim().toLowerCase() ?? '';
+        const filtered =
+          text === ''
+            ? items
+            : items.filter(
+                (brand) =>
+                  brand.name.toLowerCase().includes(text) ||
+                  brand.slug.toLowerCase().includes(text),
+              );
+        const page = query.page && query.page > 0 ? query.page : 1;
+        const pageSize =
+          query.pageSize && query.pageSize > 0 ? query.pageSize : environment.DEFAULT_PAGE_SIZE;
+
+        return {
+          items: filtered.slice((page - 1) * pageSize, page * pageSize),
+          total: filtered.length,
+          page,
+          pageSize,
+        };
+      }),
+    );
   }
 
   get(id: EntityId): Observable<Brand> {
@@ -85,12 +111,9 @@ export class BrandsService {
   /**
    * `DELETE /brands/:id` — the products stay, they simply lose their brand.
    *
-   * The request returns how many products were moved, but the caller only needs
-   * "it worked"; the list refetches anyway (tc 7/9).
+   * The list refetches after the call, so the response body is not used.
    */
-  remove(id: EntityId): Observable<number> {
-    return this.api
-      .delete<{ id: EntityId; movedProducts: number }>(`${BRANDS_PATH}/${encodeURIComponent(id)}`)
-      .pipe(map((answer) => answer.movedProducts ?? 0));
+  remove(id: EntityId): Observable<void> {
+    return this.api.delete<void>(`${BRANDS_PATH}/${encodeURIComponent(id)}`);
   }
 }

@@ -220,53 +220,46 @@ describe('ProductsService (BO-F05)', () => {
     expect(error).toMatchObject({ status: 404, code: 'NOT_FOUND' });
   });
 
-  it('tc 10: the default list() sends no query string at all', async () => {
+  it('tc 10: the default list() sends only the admin filter', async () => {
     const resultPromise = firstValueFrom(service.list());
 
     const req = httpMock.expectOne(
       (request) => request.url === `${environment.API_BASE_URL}/products`,
     );
-    expect(req.request.params.keys()).toEqual([]);
+    expect(req.request.params.keys()).toEqual(['includeInactive']);
+    expect(req.request.params.get('includeInactive')).toBe('true');
     req.flush({ data: [], meta: { page: 1, pageSize: 20, total: 0 } });
 
     await resultPromise;
   });
 
-  it('F03: categories() reads the lookup page and hides an inactive option', async () => {
+  it('F03: categories() filters an inactive option out of the array', async () => {
     const resultPromise = firstValueFrom(service.categories());
 
     const req = httpMock.expectOne(
       (request) => request.url === `${environment.API_BASE_URL}/categories`,
     );
     expect(req.request.method).toBe('GET');
-    expect(req.request.params.get('pageSize')).toBe('100');
 
-    req.flush({
-      data: [
-        { id: '3', name: 'لوازم برقی', isActive: true },
-        { id: '9', name: 'دستهٔ حذف‌شده', isActive: false },
-      ],
-      meta: { page: 1, pageSize: 100, total: 2 },
-    });
+    req.flush([
+      { id: '3', name: 'لوازم برقی', isActive: true },
+      { id: '9', name: 'دستهٔ حذف‌شده', isActive: false },
+    ]);
 
     expect(await resultPromise).toEqual([{ id: '3', name: 'لوازم برقی', isActive: true }]);
   });
 
-  it('F03: brands() reads the lookup page and hides an inactive option', async () => {
+  it('F03: brands() filters an inactive option out of the array', async () => {
     const resultPromise = firstValueFrom(service.brands());
 
     const req = httpMock.expectOne(
       (request) => request.url === `${environment.API_BASE_URL}/brands`,
     );
-    expect(req.request.params.get('pageSize')).toBe('100');
 
-    req.flush({
-      data: [
-        { id: '5', name: 'سونی', isActive: true },
-        { id: '9', name: 'برند حذف‌شده', isActive: false },
-      ],
-      meta: { page: 1, pageSize: 100, total: 2 },
-    });
+    req.flush([
+      { id: '5', name: 'سونی', isActive: true },
+      { id: '9', name: 'برند حذف‌شده', isActive: false },
+    ]);
 
     expect(await resultPromise).toEqual([{ id: '5', name: 'سونی', isActive: true }]);
   });

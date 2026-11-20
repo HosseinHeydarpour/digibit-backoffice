@@ -1,11 +1,20 @@
 // src/app/core/services/page-title.spec.ts
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { CURRENT_USER } from '@core/auth/current-user.token';
+import type { SessionUser } from '@shared/models/session.model';
 
 import { routes as APP_ROUTES } from '../../app.routes';
 
 import { PageTitleService } from './page-title';
+
+const SESSION_USER: SessionUser = {
+  id: 'test',
+  fullName: 'کاربر آزمون',
+  email: null,
+  avatarUrl: null,
+};
 
 @Component({ selector: 'app-blank', template: '' })
 class Blank {}
@@ -81,7 +90,10 @@ describe('PageTitleService against the real app routes (integration)', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideRouter(APP_ROUTES)],
+      providers: [
+        provideRouter(APP_ROUTES),
+        { provide: CURRENT_USER, useValue: signal<SessionUser | null>(SESSION_USER) },
+      ],
     });
     service = TestBed.inject(PageTitleService);
     router = TestBed.inject(Router);
@@ -132,7 +144,7 @@ describe('PageTitleService against the real app routes (integration)', () => {
     // routable URL showing the fallback heading") still covers it, because it
     // navigates and reads what the service actually sees, and
     // `dashboard.spec.ts` pins the labels themselves.
-    const layout = APP_ROUTES[0];
+    const layout = APP_ROUTES.find((route) => route.path === '')!;
     const children = (layout.children ?? []).filter(
       (r) => r.redirectTo === undefined && r.loadChildren === undefined,
     );

@@ -1,5 +1,5 @@
 import { InjectionToken, signal } from '@angular/core';
-import type { Signal } from '@angular/core';
+import type { WritableSignal } from '@angular/core';
 
 /**
  * The signed-in user's permission list, as a signal so the sidebar recomputes
@@ -19,7 +19,7 @@ import type { Signal } from '@angular/core';
  * value arrives from the server at runtime, so it cannot be constrained by a
  * compile-time union. `filterMenu()` ignores anything it does not recognise.
  */
-export const PERMISSIONS = new InjectionToken<Signal<readonly string[]>>('PERMISSIONS', {
+export const PERMISSIONS = new InjectionToken<WritableSignal<readonly string[]>>('PERMISSIONS', {
   providedIn: 'root',
   factory: () => signal<readonly string[]>([]),
 });

@@ -31,9 +31,9 @@ const SHIPPING_PATH = '/shipping-methods';
 export class ShippingService {
   private readonly api = inject(ApiService);
 
-  /** `GET /shipping-methods` → every method in display order. */
+  /** `GET /shipping-methods?includeInactive=true` → every method in display order. */
   list(): Observable<ShippingMethod[]> {
-    return this.api.get<ShippingMethod[]>(SHIPPING_PATH);
+    return this.api.get<ShippingMethod[]>(SHIPPING_PATH, { includeInactive: true });
   }
 
   /** `POST /shipping-methods` → the created method (order/active are server-owned). */

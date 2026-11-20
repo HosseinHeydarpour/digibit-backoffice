@@ -2,20 +2,17 @@
 //
 // The orders API surface (BO-H01; BO-H09 adds the mutation methods on top).
 //
-// Same contract as the products service: every call goes through `ApiService`
-// (the only place `X-Mock` is attached), `list` returns a `Page` because the
-// table needs the server's total, and `buildQuery` is the ONE serializer from
-// query state to wire parameters — pure and exported so its spec needs no HTTP.
-//
-// `from`/`to` already travel here even though the filter bar is BO-H02: the
-// wire contract is settled now so the picker only converts Jalali → UTC millis
-// and calls `list`, with no second URL builder appearing in a component.
+// The storefront's order endpoints speak PascalCase statuses and ISO dates, so
+// this service is where those become the panel's lowercase `OrderStatus` and
+// UTC milliseconds. Keeping that translation here means every page binds the
+// same model the mock used to answer with.
 
 import { HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from '@core/services/api';
 import type { EntityId, Page } from '@shared/models';
-import { Observable } from 'rxjs';
+import { ORDER_STATUS_API, orderStatusFromApi } from '@shared/models';
+import { map, type Observable } from 'rxjs';
 
 import type {
   Order,
@@ -27,16 +24,23 @@ import type {
 
 const ORDERS_PATH = '/orders';
 
-/**
- * Serialise the list state into the query string the API expects.
- *
- * Rules, shared with the products builder so the two lists behave alike:
- * - `null`, `undefined`, empty and whitespace-only text are absent, not `?query=`.
- * - `page`/`pageSize` only travel when positive; `0` is an uninitialised
- *   component, and the server should use its default.
- * - `from`/`to` only travel when finite and non-negative (UTC millis).
- * - `dir` only accompanies a `sort`; a direction alone says nothing.
- */
+/** A backend timestamp (ISO string) → epoch ms, or `0` when absent. */
+function millis(value: string | number | null | undefined): number {
+  if (value === null || value === undefined || value === '') {
+    return 0;
+  }
+
+  return typeof value === 'number' ? value : Date.parse(value) || 0;
+}
+
+function nullableMillis(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  return millis(value);
+}
+
 export function buildQuery(query: OrderQuery = {}): HttpParams {
   let params = new HttpParams();
 
@@ -71,7 +75,7 @@ export function buildQuery(query: OrderQuery = {}): HttpParams {
 
   setText('query', query.query);
   setText('customerId', query.customerId);
-  setText('status', query.status);
+  setText('status', query.status ? ORDER_STATUS_API[query.status] : undefined);
   setMillis('from', query.from);
   setMillis('to', query.to);
   setPositive('page', query.page);
@@ -85,35 +89,140 @@ export function buildQuery(query: OrderQuery = {}): HttpParams {
   return params;
 }
 
-/**
- * Orders reads (BO-H01).
- *
- * `get` returns the full record — items, address, payment, history — because
- * the detail page binds every card from one response. Failures arrive as the
- * global `ApiError`: a missing id is `status: 404`, which the detail resolver
- * turns into the 404 page while any other failure renders the retry block.
- */
+/** One list row, normalised to the panel's model. */
+export function mapOrderListItem(raw: {
+  id: string;
+  code: string;
+  customerId?: string;
+  customerName?: string;
+  status: string;
+  total: number;
+  itemCount?: number;
+  createdAt: string | number;
+}): OrderListItem {
+  return {
+    id: raw.id,
+    code: raw.code,
+    customerId: raw.customerId ?? '',
+    customerName: raw.customerName ?? '',
+    status: orderStatusFromApi(raw.status),
+    total: raw.total,
+    itemCount: raw.itemCount ?? 0,
+    createdAt: millis(raw.createdAt),
+  };
+}
+
+/** The full record, with ISO dates flattened to millis and `history` renamed. */
+export function mapOrder(raw: {
+  id: string;
+  code: string;
+  customerId?: string;
+  customerName?: string;
+  status: string;
+  total: number;
+  subtotal?: number;
+  discount?: number;
+  shippingCost?: number;
+  shippingMethod?: string;
+  itemCount?: number;
+  createdAt: string | number;
+  address?: Record<string, string>;
+  payment?: {
+    method?: string;
+    gateway?: string | null;
+    trackingCode?: string | null;
+    paidAt?: string | number | null;
+  };
+  items?: {
+    id: string;
+    productId?: string;
+    productName: string;
+    productImage?: string | null;
+    variantName?: string | null;
+    quantity: number;
+    unitPrice: number;
+    totalPrice?: number;
+  }[];
+  history?: { id: string; status: string; note?: string | null; createdAt: string | number }[];
+  statusHistory?: {
+    id: string;
+    status: string;
+    note?: string | null;
+    createdAt: string | number;
+  }[];
+}): Order {
+  const address = raw.address ?? {};
+
+  return {
+    ...mapOrderListItem(raw),
+    items: (raw.items ?? []).map((item) => ({
+      id: item.id,
+      productId: item.productId ?? '',
+      productName: item.productName,
+      productImage: item.productImage ?? null,
+      variantName: item.variantName ?? null,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice ?? item.unitPrice * item.quantity,
+    })),
+    subtotal: raw.subtotal ?? 0,
+    discount: raw.discount ?? 0,
+    shippingCost: raw.shippingCost ?? 0,
+    shippingMethod: raw.shippingMethod ?? '',
+    address: {
+      fullName: address['fullName'] ?? '',
+      phone: address['phone'] ?? '',
+      province: address['province'] ?? '',
+      city: address['city'] ?? '',
+      postalCode: address['postalCode'] ?? '',
+      address: address['address'] ?? '',
+    },
+    payment: {
+      method: raw.payment?.method ?? 'online',
+      gateway: raw.payment?.gateway ?? null,
+      trackingCode: raw.payment?.trackingCode ?? null,
+      paidAt: nullableMillis(raw.payment?.paidAt),
+    },
+    statusHistory: (raw.history ?? raw.statusHistory ?? []).map((entry) => ({
+      id: entry.id,
+      status: orderStatusFromApi(entry.status),
+      note: entry.note ?? null,
+      createdAt: millis(entry.createdAt),
+    })),
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class OrdersService {
   private readonly api = inject(ApiService);
 
-  /** `GET /orders?query=…&status=…&page=…` → one page of table rows. */
   list(query: OrderQuery = {}): Observable<Page<OrderListItem>> {
-    return this.api.getPage<OrderListItem>(ORDERS_PATH, buildQuery(query));
+    return this.api
+      .getPage<Parameters<typeof mapOrderListItem>[0]>(ORDERS_PATH, buildQuery(query))
+      .pipe(map((page) => ({ ...page, items: page.items.map(mapOrderListItem) })));
   }
 
-  /** `GET /orders/:id` → the full order for the detail page. */
   get(id: EntityId): Observable<Order> {
-    return this.api.get<Order>(`${ORDERS_PATH}/${encodeURIComponent(id)}`);
+    return this.api
+      .get<Parameters<typeof mapOrder>[0]>(`${ORDERS_PATH}/${encodeURIComponent(id)}`)
+      .pipe(map(mapOrder));
   }
 
-  /** `PATCH /orders/:id/status` → the order with the new history entry. */
   changeStatus(id: EntityId, input: OrderStatusChange): Observable<Order> {
-    return this.api.patch<Order>(`${ORDERS_PATH}/${encodeURIComponent(id)}/status`, input);
+    return this.api
+      .patch<Parameters<typeof mapOrder>[0]>(`${ORDERS_PATH}/${encodeURIComponent(id)}/status`, {
+        status: ORDER_STATUS_API[input.status],
+        note: input.note,
+      })
+      .pipe(map(mapOrder));
   }
 
-  /** `PATCH /orders/:id/cancel` → the cancelled order; the reason is mandatory. */
   cancel(id: EntityId, input: OrderCancelInput): Observable<Order> {
-    return this.api.patch<Order>(`${ORDERS_PATH}/${encodeURIComponent(id)}/cancel`, input);
+    return this.api
+      .post<Parameters<typeof mapOrder>[0]>(
+        `${ORDERS_PATH}/${encodeURIComponent(id)}/cancel`,
+        input,
+      )
+      .pipe(map(mapOrder));
   }
 }

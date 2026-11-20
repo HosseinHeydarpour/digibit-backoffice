@@ -8,11 +8,9 @@ import type { Environment } from './environment.model';
  */
 export const environment = {
   production: false,
-  API_BASE_URL: 'http://localhost:5000/api/v1',
+  API_BASE_URL: 'http://localhost:5072/api/v1',
   APP_NAME: 'دیجی‌بیت مارکت — پنل مدیریت',
   SITE_URL: 'http://localhost:4200',
   TOKEN_STORAGE_KEY: 'digibit.office.token',
   DEFAULT_PAGE_SIZE: 20,
-  useMockApi: true,
-  mockDelayMs: 300,
 } satisfies Environment;

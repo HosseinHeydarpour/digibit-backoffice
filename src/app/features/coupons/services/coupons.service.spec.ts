@@ -83,7 +83,11 @@ describe('CouponsService (BO-J01)', () => {
 
     const request = http.expectOne(`${environment.API_BASE_URL}/coupons`);
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(INPUT);
+    expect(request.request.body).toEqual({
+      ...INPUT,
+      from: new Date(INPUT.from).toISOString(),
+      to: new Date(INPUT.to).toISOString(),
+    });
 
     request.flush(
       { data: { ...COUPON, id: '13', code: 'NEW20' }, message: '' },

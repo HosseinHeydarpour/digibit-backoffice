@@ -40,13 +40,6 @@ import type {
 const PRODUCTS_PATH = '/products';
 
 /**
- * A lookup list (categories/brands) is small and is not paginated in the UI.
- * The real endpoints still use the standard envelope, so `getPage` is the
- * correct reader; 100 is comfortably above the phase-1 catalogue.
- */
-const LOOKUP_PAGE_SIZE = 100;
-
-/**
  * Serialise the list state into the query string the API expects.
  *
  * Rules, in one place:
@@ -142,7 +135,12 @@ export class ProductsService {
    * default size.
    */
   list(query: ProductQuery = {}): Observable<Page<ProductListItem>> {
-    return this.api.getPage<ProductListItem>(PRODUCTS_PATH, buildQuery(query));
+    // The panel lists drafts and inactive products too; the public shop never
+    // asks for this flag, so the two audiences share one endpoint.
+    return this.api.getPage<ProductListItem>(
+      PRODUCTS_PATH,
+      buildQuery(query).set('includeInactive', 'true'),
+    );
   }
 
   /**
@@ -155,15 +153,15 @@ export class ProductsService {
    */
   categories(): Observable<readonly ProductCategoryOption[]> {
     return this.api
-      .getPage<ProductCategoryOption>('/categories', { pageSize: LOOKUP_PAGE_SIZE })
-      .pipe(map((page) => page.items.filter((category) => category.isActive !== false)));
+      .get<ProductCategoryOption[]>('/categories')
+      .pipe(map((items) => items.filter((category) => category.isActive !== false)));
   }
 
-  /** `GET /brands?pageSize=100` → the options for the brand filter (same rules). */
+  /** `GET /brands` → the options for the brand filter (same rules). */
   brands(): Observable<readonly ProductBrandOption[]> {
     return this.api
-      .getPage<ProductBrandOption>('/brands', { pageSize: LOOKUP_PAGE_SIZE })
-      .pipe(map((page) => page.items.filter((brand) => brand.isActive !== false)));
+      .get<ProductBrandOption[]>('/brands')
+      .pipe(map((items) => items.filter((brand) => brand.isActive !== false)));
   }
 
   /** `GET /products/:id` → the full record, variants and gallery included. */

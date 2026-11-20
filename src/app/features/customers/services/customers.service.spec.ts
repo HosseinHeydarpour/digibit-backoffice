@@ -1,7 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { MOCK_HEADER } from '@core/mock/mock-interceptor';
 import { environment } from '@env/environment';
 import { ApiError } from '@shared/models';
 import { firstValueFrom } from 'rxjs';
@@ -86,7 +85,7 @@ describe('CustomersService (BO-I04)', () => {
         req.params.get('status') === 'active' &&
         req.params.get('page') === '2',
     );
-    expect(request.request.headers.get(MOCK_HEADER)).toBe('1');
+    expect(request.request.method).toBe('GET');
 
     request.flush({
       data: [LIST_ITEM],

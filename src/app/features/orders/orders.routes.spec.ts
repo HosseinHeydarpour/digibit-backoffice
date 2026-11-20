@@ -116,7 +116,7 @@ function setup(): { fixture: ReturnType<typeof TestBed.createComponent<Host>>; r
 
 /** The orders route node as `app.routes.ts` declares it (inside MainLayout). */
 function ordersAppRoute(): Route {
-  const layout = APP_ROUTES.at(0);
+  const layout = APP_ROUTES.find((route) => route.path === '');
   const orders = layout?.children?.find((route) => route.path === 'orders');
   expect(orders, 'orders route exists in app.routes.ts').toBeDefined();
   return orders as Route;

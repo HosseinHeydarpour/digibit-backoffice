@@ -11,11 +11,33 @@ import { HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from '@core/services/api';
 import type { EntityId, Page } from '@shared/models';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import type { Coupon, CouponDeleteResult, CouponInput, CouponQuery } from '../models/coupon.model';
 
 const COUPONS_PATH = '/coupons';
+
+type CouponRaw = Omit<Coupon, 'from' | 'to' | 'createdAt'> & {
+  from: string | number;
+  to: string | number;
+  createdAt: string | number;
+};
+
+function millis(value: string | number): number {
+  return typeof value === 'number' ? value : Date.parse(value) || 0;
+}
+
+function mapCoupon(raw: CouponRaw): Coupon {
+  return { ...raw, from: millis(raw.from), to: millis(raw.to), createdAt: millis(raw.createdAt) };
+}
+
+function toPayload(input: CouponInput): unknown {
+  return {
+    ...input,
+    from: new Date(input.from).toISOString(),
+    to: new Date(input.to).toISOString(),
+  };
+}
 
 /**
  * Serialise the list state into the query string the API expects.
@@ -62,22 +84,28 @@ export class CouponsService {
 
   /** `GET /coupons?query=…&status=…&page=…` → one page of coupons. */
   list(query: CouponQuery = {}): Observable<Page<Coupon>> {
-    return this.api.getPage<Coupon>(COUPONS_PATH, buildCouponQuery(query));
+    return this.api
+      .getPage<CouponRaw>(COUPONS_PATH, buildCouponQuery(query))
+      .pipe(map((page) => ({ ...page, items: page.items.map(mapCoupon) })));
   }
 
   /** `GET /coupons/:id` → one coupon, for the edit dialog. */
   get(id: EntityId): Observable<Coupon> {
-    return this.api.get<Coupon>(`${COUPONS_PATH}/${encodeURIComponent(id)}`);
+    return this.api
+      .get<CouponRaw>(`${COUPONS_PATH}/${encodeURIComponent(id)}`)
+      .pipe(map(mapCoupon));
   }
 
   /** `POST /coupons` → the created row (201). */
   create(input: CouponInput): Observable<Coupon> {
-    return this.api.post<Coupon>(COUPONS_PATH, input);
+    return this.api.post<CouponRaw>(COUPONS_PATH, toPayload(input)).pipe(map(mapCoupon));
   }
 
   /** `PUT /coupons/:id` → the updated row; usage counters stay server-owned. */
   update(id: EntityId, input: CouponInput): Observable<Coupon> {
-    return this.api.put<Coupon>(`${COUPONS_PATH}/${encodeURIComponent(id)}`, input);
+    return this.api
+      .put<CouponRaw>(`${COUPONS_PATH}/${encodeURIComponent(id)}`, toPayload(input))
+      .pipe(map(mapCoupon));
   }
 
   /**
@@ -86,7 +114,14 @@ export class CouponsService {
    * The server decides, because only it knows the redemption count.
    */
   remove(id: EntityId): Observable<CouponDeleteResult> {
-    return this.api.delete<CouponDeleteResult>(`${COUPONS_PATH}/${encodeURIComponent(id)}`);
+    return this.api
+      .delete<{ deleted: boolean; coupon?: CouponRaw }>(`${COUPONS_PATH}/${encodeURIComponent(id)}`)
+      .pipe(
+        map((answer) => ({
+          deleted: answer.deleted,
+          coupon: answer.coupon ? mapCoupon(answer.coupon) : undefined,
+        })),
+      );
   }
 
   /**
@@ -96,6 +131,8 @@ export class CouponsService {
    * exhausted coupon answers 409; the client refuses those before asking too.
    */
   setStatus(id: EntityId, isActive: boolean): Observable<Coupon> {
-    return this.api.patch<Coupon>(`${COUPONS_PATH}/${encodeURIComponent(id)}/status`, { isActive });
+    return this.api
+      .patch<CouponRaw>(`${COUPONS_PATH}/${encodeURIComponent(id)}/status`, { isActive })
+      .pipe(map(mapCoupon));
   }
 }

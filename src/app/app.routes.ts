@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from '@core/guards/auth.guard';
 import { MainLayout } from '@layout/index';
 import { ErrorPage } from '@shared/components/error-page/error-page';
 
@@ -23,9 +24,17 @@ import { ErrorPage } from '@shared/components/error-page/error-page';
  * the error pages and one line per feature.
  */
 export const routes: Routes = [
+  // Outside the shell on purpose: a signed-out visitor must not download the
+  // sidebar, and the page must render even while there is no session.
+  {
+    path: 'login',
+    loadComponent: () => import('@features/auth/login/login').then((m) => m.Login),
+    title: 'ورود',
+  },
   {
     path: '',
     component: MainLayout,
+    canMatch: [authGuard],
     children: [
       // '/' must not stay on the layout itself: the layout node carries no
       // `data.title`, so a bare '/' would show the fallback «پنل مدیریت»

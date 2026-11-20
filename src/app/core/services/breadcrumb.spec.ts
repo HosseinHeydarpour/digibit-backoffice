@@ -2,11 +2,20 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Params, Router, provideRouter } from '@angular/router';
+import { CURRENT_USER } from '@core/auth/current-user.token';
 import { PERMISSIONS } from '@core/auth/permissions.token';
+import type { SessionUser } from '@shared/models/session.model';
 
 import { routes as APP_ROUTES } from '../../app.routes';
 
 import { BreadcrumbService } from './breadcrumb';
+
+const SESSION_USER: SessionUser = {
+  id: 'test',
+  fullName: 'کاربر آزمون',
+  email: null,
+  avatarUrl: null,
+};
 
 @Component({ selector: 'app-blank', template: '' })
 class Blank {}
@@ -157,6 +166,7 @@ describe('BreadcrumbService against the real app routes (integration)', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter(APP_ROUTES),
+        { provide: CURRENT_USER, useValue: signal<SessionUser | null>(SESSION_USER) },
         // The customers profile is the first guarded route; grant the one
         // permission it declares so the real navigation can reach it.
         { provide: PERMISSIONS, useValue: signal(['customers.view']) },
@@ -219,7 +229,7 @@ describe('BreadcrumbService against the real app routes (integration)', () => {
     // chunk, which this file cannot see. The label is pinned by the feature's
     // own spec instead (`dashboard.spec.ts` → "declares both title fields"),
     // and the crumb itself is asserted by the navigation test above.
-    const layout = APP_ROUTES[0];
+    const layout = APP_ROUTES.find((route) => route.path === '')!;
     const children = (layout.children ?? []).filter(
       (r) =>
         r.redirectTo === undefined &&

@@ -5,7 +5,7 @@ import { environment } from '@env/environment';
 
 import { CommentsService } from './comments.service';
 
-const URL = `${environment.API_BASE_URL}/comments`;
+const URL = `${environment.API_BASE_URL}/reviews`;
 
 describe('CommentsService (BO-N05)', () => {
   let service: CommentsService;
@@ -76,16 +76,16 @@ describe('CommentsService (BO-N05)', () => {
     expect(count).toBe(6);
   });
 
-  it('moderate() posts the decision and returns the updated row', () => {
+  it('moderate() patches the decision and returns the updated row', () => {
     let status = '';
 
     service
       .moderate('3', { approved: false, note: 'تبلیغ' })
       .subscribe((row) => (status = row.status));
 
-    const request = http.expectOne(`${URL}/3/moderate`);
+    const request = http.expectOne(`${URL}/3/approve`);
 
-    expect(request.request.method).toBe('POST');
+    expect(request.request.method).toBe('PATCH');
     expect(request.request.body).toEqual({ approved: false, note: 'تبلیغ' });
     request.flush({
       data: { id: '3', status: 'rejected' },

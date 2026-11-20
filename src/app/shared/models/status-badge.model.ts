@@ -23,6 +23,32 @@ export const ORDER_STATUS_META: Record<OrderStatus, { label: string; severity: B
   returned: { label: 'مرجوع شده', severity: 'danger' },
 };
 
+/**
+ * The server's status names for the same seven states.
+ *
+ * The API speaks PascalCase (`PendingPayment`); the panel's union is lowercase.
+ * One table, so the list, the detail, the dashboard widget and any future
+ * screen cannot translate a status differently.
+ */
+export const ORDER_STATUS_API: Readonly<Record<OrderStatus, string>> = {
+  pending: 'PendingPayment',
+  paid: 'Paid',
+  processing: 'Processing',
+  shipped: 'Shipped',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
+  returned: 'Returned',
+};
+
+const ORDER_STATUS_BY_API: Readonly<Record<string, OrderStatus>> = Object.fromEntries(
+  Object.entries(ORDER_STATUS_API).map(([panel, api]) => [api, panel as OrderStatus]),
+);
+
+/** Turns a server status into the panel's lowercase union, with a safe default. */
+export function orderStatusFromApi(value: string): OrderStatus {
+  return ORDER_STATUS_BY_API[value] ?? 'pending';
+}
+
 export const TICKET_STATUS_META: Record<TicketStatus, { label: string; severity: BadgeSeverity }> =
   {
     open: { label: 'باز', severity: 'info' },

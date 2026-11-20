@@ -19,8 +19,9 @@
 import { HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from '@core/services/api';
+import { orderStatusFromApi } from '@shared/models';
 import type { EntityId, Page } from '@shared/models';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import type {
   Customer,
@@ -31,6 +32,14 @@ import type {
 
 const CUSTOMERS_PATH = '/customers';
 const ORDERS_PATH = '/orders';
+
+function millis(value: string | number | null | undefined): number {
+  if (value === null || value === undefined || value === '') {
+    return 0;
+  }
+
+  return typeof value === 'number' ? value : Date.parse(value) || 0;
+}
 
 /** The profile's recent-orders count; the full history stays on `/orders`. */
 export const RECENT_ORDERS_LIMIT = 5;
@@ -98,29 +107,61 @@ export class CustomersService {
 
   /** `GET /customers?query=…&status=…&page=…` → one page of table rows. */
   list(query: CustomerQuery = {}): Observable<Page<CustomerListItem>> {
-    return this.api.getPage<CustomerListItem>(CUSTOMERS_PATH, buildCustomerQuery(query));
+    return this.api
+      .getPage<CustomerListItem & { createdAt: string | number }>(
+        CUSTOMERS_PATH,
+        buildCustomerQuery(query),
+      )
+      .pipe(
+        map((page) => ({
+          ...page,
+          items: page.items.map((row) => ({
+            ...row,
+            createdAt: millis(row.createdAt),
+          })),
+        })),
+      );
   }
 
   /** `GET /customers/:id` → the profile with every address. */
   get(id: EntityId): Observable<Customer> {
-    return this.api.get<Customer>(`${CUSTOMERS_PATH}/${encodeURIComponent(id)}`);
+    return this.api
+      .get<Customer & { createdAt: string | number }>(`${CUSTOMERS_PATH}/${encodeURIComponent(id)}`)
+      .pipe(
+        map((customer) => ({
+          ...customer,
+          createdAt: millis(customer.createdAt),
+        })),
+      );
   }
 
-  /**
-   * The profile's latest orders, newest first.
-   *
-   * `pageSize` is explicit so the profile can ask for five while the list page
-   * keeps its own 10/20/50 choice; the server's `total` is ignored here because
-   * the customer record already carries the full `orderCount`.
-   */
   lastOrders(id: EntityId): Observable<Page<CustomerOrderSummary>> {
-    return this.api.getPage<CustomerOrderSummary>(ORDERS_PATH, {
-      customerId: id,
-      page: 1,
-      pageSize: RECENT_ORDERS_LIMIT,
-      sort: 'createdAt',
-      dir: 'desc',
-    });
+    return this.api
+      .getPage<{
+        id: string;
+        code: string;
+        status: string;
+        total: number;
+        createdAt: string | number;
+      }>(ORDERS_PATH, {
+        customerId: id,
+        page: 1,
+        pageSize: RECENT_ORDERS_LIMIT,
+        sort: 'createdAt',
+        dir: 'desc',
+      })
+      .pipe(
+        map((page) => ({
+          ...page,
+          items: page.items.map((row) => ({
+            id: row.id,
+            code: row.code,
+            status: orderStatusFromApi(row.status),
+            total: row.total,
+            createdAt: millis(row.createdAt),
+          })),
+        })),
+      );
   }
 
   /**

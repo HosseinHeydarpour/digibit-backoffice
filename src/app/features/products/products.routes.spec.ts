@@ -74,7 +74,7 @@ async function goto(
 
 /** The products route node as `app.routes.ts` declares it (inside MainLayout). */
 function productsAppRoute(): Route {
-  const layout = APP_ROUTES.at(0);
+  const layout = APP_ROUTES.find((route) => route.path === '');
   const products = layout?.children?.find((route) => route.path === 'products');
   expect(products, 'products route exists in app.routes.ts').toBeDefined();
   return products as Route;

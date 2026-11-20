@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ErrorState } from '@shared/components/error-state/error-state';
-import { ORDER_STATUS_META } from '@shared/models/status-badge.model';
+import { ORDER_STATUS_META, orderStatusFromApi } from '@shared/models/status-badge.model';
 import type { OrderStatus } from '@shared/models/status-badge.model';
 import { PersianDatePipe } from '@shared/pipes/persian-date.pipe';
 import { PersianDigitsPipe } from '@shared/pipes/persian-digits.pipe';
@@ -138,7 +138,12 @@ export class RecentOrders {
   });
 
   statusLabel(status: OrderStatus): string {
-    return ORDER_STATUS_META[status]?.label ?? status;
+    // The API spells statuses PascalCase; the service normally normalises them,
+    // but a caller that passes one straight through must not leak `Paid` into
+    // a Persian table.
+    const key = ORDER_STATUS_META[status] ? status : orderStatusFromApi(status);
+
+    return ORDER_STATUS_META[key]?.label ?? status;
   }
 
   statusBadgeClass(status: OrderStatus): string {

@@ -37,8 +37,8 @@ class StaticBrandsService implements Pick<
     return of({ ...ROWS[0]!, id, isActive, description: '', createdAt: Date.now() });
   }
 
-  remove(): Observable<number> {
-    return of(0);
+  remove(): Observable<void> {
+    return of(undefined);
   }
 
   create(dto: BrandInput): Observable<Brand> {

@@ -74,7 +74,7 @@ describe('buildQuery (BO-H01)', () => {
 
     expect(params.get('query')).toBe('رضایی');
     expect(params.get('customerId')).toBe('42');
-    expect(params.get('status')).toBe('shipped');
+    expect(params.get('status')).toBe('Shipped');
     expect(params.get('from')).toBe('1728000000000');
     expect(params.get('to')).toBe('1729000000000');
     expect(params.get('page')).toBe('2');

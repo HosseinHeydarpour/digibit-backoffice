@@ -1,24 +1,21 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { LOCALE_ID, signal } from '@angular/core';
+import { LOCALE_ID } from '@angular/core';
 import {
   ApplicationConfig,
+  inject,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
-import { CURRENT_USER } from '@core/auth/current-user.token';
-import { PERMISSIONS } from '@core/auth/permissions.token';
 import { DIGIBIT_PRESET } from '@core/digibit-preset';
+import { authInterceptor } from '@core/interceptors/auth-interceptor';
 import { errorInterceptor } from '@core/interceptors/error-interceptor';
-import { MOCK_SESSION_USER } from '@core/mock/fixtures';
-import { mockInterceptor } from '@core/mock/mock-interceptor';
-import { environment } from '@env/environment';
-import type { SessionUser } from '@shared/models/session.model';
+import { AuthService } from '@core/services/auth';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 
 import { routes } from './app.routes';
-import { MOCK_PERMISSIONS } from './layout/sidebar/menu';
 
 /**
  * Root providers.
@@ -41,33 +38,20 @@ export const appConfig: ApplicationConfig = {
     // built-in Intl implementation, so no registerLocaleData call is needed.
     { provide: LOCALE_ID, useValue: 'fa-IR' },
 
-    // BO-D08 replaces this with the real list from /auth/me. Until then the
-    // token's own default is an empty set, which is the correct secure default
-    // but renders an empty sidebar — so mock mode grants everything to keep
-    // local development usable. Production gets nothing, and therefore a
-    // dashboard-only menu, until D08 lands.
-    ...(environment.useMockApi
-      ? [{ provide: PERMISSIONS, useValue: signal<readonly string[]>(MOCK_PERMISSIONS) }]
-      : []),
-
-    // The topbar's profile dropdown renders only when this signal holds a user,
-    // so the token's `null` default hides the menu entirely. Mock mode supplies
-    // the admin fixture so the shell is complete locally; BO-D03/D04 replace the
-    // provider with the one built from `/auth/me`, and nothing between here and
-    // there changes.
-    ...(environment.useMockApi
-      ? [{ provide: CURRENT_USER, useValue: signal<SessionUser | null>(MOCK_SESSION_USER) }]
-      : []),
+    // Restores the session from the stored tokens before the first navigation,
+    // so `authGuard` sees the signed-in user on a page refresh instead of
+    // bouncing to /login for one frame.
+    provideAppInitializer(() => inject(AuthService).restore()),
 
     provideHttpClient(
       withFetch(),
       withInterceptors([
         // The error interceptor is registered FIRST, which makes it the
-        // outermost handler: whether the failure comes from the mock layer, from
-        // the network, or from a body that is not the envelope it should be, it
-        // passes through here on its way back to the caller. BO-B12.
+        // outermost handler: whether the failure comes from the network or from
+        // a body that is not the envelope it should be, it passes through here
+        // on its way back to the caller. BO-B12.
         errorInterceptor,
-        ...(environment.useMockApi ? [mockInterceptor] : []),
+        authInterceptor,
       ]),
     ),
 

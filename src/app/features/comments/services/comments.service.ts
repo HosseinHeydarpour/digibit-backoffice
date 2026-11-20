@@ -10,42 +10,44 @@ interface ProductLookup {
   readonly name: string;
 }
 
-const COMMENTS_PATH = '/comments';
+type CommentRaw = Omit<Comment, 'createdAt'> & { createdAt: string | number };
+
+const COMMENTS_PATH = '/reviews';
 const LOOKUP_PAGE_SIZE = 100;
 
+function millis(value: string | number): number {
+  return typeof value === 'number' ? value : Date.parse(value) || 0;
+}
+
+function mapComment(raw: CommentRaw): Comment {
+  return { ...raw, createdAt: millis(raw.createdAt) };
+}
+
 /**
- * The comments API (BO-N01..N05).
- *
- * TRACE — `list({ status: 'pending', query: 'ارسال', page: 2 })`:
- *   1. The query is written as `?status=pending&query=ارسال&page=2&pageSize=10`;
- *      empty filters are dropped by `ApiService`.
- *   2. The mock filters by status, product, rating and text, sorts newest
- *      first, then paginates — the same rules the real contract promises.
- *   3. `Page<Comment>` carries the server's `total`, which the page reads for
- *      its pending badge.
- *
- * `moderate` returns the updated row, so the list reconciles the optimistic
- * status with what the server actually stored.
+ * The comments API (BO-N01..N05), backed by the catalogue's `reviews`
+ * endpoints. The form calls them «نظرات»; the server stores a `Review`.
  */
 @Injectable({ providedIn: 'root' })
 export class CommentsService {
   private readonly api = inject(ApiService);
 
   list(query: CommentQuery): Observable<Page<Comment>> {
-    return this.api.getPage<Comment>(COMMENTS_PATH, {
-      status: query.status,
-      productId: query.productId,
-      rating: query.rating,
-      query: query.query.trim(),
-      page: query.page,
-      pageSize: query.pageSize,
-    });
+    return this.api
+      .getPage<CommentRaw>(COMMENTS_PATH, {
+        status: query.status,
+        productId: query.productId,
+        rating: query.rating,
+        query: query.query.trim(),
+        page: query.page,
+        pageSize: query.pageSize,
+      })
+      .pipe(map((page) => ({ ...page, items: page.items.map(mapComment) })));
   }
 
-  /** How many reviews are waiting — the header badge (BO-N01 tc 10). */
+  /** How many reviews are waiting → the header badge (BO-N01 tc 10). */
   pendingCount(): Observable<number> {
     return this.api
-      .getPage<Comment>(COMMENTS_PATH, { status: 'pending', page: 1, pageSize: 1 })
+      .getPage<CommentRaw>(COMMENTS_PATH, { status: 'pending', page: 1, pageSize: 1 })
       .pipe(map((page) => page.total));
   }
 
@@ -59,6 +61,11 @@ export class CommentsService {
   }
 
   moderate(id: string, input: ModerationInput): Observable<Comment> {
-    return this.api.post<Comment>(`${COMMENTS_PATH}/${id}/moderate`, input);
+    return this.api
+      .patch<CommentRaw>(`${COMMENTS_PATH}/${encodeURIComponent(id)}/approve`, {
+        approved: input.approved,
+        note: input.note,
+      })
+      .pipe(map(mapComment));
   }
 }

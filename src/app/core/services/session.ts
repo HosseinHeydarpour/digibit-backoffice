@@ -21,9 +21,9 @@
 // the guard's job, not this service's.
 
 import { Injectable, computed, inject } from '@angular/core';
-import { Router } from '@angular/router';
 import type { CurrentUserSignal } from '@core/auth/current-user.token';
 import { CURRENT_USER } from '@core/auth/current-user.token';
+import { AuthService } from '@core/services/auth';
 import { toInitials } from '@shared/models/session.model';
 
 @Injectable({ providedIn: 'root' })
@@ -35,7 +35,7 @@ export class SessionService {
    */
   private readonly currentUser = inject(CURRENT_USER);
 
-  private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
 
   /**
    * The signed-in user, or `null` when nobody is. Typed as the read-only half
@@ -65,7 +65,6 @@ export class SessionService {
    * during which its "خروج" item could be clicked again.
    */
   logout(): void {
-    this.currentUser.set(null);
-    void this.router.navigateByUrl('/login', { replaceUrl: true });
+    this.auth.logout();
   }
 }

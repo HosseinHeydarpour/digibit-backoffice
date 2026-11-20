@@ -25,7 +25,8 @@
 
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from '@core/services/api';
-import { Observable } from 'rxjs';
+import { orderStatusFromApi } from '@shared/models';
+import { Observable, map } from 'rxjs';
 
 import { LOW_STOCK_THRESHOLD } from '../dashboard.config';
 import type { DashboardLowStockItem, DashboardRecentOrder } from '../models/dashboard.model';
@@ -58,7 +59,20 @@ export class DashboardService {
   }
 
   recentOrders(): Observable<DashboardRecentOrder[]> {
-    return this.api.get<DashboardRecentOrder[]>('/dashboard/recent-orders');
+    return this.api
+      .get<(Omit<DashboardRecentOrder, 'createdAt'> & { createdAt: string | number })[]>(
+        '/dashboard/recent-orders',
+      )
+      .pipe(
+        map((rows) =>
+          rows.map((row) => ({
+            ...row,
+            status: orderStatusFromApi(row.status),
+            createdAt:
+              typeof row.createdAt === 'number' ? row.createdAt : Date.parse(row.createdAt) || 0,
+          })),
+        ),
+      );
   }
 
   /**
