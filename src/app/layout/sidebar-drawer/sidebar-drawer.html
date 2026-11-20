@@ -34,7 +34,7 @@
   `lg:hidden` is belt-and-braces: the hamburger that opens this is itself
   `lg:hidden`, so at desktop width the drawer can never be opened (tc 7).
 -->
-<div #panel tabindex="-1" class="lg:hidden" aria-hidden="true">
+<div #panel tabindex="-1" class="lg:hidden" [attr.aria-hidden]="!isOpen()">
   <div
     class="fixed top-0 start-0 z-50 flex h-full w-[80%] flex-col bg-white shadow-lg transition-transform duration-300 ease-out sm:w-100 dark:bg-background-dark dark:text-white"
     [class.-translate-x-full]="!isOpen()"

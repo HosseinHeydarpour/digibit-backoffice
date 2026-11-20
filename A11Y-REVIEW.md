@@ -20,7 +20,7 @@ Reviewed against the shared kit and the feature pages; the automated axe pass in
 
 ## Open items
 
-- Run axe on the built app (not only Storybook) once a real backend exists.
-- The mobile drawer's pre-existing static `aria-hidden` defect is documented in `AGENTS.md` and
-  still outstanding; it is outside this review's changed files.
+- Run axe on the built app (not only Storybook) now that a real backend exists.
+- ~~The mobile drawer's static `aria-hidden` defect~~ — fixed: the panel now binds
+  `[attr.aria-hidden]="!isOpen()"`, so the open dialog is in the accessibility tree.
 - Real-device screen-reader pass (NVDA/VoiceOver) is still manual.

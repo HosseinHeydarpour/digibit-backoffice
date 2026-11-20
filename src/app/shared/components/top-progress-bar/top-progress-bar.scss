@@ -1,0 +1,47 @@
+.top-progress {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 100;
+  height: 3px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.top-progress--active {
+  opacity: 1;
+}
+
+.top-progress__bar {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--p-primary-color, #3b82f6);
+  transform: translateX(-100%);
+}
+
+.top-progress--active .top-progress__bar {
+  animation: top-progress-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes top-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  50% {
+    transform: translateX(120%);
+  }
+
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .top-progress--active .top-progress__bar {
+    animation-duration: 2.4s;
+  }
+}

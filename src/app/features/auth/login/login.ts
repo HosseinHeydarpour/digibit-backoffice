@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth';
 import { environment } from '@env/environment';
 import { FormField } from '@shared/components/form-field/form-field';
@@ -11,7 +11,14 @@ import { InputText } from 'primeng/inputtext';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, FormField, ButtonDirective, InputText, LoadingDirective],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    FormField,
+    ButtonDirective,
+    InputText,
+    LoadingDirective,
+  ],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })

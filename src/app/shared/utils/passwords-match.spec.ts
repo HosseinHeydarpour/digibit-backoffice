@@ -1,6 +1,6 @@
 import { FormBuilder } from '@angular/forms';
 
-import { passwordsMatch } from './profile-validators';
+import { passwordsMatch } from './passwords-match';
 
 describe('passwordsMatch (BO-D12 tc 2)', () => {
   const fb = new FormBuilder();

@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { environment } from '@env/environment';
 import { ApiError } from '@shared/models';
+import { firstValueFrom } from 'rxjs';
 
 import { ApiService, toHttpParams } from './api';
 
@@ -122,14 +123,28 @@ describe('ApiService', () => {
     expect(error?.isValidation).toBe(true);
   });
 
-  it('maps a network failure (status 0) to ApiError', () => {
-    let error: ApiError | undefined;
-    api.get<Product>('/products/1').subscribe({ error: (e) => (error = e) });
+  it('maps a network failure (status 0) to ApiError after one retry', async () => {
+    vi.useFakeTimers();
+    try {
+      const promise = firstValueFrom(api.get<Product>('/products/1'));
 
-    httpMock.expectOne(`${environment.API_BASE_URL}/products/1`).error(new ProgressEvent('error'));
+      httpMock
+        .expectOne(`${environment.API_BASE_URL}/products/1`)
+        .error(new ProgressEvent('error'));
 
-    expect(error?.code).toBe('NETWORK');
-    expect(error?.status).toBe(0);
+      vi.advanceTimersByTime(800);
+
+      httpMock
+        .expectOne(`${environment.API_BASE_URL}/products/1`)
+        .error(new ProgressEvent('error'));
+
+      const error = await promise.catch((reason: unknown) => reason);
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error).toMatchObject({ code: 'NETWORK', status: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('accepts a flat (non-envelope) response and a flat page', () => {
@@ -167,6 +182,48 @@ describe('ApiService', () => {
     httpMock
       .expectOne(`${environment.API_BASE_URL}/products/1`)
       .flush({ data: { id: '1', name: 'x' } });
+  });
+  it('retries a transient GET once after a short pause (BO-C10)', async () => {
+    vi.useFakeTimers();
+    try {
+      const promise = firstValueFrom(api.get<Product>('/products/1'));
+
+      httpMock
+        .expectOne(`${environment.API_BASE_URL}/products/1`)
+        .flush({ message: 'boom' }, { status: 503, statusText: 'unavailable' });
+
+      vi.advanceTimersByTime(800);
+
+      httpMock.expectOne(`${environment.API_BASE_URL}/products/1`).flush({ id: '1', name: 'x' });
+
+      await expect(promise).resolves.toEqual({ id: '1', name: 'x' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not retry a 4xx (BO-C10)', () => {
+    let error: ApiError | undefined;
+    api.get<Product>('/products/1').subscribe({ error: (e) => (error = e) });
+
+    httpMock
+      .expectOne(`${environment.API_BASE_URL}/products/1`)
+      .flush({ message: 'missing' }, { status: 404, statusText: 'Not Found' });
+
+    httpMock.expectNone(`${environment.API_BASE_URL}/products/1`);
+    expect(error?.status).toBe(404);
+  });
+
+  it('does not retry a mutation (BO-C10)', () => {
+    let error: ApiError | undefined;
+    api.post<Product>('/products', {}).subscribe({ error: (e) => (error = e) });
+
+    httpMock
+      .expectOne(`${environment.API_BASE_URL}/products`)
+      .flush({ message: 'boom' }, { status: 503, statusText: 'unavailable' });
+
+    httpMock.expectNone(`${environment.API_BASE_URL}/products`);
+    expect(error?.status).toBe(503);
   });
 });
 

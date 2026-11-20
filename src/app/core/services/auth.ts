@@ -36,6 +36,11 @@ interface MeResponse {
   readonly permissions: readonly string[];
 }
 
+export interface PasswordResetRequest {
+  readonly message: string;
+  readonly debugToken?: string | null;
+}
+
 /**
  * The single owner of the session: login, the signed-in identity, the grant
  * list and logout.
@@ -114,6 +119,24 @@ export class AuthService {
   changePassword(currentPassword: string, newPassword: string): Observable<void> {
     return this.api
       .post<unknown>('/auth/admin/change-password', { currentPassword, newPassword })
+      .pipe(map(() => undefined));
+  }
+
+  /**
+   * `POST /auth/admin/forgot` (BO-D11).
+   *
+   * The message is deliberately identical whether or not the address exists.
+   * In development the API also returns `debugToken`; the page may offer a
+   * reset link from it, because there is no mailbox in that environment.
+   */
+  requestPasswordReset(email: string): Observable<PasswordResetRequest> {
+    return this.api.post<PasswordResetRequest>('/auth/admin/forgot', { email });
+  }
+
+  /** `POST /auth/admin/reset` with the token the email carried. */
+  resetPassword(email: string, token: string, newPassword: string): Observable<void> {
+    return this.api
+      .post<unknown>('/auth/admin/reset', { email, token, newPassword })
       .pipe(map(() => undefined));
   }
 

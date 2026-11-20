@@ -153,10 +153,17 @@ describe('CustomersService (BO-I04)', () => {
   });
 
   it('turns a network failure into a NETWORK ApiError', async () => {
-    const promise = firstValueFrom(service.get('3'));
+    vi.useFakeTimers();
+    try {
+      const promise = firstValueFrom(service.get('3'));
 
-    http.expectOne(`${environment.API_BASE_URL}/customers/3`).error(new ProgressEvent('error'));
+      http.expectOne(`${environment.API_BASE_URL}/customers/3`).error(new ProgressEvent('error'));
+      vi.advanceTimersByTime(800);
+      http.expectOne(`${environment.API_BASE_URL}/customers/3`).error(new ProgressEvent('error'));
 
-    await expect(promise).rejects.toMatchObject({ code: 'NETWORK', status: 0 });
+      await expect(promise).rejects.toMatchObject({ code: 'NETWORK', status: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -35,6 +35,20 @@ export const routes: Routes = [
     title: 'ورود',
   },
   {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('@features/auth/forgot-password/forgot-password').then((m) => m.ForgotPassword),
+    canMatch: [guestGuard],
+    title: 'بازیابی رمز',
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () =>
+      import('@features/auth/reset-password/reset-password').then((m) => m.ResetPassword),
+    canMatch: [guestGuard],
+    title: 'تعیین رمز جدید',
+  },
+  {
     path: '',
     component: MainLayout,
     children: [

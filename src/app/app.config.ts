@@ -11,6 +11,7 @@ import { provideRouter, withComponentInputBinding, withViewTransitions } from '@
 import { DIGIBIT_PRESET } from '@core/digibit-preset';
 import { authInterceptor } from '@core/interceptors/auth-interceptor';
 import { errorInterceptor } from '@core/interceptors/error-interceptor';
+import { loadingInterceptor } from '@core/interceptors/loading-interceptor';
 import { AuthService } from '@core/services/auth';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
@@ -52,6 +53,7 @@ export const appConfig: ApplicationConfig = {
         // on its way back to the caller. BO-B12.
         errorInterceptor,
         authInterceptor,
+        loadingInterceptor,
       ]),
     ),
 

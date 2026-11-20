@@ -4,8 +4,8 @@ import type { AbstractControl, ValidationErrors } from '@angular/forms';
  * The two password fields must match (BO-D12 tc 2).
  *
  * A group validator, so the mismatch is a property of the pair rather than of
- * either field: clearing the confirmation after a valid entry re-runs it, and
- * editing the new password re-validates the pair without a manual subscription.
+ * either field. It lives in `shared/` because the change-password form and the
+ * reset-password form are in two features and may not import each other.
  */
 export function passwordsMatch(group: AbstractControl): ValidationErrors | null {
   const next = group.get('newPassword')?.value;

@@ -1,0 +1,9 @@
+<div
+  class="top-progress"
+  [class.top-progress--active]="loading.active()"
+  role="progressbar"
+  aria-label="در حال بارگذاری"
+  [attr.aria-hidden]="!loading.active()"
+>
+  <span class="top-progress__bar"></span>
+</div>

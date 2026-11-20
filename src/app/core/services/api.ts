@@ -3,7 +3,35 @@ import { Injectable, inject } from '@angular/core';
 import { environment } from '@env/environment';
 import { ApiError } from '@shared/models';
 import type { ApiResponse, Page } from '@shared/models';
-import { Observable, catchError, map, throwError } from 'rxjs';
+import { Observable, catchError, map, retry, throwError, timeout, timer } from 'rxjs';
+
+/** Every request is bounded; a hung connection must not leave a spinner forever. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
+/** One retry for a transient GET failure, after a short pause. */
+const RETRY_DELAY_MS = 800;
+
+/**
+ * Network down or a gateway/timeout fault; a 4xx is the caller's answer and a
+ * plain 500 is a deterministic server bug, so neither is retried (BO-C10).
+ */
+function isRetryable(error: unknown): boolean {
+  return (
+    error instanceof HttpErrorResponse &&
+    (error.status === 0 || error.status === 502 || error.status === 503 || error.status === 504)
+  );
+}
+
+function retryTransient<T>(source: Observable<T>): Observable<T> {
+  return source.pipe(
+    timeout(REQUEST_TIMEOUT_MS),
+    retry({
+      count: 1,
+      delay: (error: unknown) =>
+        isRetryable(error) ? timer(RETRY_DELAY_MS) : throwError(() => error),
+    }),
+  );
+}
 
 /** Anything HttpParams accepts as a value. */
 export type QueryValue = string | number | boolean | null | undefined;
@@ -33,7 +61,7 @@ export class ApiService {
         params: toHttpParams(params),
         headers: JSON_HEADERS,
       })
-      .pipe(map(unwrap), catchError(throwApiError));
+      .pipe(retryTransient, map(unwrap), catchError(throwApiError));
   }
 
   /** GET a list endpoint and flatten envelope + meta into a `Page<T>`. */
@@ -43,25 +71,25 @@ export class ApiService {
         params: toHttpParams(params),
         headers: JSON_HEADERS,
       })
-      .pipe(map(toPage), catchError(throwApiError));
+      .pipe(retryTransient, map(toPage), catchError(throwApiError));
   }
 
   post<T>(path: string, body: unknown): Observable<T> {
     return this.http
       .post<ApiResponse<T>>(this.url(path), body, { headers: JSON_HEADERS })
-      .pipe(map(unwrap), catchError(throwApiError));
+      .pipe(timeout(REQUEST_TIMEOUT_MS), map(unwrap), catchError(throwApiError));
   }
 
   put<T>(path: string, body: unknown): Observable<T> {
     return this.http
       .put<ApiResponse<T>>(this.url(path), body, { headers: JSON_HEADERS })
-      .pipe(map(unwrap), catchError(throwApiError));
+      .pipe(timeout(REQUEST_TIMEOUT_MS), map(unwrap), catchError(throwApiError));
   }
 
   patch<T>(path: string, body: unknown): Observable<T> {
     return this.http
       .patch<ApiResponse<T>>(this.url(path), body, { headers: JSON_HEADERS })
-      .pipe(map(unwrap), catchError(throwApiError));
+      .pipe(timeout(REQUEST_TIMEOUT_MS), map(unwrap), catchError(throwApiError));
   }
 
   /**
@@ -78,7 +106,7 @@ export class ApiService {
         params: toHttpParams(params),
         headers: JSON_HEADERS,
       })
-      .pipe(map(unwrap), catchError(throwApiError));
+      .pipe(timeout(REQUEST_TIMEOUT_MS), map(unwrap), catchError(throwApiError));
   }
 
   private url(path: string): string {

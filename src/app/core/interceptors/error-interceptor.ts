@@ -45,6 +45,7 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { toApiError } from '@core/services/api';
+import { LoggerService } from '@core/services/logger';
 import { ToastService } from '@core/services/toast';
 import { catchError, throwError } from 'rxjs';
 
@@ -63,10 +64,17 @@ import { catchError, throwError } from 'rxjs';
  */
 export const errorInterceptor: HttpInterceptorFn = (request, next) => {
   const toast = inject(ToastService);
+  const logger = inject(LoggerService);
 
   return next(request).pipe(
     catchError((error: unknown) => {
       const apiError = toApiError(error);
+
+      logger.error('API request failed', {
+        status: apiError.status,
+        code: apiError.code,
+        url: request.url,
+      });
 
       // A 401 is the auth pipeline's business: the interceptor either refreshes
       // the token silently or sends the user to /login. Toasting it here would

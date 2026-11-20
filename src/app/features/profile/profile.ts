@@ -9,10 +9,9 @@ import { FormField } from '@shared/components/form-field/form-field';
 import { PageHeader } from '@shared/components/page-header/page-header';
 import { LoadingDirective } from '@shared/directives/loading.directive';
 import type { ApiError } from '@shared/models';
+import { passwordsMatch } from '@shared/utils/passwords-match';
 import { ButtonDirective } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
-
-import { passwordsMatch } from './profile-validators';
 
 /** The backend rejects a new password shorter than 12 characters. */
 export const MIN_PASSWORD_LENGTH = 12;
