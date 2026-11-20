@@ -233,6 +233,23 @@ describe('ProductsService (BO-F05)', () => {
     await resultPromise;
   });
 
+  it('uploadImage uploads the bytes, then stores the returned URL', async () => {
+    const file = new File(['bytes'], 'cover.png', { type: 'image/png' });
+    const promise = firstValueFrom(service.uploadImage('7', file, 'کاور'));
+
+    const media = httpMock.expectOne(`${environment.API_BASE_URL}/media`);
+    expect(media.request.method).toBe('POST');
+    expect(media.request.body).toBeInstanceOf(FormData);
+    media.flush({ data: { url: '/media/cover.png' } });
+
+    const image = httpMock.expectOne(`${environment.API_BASE_URL}/products/7/images`);
+    expect(image.request.method).toBe('POST');
+    expect(image.request.body).toEqual({ url: '/media/cover.png', alt: 'کاور' });
+    image.flush({ data: { id: 'img-1', url: '/media/cover.png' } });
+
+    await expect(promise).resolves.toMatchObject({ id: 'img-1' });
+  });
+
   it('F03: categories() filters an inactive option out of the array', async () => {
     const resultPromise = firstValueFrom(service.categories());
 

@@ -23,7 +23,7 @@ import { HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from '@core/services/api';
 import type { EntityId, Page } from '@shared/models';
-import { Observable, map } from 'rxjs';
+import { Observable, map, switchMap } from 'rxjs';
 
 import type {
   CreateProductDto,
@@ -164,7 +164,30 @@ export class ProductsService {
       .pipe(map((items) => items.filter((brand) => brand.isActive !== false)));
   }
 
-  /** `GET /products/:id` → the full record, variants and gallery included. */
+  /**
+   * `POST /media` then `POST /products/:id/images` — one gallery row.
+   *
+   * The form keeps a `blob:` preview and the `File` until save; sending the
+   * blob URL would store a link that dies with the tab, so the bytes travel
+   * here and the product stores the URL the media endpoint returns.
+   */
+  uploadImage(productId: EntityId, file: File, alt: string): Observable<unknown> {
+    const body = new FormData();
+    body.append('file', file);
+
+    return this.api.post<{ url: string }>('/media', body).pipe(
+      switchMap((answer) =>
+        this.api.post<unknown>(`${PRODUCTS_PATH}/${encodeURIComponent(productId)}/images`, {
+          url: answer.url,
+          alt,
+        }),
+      ),
+    );
+  }
+
+  /**
+   * `GET /products/:id` → the full record, variants and gallery included.
+   */
   get(id: EntityId): Observable<Product> {
     return this.api.get<Product>(`${PRODUCTS_PATH}/${encodeURIComponent(id)}`);
   }

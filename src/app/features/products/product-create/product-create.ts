@@ -25,7 +25,17 @@ import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
 import type { Observable } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, map, of, switchMap, take } from 'rxjs';
+import {
+  catchError,
+  concat,
+  debounceTime,
+  defaultIfEmpty,
+  distinctUntilChanged,
+  map,
+  of,
+  switchMap,
+  take,
+} from 'rxjs';
 
 import type {
   Product,
@@ -684,6 +694,25 @@ export class ProductCreate {
    * A validation failure is not toasted by the interceptor, which is why tc 3's
    * message is visible exactly once: under the field.
    */
+  /**
+   * Upload the picked gallery files, one by one.
+   *
+   * `imageFiles()` cannot be used here: it drops the alt text that belongs to
+   * the same row. The file itself is the marker of a new image; a row seeded
+   * from the server has a URL and no `File`.
+   */
+  private uploadGalleryFiles(productId: string): Observable<unknown> {
+    const uploads = this.images.controls
+      .map((group) => ({
+        file: group.get('file')?.value,
+        alt: group.get('alt')?.value,
+      }))
+      .filter((row): row is { file: File; alt: string } => row.file instanceof File)
+      .map((row) => this.products.uploadImage(productId, row.file, String(row.alt ?? '')));
+
+    return uploads.length === 0 ? of(null) : concat(...uploads).pipe(defaultIfEmpty(null));
+  }
+
   save(): void {
     if (this.submitting()) {
       return;
@@ -715,38 +744,56 @@ export class ProductCreate {
       ? this.products.update(editing.id, toCreateProductDto(this.form))
       : this.products.create(toCreateProductDto(this.form));
 
-    request.pipe(take(1), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (product) => {
-        this.submitting.set(false);
+    request
+      .pipe(
+        // Blob previews are not URLs the server can store: upload the bytes
+        // after the record exists, then keep the product as the answer. A
+        // failed upload must not turn a successful save into a retry that
+        // creates a duplicate, so it warns and keeps the product.
+        switchMap((product) =>
+          this.uploadGalleryFiles(product.id).pipe(
+            catchError(() => {
+              this.toast.warning('محصول ذخیره شد، اما برخی تصاویر بارگذاری نشدند.');
+              return of(null);
+            }),
+            map(() => product),
+          ),
+        ),
+        take(1),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (product) => {
+          this.submitting.set(false);
 
-        if (editing) {
-          // Stay on the page and make the current values the new baseline: a
-          // second save without changes is legal (tc 10) and leaving the page
-          // must not ask about edits that are already stored (tc 7).
-          this.form.markAsPristine();
-          this.hasChanges.set(false);
-          this.toast.success('محصول به‌روزرسانی شد.');
-          return;
-        }
+          if (editing) {
+            // Stay on the page and make the current values the new baseline: a
+            // second save without changes is legal (tc 10) and leaving the page
+            // must not ask about edits that are already stored (tc 7).
+            this.form.markAsPristine();
+            this.hasChanges.set(false);
+            this.toast.success('محصول به‌روزرسانی شد.');
+            return;
+          }
 
-        this.saved.set(true);
-        this.toast.success('محصول با موفقیت ایجاد شد.');
-        void this.router.navigate(['/products', product.id, 'edit']);
-      },
-      error: (error: unknown) => {
-        this.submitting.set(false);
+          this.saved.set(true);
+          this.toast.success('محصول با موفقیت ایجاد شد.');
+          void this.router.navigate(['/products', product.id, 'edit']);
+        },
+        error: (error: unknown) => {
+          this.submitting.set(false);
 
-        if (error instanceof ApiError && error.isValidation) {
-          this.applyServerErrors(error.fields);
-          this.saveError.set(error.message);
-          this.activeTab.set(this.tabOwningField(error.fields));
+          if (error instanceof ApiError && error.isValidation) {
+            this.applyServerErrors(error.fields);
+            this.saveError.set(error.message);
+            this.activeTab.set(this.tabOwningField(error.fields));
 
-          return;
-        }
+            return;
+          }
 
-        this.saveError.set('ارسال محصول ناموفق بود. اتصال خود را بررسی و دوباره تلاش کنید.');
-      },
-    });
+          this.saveError.set('ارسال محصول ناموفق بود. اتصال خود را بررسی و دوباره تلاش کنید.');
+        },
+      });
   }
 
   /**
