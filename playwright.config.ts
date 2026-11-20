@@ -1,15 +1,19 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const AUTH_FILE = 'e2e/.auth/admin.json';
+
 /**
  * Playwright (BO-P06).
  *
- * The dev server is started by the test run, so `npx playwright test` is the
- * whole command. The mock backend is in-memory, so every run starts from the
- * same fixtures; the e2e specs also reload their own fixtures rather than
- * depending on state left by another test.
+ * The Angular dev server is started here; the real API is not, because it is a
+ * separate repository and its working state belongs to whoever is running it.
+ * `globalSetup` checks `localhost:5072` and fails with the exact command. The
+ * setup project logs in once and saves the admin storageState for every spec;
+ * `login.spec.ts` clears it to test the form itself.
  */
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 2 : 0,
@@ -27,5 +31,15 @@ export default defineConfig({
     reuseExistingServer: !process.env['CI'],
     timeout: 120_000,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+    },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], storageState: AUTH_FILE },
+      dependencies: ['setup'],
+    },
+  ],
 });

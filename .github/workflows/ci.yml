@@ -31,6 +31,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The panel is no longer mock-backed; e2e talks to the real API.
+      - uses: actions/checkout@v4
+        with:
+          repository: HosseinHeydarpour/digibit-backend
+          path: backend
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Start API
+        run: |
+          cd backend/src/Digibit.Api
+          ASPNETCORE_ENVIRONMENT=Development \
+          Database__Provider=sqlite \
+          ConnectionStrings__Default="Data Source=$RUNNER_TEMP/digibit-e2e.db" \
+          dotnet run --urls http://localhost:5072 &
+          for i in $(seq 1 60); do
+            if curl -fs http://localhost:5072/health/live >/dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not start"
+          exit 1
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24

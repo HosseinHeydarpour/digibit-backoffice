@@ -1,12 +1,19 @@
 import { expect, test } from '@playwright/test';
 
+import { adminToken, ensureCategory } from './support/api';
+
 /**
- * Create-product flow (BO-P08).
+ * Create-product flow (BO-P08), against the real API.
  *
- * The mock backend is in-memory, so the product exists for this run only; a
- * reload resets it. That is exactly what makes the test repeatable without a
- * cleanup request.
+ * The category lookup is seeded once because a fresh database has no option to
+ * choose, and the wizard cannot leave the main tab without one. The product is
+ * created with a timestamped name/slug, so consecutive runs never collide.
  */
+test.beforeAll(async ({ request }) => {
+  const token = await adminToken(request);
+  await ensureCategory(request, token);
+});
+
 test('creates a product and opens its edit page', async ({ page }) => {
   const name = `گوشی تست ${Date.now()}`;
 
